@@ -1,0 +1,251 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  MultiSims USA tokens.
+  Colours come from the client's MSU logo: deep plum carries primary actions, selection
+  and links; copper is reserved for the logo tagline and small details. Neutrals are a
+  faint lavender-grey, like the logo's background. Shape rule: controls rounded-md, cards and dialogs
+  rounded-xl, tags and switches full. The SIM cut corner (.sim-cut) is reserved for
+  day-package tiles and the product-type marks.
+*/
+
+@theme inline {
+  --font-heading: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-canvas: var(--canvas);
+  --color-copper: var(--copper);
+  --color-copper-ink: var(--copper-ink);
+  --font-logo: var(--font-logo);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-pop: 0 1px 2px rgb(20 20 18 / 0.04), 0 12px 32px -12px rgb(20 20 18 / 0.1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* From the MSU logo: deep plum primary, copper secondary, lavender-grey ground. */
+  --background: oklch(0.992 0.002 300);
+  --canvas: oklch(0.972 0.005 295);
+  --foreground: oklch(0.22 0.025 322);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.025 322);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.025 322);
+  --primary: oklch(0.25 0.097 324);
+  --primary-foreground: oklch(0.985 0.003 300);
+  --secondary: oklch(0.962 0.006 300);
+  --secondary-foreground: oklch(0.22 0.025 322);
+  --muted: oklch(0.962 0.006 300);
+  --muted-foreground: oklch(0.49 0.018 315);
+  --accent: oklch(0.952 0.008 310);
+  --accent-foreground: oklch(0.22 0.025 322);
+  --destructive: oklch(0.55 0.19 27);
+  --border: oklch(0.912 0.007 300);
+  --input: oklch(0.875 0.009 300);
+  --ring: oklch(0.45 0.12 324);
+
+  --brand: oklch(0.25 0.097 324);
+  --brand-foreground: oklch(0.985 0.003 300);
+  --brand-soft: oklch(0.948 0.022 324);
+  --brand-ink: oklch(0.3 0.1 324);
+  --copper: oklch(0.61 0.066 61);
+  --copper-ink: oklch(0.53 0.069 58);
+  --success-soft: oklch(0.955 0.02 145);
+  --success-ink: oklch(0.42 0.09 145);
+  --warning-soft: oklch(0.965 0.035 80);
+  --warning-ink: oklch(0.47 0.09 65);
+  --danger-soft: oklch(0.955 0.025 20);
+  --danger-ink: oklch(0.47 0.14 25);
+
+  /* Chart steps derived from the logo, validated with the dataviz validator (light, on card). */
+  --chart-1: #78377c;
+  --chart-2: #b87436;
+  --chart-3: oklch(0.49 0.018 315);
+  --chart-4: oklch(0.7 0.01 300);
+  --chart-5: oklch(0.85 0.006 300);
+  --sidebar: oklch(0.975 0.004 300);
+  --sidebar-foreground: oklch(0.22 0.025 322);
+  --sidebar-primary: oklch(0.25 0.097 324);
+  --sidebar-primary-foreground: oklch(0.985 0.003 300);
+  --sidebar-accent: oklch(0.94 0.012 320);
+  --sidebar-accent-foreground: oklch(0.25 0.097 324);
+  --sidebar-border: oklch(0.912 0.007 300);
+  --sidebar-ring: oklch(0.45 0.12 324);
+}
+
+.dark {
+  --background: oklch(0.17 0.012 320);
+  --canvas: oklch(0.15 0.012 320);
+  --foreground: oklch(0.955 0.006 310);
+  --card: oklch(0.205 0.014 320);
+  --card-foreground: oklch(0.955 0.006 310);
+  --popover: oklch(0.215 0.014 320);
+  --popover-foreground: oklch(0.955 0.006 310);
+  --primary: oklch(0.82 0.08 330);
+  --primary-foreground: oklch(0.2 0.06 324);
+  --secondary: oklch(0.245 0.014 320);
+  --secondary-foreground: oklch(0.955 0.006 310);
+  --muted: oklch(0.235 0.014 320);
+  --muted-foreground: oklch(0.72 0.014 310);
+  --accent: oklch(0.26 0.018 320);
+  --accent-foreground: oklch(0.955 0.006 310);
+  --destructive: oklch(0.68 0.17 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.75 0.1 330);
+
+  --brand: oklch(0.82 0.08 330);
+  --brand-foreground: oklch(0.2 0.06 324);
+  --brand-soft: oklch(0.27 0.05 324);
+  --brand-ink: oklch(0.86 0.07 330);
+  --copper: oklch(0.74 0.07 62);
+  --copper-ink: oklch(0.78 0.07 62);
+  --success-soft: oklch(0.27 0.04 145);
+  --success-ink: oklch(0.82 0.1 145);
+  --warning-soft: oklch(0.29 0.05 75);
+  --warning-ink: oklch(0.86 0.09 80);
+  --danger-soft: oklch(0.28 0.06 25);
+  --danger-ink: oklch(0.82 0.1 25);
+
+  /* Dark steps, validated separately against the dark card surface. */
+  --chart-1: #b86db1;
+  --chart-2: #c48141;
+  --chart-3: oklch(0.72 0.014 310);
+  --chart-4: oklch(0.5 0.012 310);
+  --chart-5: oklch(0.35 0.01 310);
+  --sidebar: oklch(0.15 0.012 320);
+  --sidebar-foreground: oklch(0.955 0.006 310);
+  --sidebar-primary: oklch(0.82 0.08 330);
+  --sidebar-primary-foreground: oklch(0.2 0.06 324);
+  --sidebar-accent: oklch(0.24 0.022 324);
+  --sidebar-accent-foreground: oklch(0.955 0.006 310);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.75 0.1 330);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    accent-color: var(--brand);
+    caret-color: var(--brand);
+    scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground;
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--brand) 22%, transparent);
+    color: var(--foreground);
+  }
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  /* The SIM card's cut corner. Filled surfaces only: clip-path also clips borders. */
+  .sim-cut {
+    clip-path: polygon(0 0, calc(100% - var(--sim-cut, 14px)) 0, 100% var(--sim-cut, 14px), 100% 100%, 0 100%);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Quiet scroll-entry reveal, no JavaScript. Content stays visible without support. */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .reveal {
+        animation: reveal-in linear both;
+        animation-timeline: view();
+        animation-range: entry 0% entry 40%;
+      }
+    }
+  }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
