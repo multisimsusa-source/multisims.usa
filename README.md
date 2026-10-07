@@ -1,4 +1,4 @@
-# MultiSims USA
+.# MultiSims USA
 
 US SIM card and eSIM storefront with admin, agent and dealer portals. Next.js 16 (App Router, Cache Components), Supabase, shadcn/ui + Tailwind v4.
 
