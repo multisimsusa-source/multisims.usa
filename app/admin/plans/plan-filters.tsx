@@ -61,7 +61,7 @@ export function PlanFilters({ carriers, carrier, type, query }: Props) {
           onChange={(e) => setText(e.target.value)}
           placeholder="Search plans by name"
           aria-label="Search plans"
-          className="h-10 bg-background pr-9 pl-9 [&::-webkit-search-cancel-button]:hidden"
+          className="bg-background pr-9 pl-9 [&::-webkit-search-cancel-button]:hidden"
         />
         {text ? (
           <button
@@ -75,7 +75,7 @@ export function PlanFilters({ carriers, carrier, type, query }: Props) {
         ) : null}
       </div>
       <Select items={carrierItems} value={carrier || ALL} onValueChange={(v) => apply({ carrier: String(v ?? ALL) })}>
-        <SelectTrigger aria-label="Filter by carrier" className="h-10 w-full bg-background sm:w-48">
+        <SelectTrigger aria-label="Filter by carrier" className="w-full bg-background sm:w-48">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -87,7 +87,7 @@ export function PlanFilters({ carriers, carrier, type, query }: Props) {
         </SelectContent>
       </Select>
       <Select items={typeItems} value={type || ALL} onValueChange={(v) => apply({ type: String(v ?? ALL) })}>
-        <SelectTrigger aria-label="Filter by product" className="h-10 w-full bg-background sm:w-44">
+        <SelectTrigger aria-label="Filter by product" className="w-full bg-background sm:w-44">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

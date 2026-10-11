@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { Notice } from "@/components/patterns/notice"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -22,19 +23,19 @@ export function LoginForm({ next }: { next?: string }) {
           autoComplete="username"
           required
           defaultValue={state.email}
-          className="h-11"
+         
         />
       </Field>
       <Field>
         <FieldLabel htmlFor="password">Password</FieldLabel>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required className="h-11" />
+        <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
       {state.error ? (
-        <p role="alert" className="rounded-md bg-danger-soft px-4 py-3 text-sm text-danger-ink">
+        <Notice tone="danger" icon={false}>
           {state.error}
-        </p>
+        </Notice>
       ) : null}
-      <Button type="submit" size="lg" disabled={pending} className="h-11 w-full text-base">
+      <Button type="submit" size="lg" disabled={pending} className="w-full text-base">
         {pending ? "Signing in..." : "Sign in"}
       </Button>
     </form>

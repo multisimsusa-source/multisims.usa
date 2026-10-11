@@ -15,7 +15,7 @@ export function DeletePlan({ id, name }: { id: string; name: string }) {
       </div>
       <ConfirmAction
         trigger={
-          <Button variant="destructive" className="h-10">
+          <Button variant="destructive" size="lg">
             <TrashIcon data-icon="inline-start" />
             Delete plan
           </Button>

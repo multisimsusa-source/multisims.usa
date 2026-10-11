@@ -84,15 +84,15 @@ function PackageRow({ pkg }: { pkg: DayPackage }) {
     >
       <label>
         <span className="sr-only">Days</span>
-        <Input name="days" type="number" min={1} max={365} defaultValue={pkg.days} className="h-10 font-mono tabular" />
+        <Input name="days" type="number" min={1} max={365} defaultValue={pkg.days} className="font-mono tabular" />
       </label>
       <label>
         <span className="sr-only">Price in USD</span>
-        <Input name="price" inputMode="decimal" defaultValue={centsToInput(pkg.price_cents)} className="h-10 font-mono tabular" />
+        <Input name="price" inputMode="decimal" defaultValue={centsToInput(pkg.price_cents)} className="font-mono tabular" />
       </label>
       <label>
         <span className="sr-only">Wholesale price in USD</span>
-        <Input name="wholesale_price" inputMode="decimal" defaultValue={centsToInput(pkg.wholesale_price_cents)} placeholder="Not set" className="h-10 font-mono tabular" />
+        <Input name="wholesale_price" inputMode="decimal" defaultValue={centsToInput(pkg.wholesale_price_cents)} placeholder="Not set" className="font-mono tabular" />
       </label>
       <div className="col-span-3 flex items-center justify-end gap-1 sm:col-span-1 sm:w-[9.5rem]">
         <span className={pkg.active ? "mr-auto text-xs text-muted-foreground sm:hidden" : "mr-auto text-xs text-warning-ink sm:hidden"}>
@@ -105,7 +105,7 @@ function PackageRow({ pkg }: { pkg: DayPackage }) {
           onCheckedChange={(checked) => run(() => setDayPackageActive(pkg.id, checked))}
           className="mr-1"
         />
-        <Button type="submit" variant={dirty ? "default" : "ghost"} size="sm" disabled={!dirty || pending} className="h-9 w-14">
+        <Button type="submit" variant={dirty ? "default" : "ghost"} disabled={!dirty || pending} className="w-14">
           Save
         </Button>
         <ConfirmAction
@@ -165,18 +165,18 @@ function AddPackage({ planId, used }: { planId: string; used: Set<number> }) {
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[6rem_1fr_1fr_auto]">
         <label className="col-span-2 sm:col-span-1">
           <span className="mb-1 block text-xs text-muted-foreground">Days</span>
-          <Input ref={daysRef} name="days" type="number" min={1} max={365} required className="h-10 bg-background font-mono tabular" />
+          <Input ref={daysRef} name="days" type="number" min={1} max={365} required className="bg-background font-mono tabular" />
         </label>
         <label>
           <span className="mb-1 block text-xs text-muted-foreground">Price (USD)</span>
-          <Input ref={priceRef} name="price" inputMode="decimal" required placeholder="24.00" className="h-10 bg-background font-mono tabular" />
+          <Input ref={priceRef} name="price" inputMode="decimal" required placeholder="24.00" className="bg-background font-mono tabular" />
         </label>
         <label>
           <span className="mb-1 block text-xs text-muted-foreground">Wholesale (USD)</span>
-          <Input name="wholesale_price" inputMode="decimal" placeholder="Optional" className="h-10 bg-background font-mono tabular" />
+          <Input name="wholesale_price" inputMode="decimal" placeholder="Optional" className="bg-background font-mono tabular" />
         </label>
         <div className="col-span-2 flex items-end sm:col-span-1 sm:w-[9.5rem]">
-          <Button type="submit" disabled={pending} className="h-10 w-full">
+          <Button type="submit" size="lg" disabled={pending} className="w-full">
             <PlusIcon weight="bold" data-icon="inline-start" />
             Add
           </Button>

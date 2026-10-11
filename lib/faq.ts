@@ -20,7 +20,7 @@ export const faqs: Faq[] = [
   },
   {
     q: "What do I need to give at checkout?",
-    a: "Your name, email, phone number, quantity, ZIP code and the area code you would like. We ask for both because one ZIP code can cover several area codes. For SIM cards we also need a delivery address. We never ask for a passport.",
+    a: "Your name, email, phone number, quantity, ZIP code and the area code you would like. We ask for both because one ZIP code can cover several area codes. If the area code you ask for is not available, you get the nearest one. For SIM cards we also need a delivery address. We never ask for a passport.",
   },
   {
     q: "Can I call numbers outside the US?",

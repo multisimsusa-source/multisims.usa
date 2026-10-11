@@ -3,7 +3,21 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CellTowerIcon, PlusSquareIcon, SquaresFourIcon, TagIcon, type Icon } from "@phosphor-icons/react"
+import {
+  AddressBookIcon,
+  CellTowerIcon,
+  GearSixIcon,
+  LifebuoyIcon,
+  ListChecksIcon,
+  MagnifyingGlassIcon,
+  PaletteIcon,
+  PlusSquareIcon,
+  ReceiptIcon,
+  SquaresFourIcon,
+  TagIcon,
+  UsersThreeIcon,
+  type Icon,
+} from "@phosphor-icons/react"
 
 import {
   Sidebar,
@@ -22,22 +36,67 @@ import {
 import { Wordmark } from "@/components/site/wordmark"
 
 type NavItem = { href: string; label: string; Icon: Icon; exact?: boolean }
+type NavGroup = { label?: string; items: NavItem[] }
+export type PortalVariant = "admin" | "agent"
 
-const overview: NavItem = { href: "/admin", label: "Overview", Icon: SquaresFourIcon, exact: true }
-const catalogue: NavItem[] = [
-  { href: "/admin/carriers", label: "Carriers", Icon: CellTowerIcon },
-  { href: "/admin/plans", label: "Plans", Icon: TagIcon },
-  { href: "/admin/addons", label: "Add-ons", Icon: PlusSquareIcon },
-]
+const navs: Record<PortalVariant, { home: string; label: string; groups: NavGroup[] }> = {
+  admin: {
+    home: "/admin",
+    label: "MultiSims USA admin",
+    groups: [
+      { items: [{ href: "/admin", label: "Overview", Icon: SquaresFourIcon, exact: true }] },
+      {
+        label: "Orders",
+        items: [
+          { href: "/admin/orders", label: "Orders", Icon: ReceiptIcon },
+          { href: "/agent", label: "Agent queue", Icon: ListChecksIcon, exact: true },
+          { href: "/admin/tickets", label: "Tickets", Icon: LifebuoyIcon },
+          { href: "/admin/activations", label: "Activations", Icon: MagnifyingGlassIcon },
+          { href: "/admin/customers", label: "Customers", Icon: AddressBookIcon },
+        ],
+      },
+      {
+        label: "Catalogue",
+        items: [
+          { href: "/admin/carriers", label: "Carriers", Icon: CellTowerIcon },
+          { href: "/admin/plans", label: "Plans", Icon: TagIcon },
+          { href: "/admin/addons", label: "Add-ons", Icon: PlusSquareIcon },
+        ],
+      },
+      {
+        label: "Team",
+        items: [
+          { href: "/admin/agents", label: "Agents", Icon: UsersThreeIcon },
+          { href: "/admin/settings", label: "Settings", Icon: GearSixIcon },
+          { href: "/admin/design", label: "Design system", Icon: PaletteIcon },
+        ],
+      },
+    ],
+  },
+  agent: {
+    home: "/agent",
+    label: "MultiSims USA agent portal",
+    groups: [
+      {
+        items: [
+          { href: "/agent", label: "Queue", Icon: ListChecksIcon, exact: true },
+          { href: "/agent/orders", label: "Orders", Icon: ReceiptIcon },
+          { href: "/agent/tickets", label: "Tickets", Icon: LifebuoyIcon },
+        ],
+      },
+    ],
+  },
+}
 
-export function AdminSidebar({ footer }: { footer: React.ReactNode }) {
+export function AdminSidebar({ footer, variant = "admin" }: { footer: React.ReactNode; variant?: PortalVariant }) {
+  const nav = navs[variant]
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-16 justify-center px-3 group-data-[collapsible=icon]:px-2">
-        <Wordmark href="/admin" className="items-start group-data-[collapsible=icon]:hidden" />
+        <Wordmark href={nav.home} className="items-start group-data-[collapsible=icon]:hidden" />
         <Link
-          href="/admin"
-          aria-label="MultiSims USA admin"
+          href={nav.home}
+          aria-label={nav.label}
           className="hidden size-8 items-center justify-center rounded-md bg-primary font-logo text-[11px] font-extrabold tracking-wide text-primary-foreground group-data-[collapsible=icon]:flex"
         >
           MSU
@@ -46,8 +105,8 @@ export function AdminSidebar({ footer }: { footer: React.ReactNode }) {
 
       <SidebarContent>
         {/* Pathname is request data: links render first, the active state streams in. */}
-        <React.Suspense fallback={<Nav pathname={null} />}>
-          <ActiveNav />
+        <React.Suspense fallback={<Nav groups={nav.groups} pathname={null} />}>
+          <ActiveNav groups={nav.groups} />
         </React.Suspense>
       </SidebarContent>
 
@@ -57,30 +116,25 @@ export function AdminSidebar({ footer }: { footer: React.ReactNode }) {
   )
 }
 
-function ActiveNav() {
-  return <Nav pathname={usePathname()} />
+function ActiveNav({ groups }: { groups: NavGroup[] }) {
+  return <Nav groups={groups} pathname={usePathname()} />
 }
 
-function Nav({ pathname }: { pathname: string | null }) {
+function Nav({ groups, pathname }: { groups: NavGroup[]; pathname: string | null }) {
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <NavLink item={overview} pathname={pathname} />
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-      <SidebarGroup>
-        <SidebarGroupLabel>Catalogue</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {catalogue.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {groups.map((group, i) => (
+        <SidebarGroup key={group.label ?? i}>
+          {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
     </>
   )
 }

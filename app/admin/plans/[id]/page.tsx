@@ -5,7 +5,8 @@ import { notFound } from "next/navigation"
 import { ArrowLeftIcon, ArrowSquareOutIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
-import { AdminPageHeader, StatusTag } from "@/components/admin/page-header"
+import { AdminPageHeader } from "@/components/admin/page-header"
+import { Tag } from "@/components/patterns/tag"
 import { FormSkeleton } from "@/components/admin/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAdminPlan, hiddenReason, listCarriers } from "@/lib/admin/queries"
@@ -67,7 +68,7 @@ async function PlanEditor({ params }: Pick<PageProps<"/admin/plans/[id]">, "para
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
             {plan.carrier.name} {productTypeLabel[plan.product_type]}
-            <StatusTag tone={reason ? "hidden" : "live"}>{reason ?? "Live on website"}</StatusTag>
+            <Tag tone={reason ? "warning" : "success"}>{reason ?? "Live on website"}</Tag>
           </span>
         }
         actions={

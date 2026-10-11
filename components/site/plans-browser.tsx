@@ -163,7 +163,7 @@ export function PlansBrowser({ type, carrier, sort, total, typeCounts, carriers,
 
 function FilterTrigger({ label, ariaLabel, className }: { label: string; ariaLabel: string; className?: string }) {
   return (
-    <SelectTrigger aria-label={ariaLabel} className={cn("w-full min-w-0 gap-2 data-[size=default]:h-11 sm:w-auto sm:min-w-44", className)}>
+    <SelectTrigger aria-label={ariaLabel} className={cn("w-full min-w-0 gap-2 sm:w-auto sm:min-w-44", className)}>
       <span className="text-muted-foreground">{label}</span>
       <SelectValue className="flex-1 text-left font-medium" />
     </SelectTrigger>

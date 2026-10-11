@@ -27,6 +27,14 @@ export async function getSessionProfile(): Promise<Profile | null> {
   return data as Profile
 }
 
+/** Agent portal gate: agents, and the owner stepping in. */
+export async function requireStaff(): Promise<Profile> {
+  const profile = await getSessionProfile()
+  if (!profile) redirect("/portal/login")
+  if (profile.role !== "agent" && profile.role !== "admin") redirect(roleHome[profile.role])
+  return profile
+}
+
 /** Gate a portal page or action to one role. Redirects instead of rendering. */
 export async function requireRole(role: UserRole): Promise<Profile> {
   const profile = await getSessionProfile()

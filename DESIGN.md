@@ -1,96 +1,293 @@
-# Design
+# MultiSims USA Design System
 
-Recorded from the built Milestone 1 surfaces (public site, portal login, admin catalogue). Describes what exists; change it when the UI changes.
+The rulebook for every screen in this codebase: public site, checkout and order pages, admin portal, agent portal, and the dealer portal to come. It is binding. New UI is built from the tokens and components below; anything the system does not cover is added to the system first (see "Growing the system"), never improvised on one screen.
 
-## World
+- **Live reference:** `/admin/design` renders every token and shared component in the current theme. If this file and that page disagree, the code is right and this file gets fixed.
+- **Enforcement:** `bun run lint` runs ESLint and `scripts/check-design.mjs`, which fails on hard-coded colours, palette colours, heavy shadows, gradients, Lucide, native selects, dashes, emoji and hand-set control heights.
+- **Precedence when guidance conflicts:** the developer brief and PRODUCT.md (including the client's logo colours), then accessibility (WCAG AA, target sizes), then this file, then the skills (`/minimalist-ui`, `/ui-ux-pro-max`, `/impeccable`).
 
-The client's MSU logo sets the identity: a deep plum Didone monogram over copper tracked capitals, on a faint lavender-grey ground. Around it the site is minimalist and flat: hairline borders, crisp radii, no heavy shadows, no gradients except one very soft plum wash behind the home hero. One signature shape, the SIM card's cut corner, appears only on day-package tiles and product-type marks.
+## How to do any UI task
 
-Photography carries the travel story the flat UI does not: arriving in the US with a phone that already works. Real US places and real phones, never destinations abroad. Photos are self-hosted in `public/images/` (Unsplash License, credits in `docs/IMAGE_CREDITS.md`), served through `next/image` (AVIF/WebP, blur placeholder), `rounded-xl`, dimmed to 90% in dark mode. Text over a photo always sits on a plum-black scrim (`oklch(0.15-0.17 0.04-0.05 324)`), never on the raw image.
+1. Read this file and open `/admin/design`.
+2. Find the closest existing screen and the patterns it uses. Reuse them; match its spacing, wording and behaviour.
+3. Build with tokens and shared components only. If you need something new, add it to the system (token, pattern, or primitive variant) and to `/admin/design` in the same change.
+4. Check phone (375px) first, then desktop, in light and dark.
+5. Run `bun run lint` (includes the design check) and `bun run typecheck`, then the impeccable detector on changed UI: `node ~/.claude/skills/impeccable/scripts/detect.mjs --json <files>`.
+6. Go through the review checklist at the end of this file.
 
-Home page order (Persuade), each section earning a different job:
-1. **Hero stage:** on desktop one rounded photo stage (Statue of Liberty from an aircraft window), headline and buttons in white over the dark window frame with a left scrim, live plan picker floating bottom-right (the one floating card, so it alone carries `shadow-pop`). On phones the offer sits on the page, then the photo, then the picker overlapping it.
-2. **Partner strip:** label left, carrier logos as one-ink silhouettes, colour on hover.
-3. **A real US line:** a 6-column bento. Photo cells (cab on a New York avenue, cafe hotspot, call at a desk) with text below; one brand-soft cell listing the live package lengths as SIM-cut chips. Copy is drawn from the catalogue (lengths, add-on price), never invented.
-4. **Two ways to get a US number:** eSIM and SIM card panels, photo on top, product mark half over the photo edge.
-5. **Will my phone work?:** photo of a phone in hand beside an iPhone/Android check (hairline-split panels, copper-ink step numbers) and the `*#06#` EID tip in a `<kbd>`.
-6. **Plans:** grid from `sm`; on phones a swipe row (84% cards, snap) so six cards do not stack.
-7. **Match the days to your trip:** four 3:4 photo cards (city break, beach, road trip, study) with a bottom scrim and white text, gentle 1.03 zoom on hover (off with reduced motion).
-8. **From checkout to signal:** airport photo beside the numbered steps.
-9. **Dealers:** shop-counter photo beside wholesale points and a contact button.
-10. **FAQ**, then 11. **Closing band** (San Francisco at dusk under the plum scrim).
+---
 
-Surfaces alternate page and `bg-canvas` with hairline borders, so the long page keeps a rhythm without cards on cards.
+## 1. Principles
 
-## Colour (tokens in `app/globals.css`)
+1. **Fast and plain, like a good boarding pass.** A traveller on a phone should find, buy and install a US line in a few taps. Every element earns its place; when in doubt, remove it.
+2. **Flat and quiet.** Hairline borders, crisp radii, no shadows on surfaces, no gradients except photo scrims and the one soft hero wash. Plum is the only saturated colour on screen.
+3. **One primary action per area.** The plum button is the next step. Everything else is outline, ghost or a link.
+4. **State is always visible, in words.** Tags, notices and trackers say what is happening. Colour supports the words, never replaces them.
+5. **Invisible manual fulfilment.** Customers only ever see Processing, Delivered, Shipped (and Cancelled). No wording, state or timing may suggest a person fills orders.
+6. **Honest.** No fake reviews, invented numbers, false urgency or placeholder text that looks like real data. Dummy prices look dummy.
 
-| Role | Light | Dark | Use |
-|---|---|---|---|
-| `--brand` / `--primary` | plum `oklch(0.25 0.097 324)` (#36093A) | mauve `oklch(0.82 0.08 330)` | primary buttons, selected tiles and chips, switches, links, logo monogram |
-| `--brand-soft` | `oklch(0.948 0.022 324)` | `oklch(0.27 0.05 324)` | eSIM badge and panel, hero wash |
-| `--copper` | `oklch(0.61 0.066 61)` (#A07A5A) | `oklch(0.74 0.07 62)` | logo tagline, SIM card mark. Large or graphic use only (3.9:1) |
-| `--copper-ink` | `oklch(0.53 0.069 58)` | `oklch(0.78 0.07 62)` | copper text at body sizes (5.4:1) |
-| `--background` / `--canvas` | lavender-white / lavender-grey | plum-black | page / banded sections and admin ground |
-| `--foreground` | plum-tinted near-black | near-white | text |
-| `--muted-foreground` | `oklch(0.49 0.018 315)` | `oklch(0.72 0.014 310)` | secondary text (AA on both grounds) |
-| success / warning / danger `-soft` + `-ink` | pale pastel + dark ink | dark tint + light ink | status tags, inline alerts |
+---
 
-Strategy: restrained. Plum is the only saturated colour on screen; copper never carries an action.
+## 2. Foundations
 
-## Type
+### Colour
 
-- **Logo only:** Bodoni Moda (`--font-logo`, opsz 24) setting the MSU lockup (`components/site/wordmark.tsx`). This is the final logo.
-- **Headings:** Funnel Display (`font-heading`), semibold, tracking -0.02em, line-height 1.1, balanced.
-- **Body and UI:** Geist, line-height 1.6, prose capped at 65ch.
-- **Numbers:** Geist Mono with tabular figures for prices, days, slugs.
+All colours are CSS tokens in `app/globals.css`, defined for light and dark and exposed to Tailwind (`bg-brand`, `text-muted-foreground`, ...). Screens never use hex, `oklch()`, `rgb()`, Tailwind palette colours (`text-blue-500`) or `black`. The only literal colours outside `globals.css` are the browser `themeColor` values and generated images (`app/icon.tsx`, `app/opengraph-image.tsx`) and email HTML (`lib/emails.ts`, `supabase/functions/`), which cannot read CSS variables.
 
-## Shape and depth
+| Token | Use | Never |
+|---|---|---|
+| `background` | Page ground | |
+| `canvas` | Banded sections on long pages; portal ground | |
+| `card` | Cards, forms, lists, panels on the site | |
+| `muted` | Quiet fills: inactive chips, icon tiles, answer blocks | Body text backgrounds for long reading |
+| `border` | Every 1px hairline | Thicker than 1px |
+| `foreground` / `muted-foreground` | Text / secondary text (AA on every ground) | Grey text below AA |
+| `brand` (= `primary`) | Primary buttons, selected states, links, switches, focus | Large backgrounds |
+| `brand-soft` + `brand-ink` | eSIM badge, info notices, "Processing" | |
+| `copper` | Logo tagline, SIM card mark, large graphics | Actions, small text |
+| `copper-ink` | Copper text at body size (step numbers) | |
+| `copper-foreground` | Text on a copper fill | |
+| `plum` | The logo plum, constant in both themes: text on white buttons over photos | Anything that should follow the theme |
+| `scrim` | Under text on photos, via `scrim-left`, `scrim-bottom`, `scrim-band` | |
+| `success` / `warning` / `danger` `-soft` + `-ink` | Status: a pale fill with its ink text, always as a pair | Mixing a soft fill with another ink |
+| `chart-1` ... `chart-5` | Admin charts only | UI elements |
 
-- Controls (buttons, inputs, selects, toggles): `rounded-md` (6.4px).
-- Cards, dialogs, list containers: `rounded-xl` (11px), `1px` border, no shadow.
-- Tags, filter chips, switches: fully rounded.
-- `.sim-cut`: cut top-right corner via clip-path, filled surfaces only.
-- Popovers and menus: `shadow-pop` (two-layer, under 0.1 opacity). Nothing else casts a shadow.
-- Grids of facts use the `gap-px` + `bg-border` hairline technique instead of per-cell borders.
+Dark mode is designed, not inverted: every token has a dark value, plum becomes a light mauve for actions, soft tints become deep tints with light ink. Check both themes for every change.
 
-## Components
+### Type
 
-- **Site header** (`components/site/site-header.tsx`, `header-nav.tsx`): sticky, 64px, translucent with a hairline. Wordmark left, nav truly centred (three-column grid), icons right. The current section (pages under it count, so a plan page marks Plans) gets `aria-current`, foreground text and a 2px plum bar resting on the header line. Theme and Portal Login are 44px ghost icon buttons with styled tooltips; Portal Login keeps its name as the accessible label. On phones: theme, portal icon, a hairline divider, then the menu; the sheet marks the current page with a muted fill and a plum dot, and ends with a Portal Login row explaining who it is for.
-- **Plan search** (`components/site/plan-search.tsx`, index built in `header-search.tsx` from the cached catalogue): a 44px search icon first in the header icon group, opened by click, Cmd/Ctrl+K or `/`. A command dialog (shadcn `command` on cmdk, restyled: rounded-xl, 56px input row with a hairline under it, rounded-md 44px items, regular weight) sits at 12vh on desktop and near the top on phones. Empty query: Browse (eSIM plans, SIM card plans) and Carriers with logos. Typing: whole-word matching over carrier, plan name, type, data, hotspot (only when the plan has one), talk, text, network, summary and day lengths, so nonsense returns the empty state with a Browse all plans link. Results show carrier logo, plan name, type and facts, and the from price (on phones the price drops into the details line). Desktop footer hints for arrow keys, Enter and Esc.
-- **Plan configurator** (`components/site/plan-configurator.tsx`): day tiles as visually hidden radios, international calling as a labelled switch row, live total in an `aria-live` region, full-width Buy button on mobile.
-- **Plan card:** carrier logo and product badge, name, summary, three facts with Phosphor icons (data, hotspot, talk and text; "No hotspot" and talk/text in muted ink), then "From" over the price in mono and the day range under it, with a 40px arrow square that fills plum on hover. The whole card is one stretched link.
-- **Plans page** (`app/(site)/plans/page.tsx`, toolbar in `components/site/plans-browser.tsx`): one toolbar row above the grid with a hairline under it. Left: plan count and removable filter tags (brand-soft pills with an x) plus Clear all. Right: three shadcn Selects, 44px, each trigger reading "Label Value" (Product, Carrier, Sort). Menus show live counts in mono; the carrier menu shows logos; options with no plans are disabled. Sort: Recommended (admin order), Lowest price, Highest price, Most data (unlimited first). Choices push to the URL (shareable, Back undoes them) and the grid dims while the next result streams. Phones: Product and Carrier side by side, Sort full width.
-- **Footer** (`components/site/site-footer.tsx`): canvas band. Wordmark, one line about the shop and a "Questions? Contact us" link on the left; four link columns on the right (Shop, Carriers read live from the catalogue, Help, For business), two per row on phones with 44px links. A hairline row lists the payment methods (USDT TRC-20, Bitcoin) as bordered tags. Below it the MULTISIMS.USA lockup is set large in the logo face at 7% plum as a quiet signature, sized from the viewport so it never passes the content edge. Bottom bar: copyright with the carrier trademark note, and Back to top.
-- **FAQ:** accordion without a container, hairline dividers, plus/minus icons.
-- **Dropdowns:** always the shadcn `Select` (Base UI), never a native `<select>`. Trigger matches inputs (h-10, rounded-md, hairline border); popup drops below the trigger (never overlays it), rounded-lg with p-1 inset, rounded-md items, a check on the chosen item, and `shadow-pop`. Pass `items` so the trigger shows labels, and `name` when it sits in a form. Filters apply on selection and live in the URL.
-- **Profile menu** (`components/admin/nav-user.tsx`): sidebar footer row with an initials tile (brand-soft), name and email, opening a menu (right on desktop, up on phones) with the account header and role tag, View website, and Sign out in the destructive tone with a pending state. Collapsed, the row is just the avatar with a tooltip.
-- **Admin shell:** sticky 56px bar with the sidebar trigger, breadcrumbs (Overview > section > Edit plan; phones show the wordmark instead), a ghost "View website" link and the theme button with a tooltip. Content up to `max-w-6xl`. One `<main>` landmark: `SidebarInset` renders a div.
-- **Admin overview:** "New plan" in the header; four stat tiles in a hairline grid (mono figures, two by two on phones); a "Needs attention" panel above the charts listing published-but-hidden plans and carriers on the website with no live plans (amber header, each row a link with its reason), or a one-line green all-clear.
-- **Admin plans list:** search field (debounced, in the URL as `q`) plus carrier and product Selects. Desktop is a table: plan name with its URL slug in mono, carrier logo, product badge, packages on sale (with total when some are off), from price, Website status (green "Live" or the amber reason, dot plus words), Published switch, Edit. Phones get one card per plan. Counts read "8 of 12 plans" while filtering.
-- **Admin carriers:** each row shows the logo the website shows, captioned Uploaded logo, Built-in logo or No logo; one switch with a visible "On website" / "Hidden" label (no separate status pill).
-- **Admin plan editor:** on wide screens a sticky right rail shows the website status with what to do about it, and an inert preview of the exact public plan card as last saved. Day package rows keep column headings on phones (Days, Price, Wholesale in one row; on-sale switch, Save and delete on a second line), and Save only activates after a change.
-- **Admin loading:** each admin page renders its title, description and primary action at once; only the data part streams behind a skeleton shaped like it (`components/admin/skeletons.tsx`), so client navigation is instant.
-- **Admin lists:** `divide-y` rows inside one bordered container; actions right-aligned; destructive actions behind `ConfirmAction`.
-- **Carrier logos** (`components/site/carrier-logo.tsx`): an uploaded logo wins; otherwise a built-in official logo for known carriers (`public/carriers/`, matched on the carrier name by `lib/carrier-logos.ts`), otherwise the name in type. Heights are optically balanced by aspect ratio. The partner strip shows them as one-ink silhouettes (`tone="mono"`) that turn to full colour on hover or focus; plan cards show colour in light mode and white in dark.
-- Icons: Phosphor, regular weight in UI, bold inside filled marks and buttons. Server Components import from `@phosphor-icons/react/ssr`.
+Fonts: Funnel Display (`font-heading`) for headings, Geist (`font-sans`) for UI and body, Geist Mono (`font-mono`) for numbers people compare, Bodoni Moda (`font-logo`) for the logo only.
 
-## Charts (admin)
+Use the role classes from `globals.css`; do not re-compose sizes, weights and tracking per screen.
 
-Recharts through the shadcn `ChartContainer` (`components/ui/chart.tsx`), composed in `components/admin/catalog-charts.tsx`, data from `lib/admin/stats.ts`. Real catalogue data only; no sales charts until orders exist.
+| Role | Class | Use |
+|---|---|---|
+| Page title | `type-page-title` (30px, 36px from `sm`) | One per page, the `h1` |
+| Section title | `type-section-title` (20px) | `h2` sections inside a page |
+| Card title | `type-card-title` (16px, Geist semibold) | Form sections, cards, dialogs |
+| Overline | `type-overline` (12px, uppercase, 0.06em, muted) | Panel labels in side rails |
+| Body | `text-base` (16px), line-height 1.6 | Reading text, capped at 65ch |
+| Small | `text-sm`, `text-muted-foreground` for help text | UI text, descriptions |
+| Data | `font-mono tabular` | Prices, order numbers, ICCIDs, phone numbers, counts |
 
-- **Colours:** `--chart-1` plum (`#78377c` light, `#b86db1` dark) and `--chart-2` copper (`#b87436` / `#c48141`). Logo plum is too dark for marks, so these are lighter steps of it; both pairs pass the dataviz validator (lightness band, chroma floor, CVD and normal-vision separation, contrast) against the card surface in each mode. Re-run `validate_palette.js` before adding a third series.
-- **Marks:** 2px lines with 8px dots ringed in the card colour, range bands at 10% opacity, bars at most 24px with 4px rounded data ends, 2px card-colour gaps between stacked segments. One y-axis per chart, solid hairline grid in `--border`.
-- **Labels:** legend for two or more series (rect key for bars, line key for lines), none for a single series. Direct labels are selective: line end value, extreme bars, stacked totals on a right-hand label axis. Text uses text tokens, never series colours.
-- **Interaction:** crosshair on line charts, per-bar hover on bar charts; tooltips put the value first with a short line key. Every chart has a "Show data table" view, so no value depends on hover.
-- **Responsive:** fixed plot heights include the axis band; on screens under 640px the length axis thins to the ends plus two lengths.
+Marketing pages (home hero, plan page) may go larger with `font-heading` and tracking `-0.02em`; portals never do. Headings are balanced (`text-wrap: balance`), body is `pretty`.
 
-## Motion
+### Spacing and layout
 
-Minimal and state-driven: 150-200ms colour transitions, `scale(0.98)` on button press, accordion height animation. No entrance choreography. Everything respects `prefers-reduced-motion`.
+Tailwind's 4px scale. Use `gap` on flex/grid parents, not margins between siblings.
 
-- **Route loader:** `nextjs-toploader` in the root layout, a 2px `--brand` hairline at the very top, no spinner, no glow. It only shows when a navigation actually waits on the server; prefetched routes switch instantly.
-- **Theme button** (`components/site/theme-toggle.tsx`): ghost icon button, moon in light mode and sun in dark, cross-fading with a small rotate over 200ms. Lives in the site header (all breakpoints), the admin sidebar header and mobile bar, and the portal login bar. First visit follows the system theme; a click pins light or dark.
+| Rhythm | Value |
+|---|---|
+| Inside a control group (label to field, field to help) | Field component (8px) |
+| Between fields | `gap-y-5` (20px), `gap-x-4` (16px) |
+| Card / section padding | `p-5` phone, `sm:p-6` |
+| Between cards in a stack | `gap-4` (related) or `gap-6` (separate groups) |
+| Between page sections | `mt-10` |
+| Page vertical padding | `py-8 sm:py-12` (site), portal `py-6 sm:py-8` |
 
-## Accessibility floor
+Containers: site pages use `Container` (`max-w-6xl`, 16px gutter, 24px from `sm`); reading and order pages narrow to `max-w-3xl`; portal content is `max-w-6xl`. Two-column flows put the form left and a summary rail right (`lg:grid-cols-[1fr_24rem]`), the rail sticky (`lg:sticky lg:top-24`) and first on phones when it carries the price.
 
-Touch targets 44px on public pages (40px in admin), visible focus rings in the brand colour, skip link, labels above inputs, errors inline under fields, theme follows the system until the visitor uses the header theme button.
+### Density and control size
+
+Inputs, selects and `lg` buttons read their height from one variable, `--control-h`:
+
+- **44px** by default: public site, login, dialogs, anything a phone user touches.
+- **40px** inside the admin and agent portals: the shell sets `density-compact`.
+
+Never set a control's height by hand (the checker fails on `h-*` on `Input`, `SelectTrigger`, `Textarea` or an `lg`/`xl` Button). If a surface needs another density, add a density utility, not a one-off height. Other sizes: default Button 36px for compact inline actions, `sm` 32px, `xl` 48px for the page's single main action.
+
+### Shape and depth
+
+- Controls (buttons, inputs, selects): `rounded-md`.
+- Cards, forms, lists, dialogs: `rounded-xl`, 1px `border`, no shadow.
+- Inline notices and inner blocks: `rounded-lg`.
+- Tags, chips, switches, avatars: fully rounded.
+- `.sim-cut` (cut top-right corner): day-package tiles and product marks only.
+- `shadow-pop` for popovers, menus and the one floating hero picker. Nothing else casts a shadow.
+- Fact grids use `gap-px bg-border` hairlines instead of per-cell borders.
+- One level of containment: never a card inside a card. Group inside a card with `divide-y` or `border-t`.
+
+### Icons
+
+Phosphor only: `@phosphor-icons/react`, or `/ssr` in Server Components. Regular weight in UI, bold inside filled buttons and marks, fill for success checks. 16px in text and buttons, 20px in empty states and list leads. Icon-only buttons have an `aria-label` and a 40px+ target. No Lucide, no emoji, no unicode symbols as icons.
+
+### Imagery
+
+Real US places and real phones (Unsplash License, credits in `docs/IMAGE_CREDITS.md`), self-hosted in `public/images/`, served through `next/image`, `rounded-xl`, dimmed to 90% in dark mode. Text on a photo always sits on a scrim utility. QR codes always render on white with padding, whatever the theme. Signed URLs (QR codes, screenshots) use a plain `<img>`, never `next/image`.
+
+### Motion
+
+State-driven and quiet: 150 to 200ms colour transitions, `scale(0.98)` on button press, accordion height, a slow pulse only on "in progress" dots. No entrance choreography, no scroll-triggered reveals in the portals. Everything respects `prefers-reduced-motion` (use `motion-safe:`). The route loader is a 2px brand hairline at the top.
+
+---
+
+## 3. Components
+
+### Primitives (`components/ui/`)
+
+shadcn (base-luma style, Base UI) customised to these tokens. Use them as they are; extend with a variant in the primitive when a screen needs something new, never by overriding styles at the call site.
+
+| Need | Use |
+|---|---|
+| Action | `Button` (`default`, `outline`, `secondary`, `ghost`, `destructive`, `link`; sizes `sm`, default, `lg`, `xl`, `icon*`) |
+| Text field | `Input`, `Textarea` inside `Field` with `FieldLabel`, `FieldDescription`, `FieldError` |
+| Choice from a list | `Select` (always; never native `<select>`); pass `items` and `name` |
+| On/off | `Switch` with a visible label |
+| One of a few, visible | Segmented radio labels (see ticket severity, ticket status) or `RadioGroup` |
+| Confirm a consequence | `ConfirmAction` (alert dialog); with a note, `NoteDialog` |
+| Form in an overlay | `Dialog` |
+| Menu | `DropdownMenu` |
+| Feedback after an action | `toast` (sonner) |
+| Table | `Table` on desktop, a `divide-y` card list on phones |
+| Loading | `Skeleton` shaped like the content (`components/admin/skeletons.tsx`) |
+
+### Patterns (`components/patterns/`)
+
+Every repeated piece of UI lives here. If you are about to write one of these by hand, import it instead.
+
+| Pattern | Component | Use |
+|---|---|---|
+| Status pill | `Tag` (`tone`: neutral, brand, success, warning, danger) | Order, ticket, item and website states |
+| Inline message | `Notice` (`tone`: info, success, warning, danger; `title`, `icon`) | Form errors, confirmations, owner instructions, warnings. Never a coloured side border |
+| Long form | `FormCard` + `FormSection` (`cols` 1, 2, 3) | Checkout, settings, any form with more than one group |
+| Customer-facing facts | `DetailList` + `DetailRow` | Order details, receipts. One column, no empty cells |
+| Side-rail facts | `Panel` + `KeyValue` | Portal rails: Line to get, Customer, Record |
+| Nothing to show | `EmptyState` | Lists and searches; different words for filtered-empty |
+| Phone action bar | `ActionBar` (`sticky` or `fixed`) | Keeps a flow's finishing action in reach on phones |
+| Copy a value | `CopyButton` | Phone numbers, ICCIDs, tracking numbers |
+
+Product and brand composites live in `components/site/` (carrier logo, product badge, plan card, plan configurator, header, footer, wordmark) and portal composites in `components/staff/` and `components/admin/` (portal shell, filters, order workspace, alerts, ticket views, page header).
+
+---
+
+## 4. Patterns for building screens
+
+### Page structure
+
+- **Site page:** back link (if any) above the `h1`, one line of plain explanation under it, then content. Banded sections alternate `background` and `canvas` with hairlines on long pages.
+- **Portal page:** `AdminPageHeader` (title, one-line description, primary action on the right), then filters, then content. The header renders at once; only the data streams behind a matching skeleton.
+- **Record page (order, ticket):** identifier and status first, the work in the main column, facts in a right rail of `Panel`s.
+
+### Forms
+
+- One `FormCard`, split into `FormSection`s. Fields on a 2 or 3 column grid from `sm`, one column on phones. City, State, ZIP share a 3-column row; full-width fields use `sm:col-span-full`.
+- Label above every field. Optional fields say "(optional)" in muted text; required is the default.
+- Help text below the field gives the format and an example ("for example 10001"). Never put examples in placeholders, they read as filled answers.
+- Errors replace the help text in `danger` ink, name the problem and the fix ("Enter a 5-digit US ZIP code"). A failed submit also shows a `Notice` and scrolls to and focuses the first invalid field.
+- Correct `type`, `inputMode` and `autoComplete` on every input. Numbers people compare use `font-mono tabular`.
+- Buttons say what happens ("Place order", "Send request", "Save settings") and show progress while pending ("Placing order...").
+- Save only lights up after a change in edit forms; destructive actions sit apart and confirm first.
+
+### Lists and tables
+
+- Portal lists: one bordered container with `divide-y` rows; each row is one click target (stretched link) with its actions above the link layer. Plum is reserved for the row's primary action (Claim); others are outline.
+- Desktop data tables become card lists on phones.
+- Filters live in the URL (`UrlFilters`): search debounced, selects apply on choice, Back undoes them, changing a filter resets the page.
+- Counts read "17 orders" or "8 of 12 plans" when filtered. Dates read "Oct 10, 8:09 PM" in the current year.
+
+### Status and feedback
+
+- State uses `Tag`; customer-facing order state is only Processing, Delivered, Shipped, Cancelled.
+- Progress the customer waits on uses the three-step tracker (Placed, Processing, Delivered/Shipped).
+- After an action: a toast saying what happened ("Saved", "Claimed. It is yours."). For errors, the toast says what failed and what to do.
+- Irreversible actions confirm in a dialog that states the consequence ("This cannot be undone.").
+- Live data (agent queue) shows a Live/Offline indicator and refreshes lists only, never a screen someone is typing in.
+
+### Empty, loading and error states
+
+Every list has an `EmptyState`, every async region a shaped `Skeleton`, every form an error path, and unknown records the not-found page. Do not ship a screen without these.
+
+### Phones
+
+Design at 375px first. Primary flows keep their finishing action in reach with `ActionBar`. Targets are at least 44px on public pages and 40px in the portals. No horizontal scroll; long values (emails, ICCIDs, tracking) wrap with `break-all`. Touch-only hints replace keyboard hints (`pointer-coarse:`).
+
+---
+
+## 5. Content and voice
+
+- Plain, short, specific. Many buyers read English as a second language.
+- Name things the way users do ("your order page", "phone number"), never the system's names.
+- Controls state the action; errors state the problem and the fix; no apologies, no exclamation marks.
+- No em or en dashes, no emoji, no marketing clichés, no invented stats or reviews.
+- Customer copy never implies a person is involved in filling orders ("We are preparing your eSIM" is fine, "an agent will send" is not).
+
+## 6. Accessibility floor
+
+WCAG AA contrast in both themes; visible brand focus rings; labels tied to every control; errors announced (`Notice` uses `role="alert"` for danger, `status` otherwise; live regions for totals and counters); 44px targets on public pages, 40px in portals; skip link; one `main` landmark; reduced motion respected; information never by colour alone.
+
+## 7. Rules the checker enforces
+
+`scripts/check-design.mjs` scans `app/` and `components/` (not the vendored `components/ui/`):
+
+| Rule id | Fails on |
+|---|---|
+| `color-literal` | hex, `oklch()`, `rgb()`, `hsl()` in components and class names |
+| `color-palette` | Tailwind palette colours (`bg-blue-500`), `black` |
+| `shadow` | `shadow-sm` ... `shadow-2xl`, `shadow-inner` |
+| `gradient` | `bg-gradient-*`, `linear-gradient()` and friends (use the scrim utilities) |
+| `lucide` | imports from `lucide-react` |
+| `native-select` | `<select>` |
+| `dash` | em and en dashes |
+| `emoji` | any emoji |
+| `control-height` | `h-*` on `Input`, `SelectTrigger`, `Textarea`, or an `lg`/`xl` `Button` |
+
+A genuine exception carries `design-allow: <rule id>` and a reason in a comment on the same line or the line above. Exceptions are rare and reviewed.
+
+## 8. Growing the system
+
+- **New colour or size need:** add a token in `globals.css` (both themes), expose it in `@theme inline`, add it to `/admin/design` and this file.
+- **Same markup in a second place:** extract it to `components/patterns/` with a short doc comment, replace both uses, add it to `/admin/design` and the table above.
+- **New variant of a primitive:** add it to the primitive's `cva` variants, not as call-site classes.
+- **New surface (dealer portal):** reuse `PortalShell` with a new nav variant and `density-compact`; its lists, forms and records follow section 4 unchanged.
+
+## 9. Review checklist
+
+Before calling UI work done:
+
+- [ ] Built from tokens and shared components; nothing in section 3 hand-rolled.
+- [ ] One primary action per area; secondary actions outline or ghost.
+- [ ] Checked at 375px and desktop, light and dark; no horizontal scroll.
+- [ ] Loading, empty, error, disabled and success states exist.
+- [ ] Copy is plain, has no dashes or emoji, and customer wording never implies manual fulfilment.
+- [ ] Focus visible, labels tied, targets 44px (site) or 40px (portal), contrast AA.
+- [ ] `bun run lint` (with the design check) and `bun run typecheck` pass; impeccable detector clean.
+- [ ] This file and `/admin/design` updated if the system grew.
+
+---
+
+## Appendix: surfaces as built
+
+Notes on how each built screen applies the system. Update when a screen changes.
+
+### World
+
+The client's MSU logo sets the identity: a deep plum Didone monogram over copper tracked capitals, on a faint lavender-grey ground. Photography carries the travel story the flat UI does not: arriving in the US with a phone that already works.
+
+### Public site
+
+- **Home** (Persuade): 1. hero stage (photo with `scrim-left`, live plan picker floating with `shadow-pop`; on phones offer, photo, then picker); 2. partner strip (carrier logos as one-ink silhouettes, colour on hover); 3. "A real US line" bento with photo cells and a brand-soft cell of live package lengths as SIM-cut chips; 4. eSIM and SIM card panels; 5. "Will my phone work?" (iPhone/Android check, `*#06#` in a `<kbd>`); 6. plans (grid from `sm`, swipe row on phones); 7. trip-length photo cards with `scrim-bottom`; 8. checkout-to-signal steps; 9. dealers; 10. FAQ; 11. closing band with `scrim-band`. Copy comes from the catalogue, never invented.
+- **Site header:** sticky 64px, translucent with a hairline; wordmark left, nav centred, icons right; current section gets a 2px plum bar. Phones: theme, portal, divider, menu sheet.
+- **Plan search:** command dialog (Cmd/Ctrl+K or `/`), whole-word matching over carrier, plan and facts, results with logo, facts and from price.
+- **Plans page:** toolbar with count, removable filter tags and three Selects ("Label Value"), choices in the URL, grid dims while streaming.
+- **Plan card:** logo and product badge, name, summary, three facts, "From" price in mono, arrow square that fills plum on hover; one stretched link.
+- **Plan configurator:** day tiles as hidden radios with `.sim-cut`, international calling switch row, live total in `aria-live`, full-width Buy on phones.
+- **Checkout:** back link above the title; `FormCard` with Contact, Your US number, Delivery address (City/State/ZIP in one row); order card right (sticky) and first on phones with logo, facts, quantity stepper, calling switch, itemised lines, mono total, `xl` Place order and "What happens next"; phones hold the total and Place order in a sticky `ActionBar`.
+- **Customer order page:** order number and status tag above the title; status card with the three-step tracker; contact card only after the alert window; SIM cards with QR on white, mono facts and copy buttons, replaced lines last and dimmed; install steps; `DetailList`; help with past tickets and the form behind "Report a problem".
+- **Footer:** canvas band, link columns (carriers read live), payment row, large logo-face signature at 7% plum, copyright and Back to top.
+- **Carrier logos:** uploaded logo, else bundled official logo, else the name in type; optically balanced heights; mono tone in the partner strip.
+
+### Portals (admin and agent)
+
+- **Shell** (`components/staff/portal-shell.tsx`): sidebar per role, sticky 56px bar with breadcrumbs, Live/Offline dot, "Enable sound" switch, View website, theme; `density-compact`.
+- **Agent queue:** groups (Yours, Waiting, Needs the owner, With other agents, awaiting approval) with mono counts; rows are click targets with ticking age (amber past the alert window); plum only on Claim.
+- **Fulfilment workspace:** identifier, status, age, actions; `Notice`s for attention, owner instructions, replacements; SIM cards with a QR drop zone (drop, pick or paste; full width on phones) and fields; right rail of `Panel`s; on phones Mark complete in a fixed `ActionBar`.
+- **Orders, tickets, activations, customers:** `UrlFilters`, desktop tables, phone card lists, `EmptyState`.
+- **Ticket page:** customer message and screenshot, `AnswerForm` (segmented status, one answer), order rail and replacement list.
+- **Admin overview:** stat tiles in a hairline grid, "Needs attention" panel, catalogue charts.
+- **Admin catalogue:** carriers with logo source captions and an "On website" switch; plans table with website status; plan editor with sticky status rail and live card preview; day package rows that keep headings on phones.
+- **Settings and agents:** `FormCard`-style settings with help text; agent rows with SIMs filled, password reset and an on/off switch.
+- **Profile menu:** sidebar footer row with initials tile, opening account details, View website and Sign out.
+
+### Charts (admin)
+
+Recharts through `ChartContainer` (`components/ui/chart.tsx`), composed in `components/admin/catalog-charts.tsx`, data from `lib/admin/stats.ts`. `--chart-1` plum and `--chart-2` copper, validated for contrast and colour-vision separation on the card surface in each theme; re-run the dataviz validator before adding a series. 2px lines, 8px ringed dots, bars at most 24px with 4px rounded ends, one y-axis, hairline grid in `--border`. Legends only for two or more series; text uses text tokens. Every chart has a "Show data table" view.

@@ -4,21 +4,33 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { CaretRightIcon } from "@phosphor-icons/react"
 
+const ROOTS: Record<string, string> = { admin: "Overview", agent: "Queue" }
+
 const LABELS: Record<string, string> = {
   carriers: "Carriers",
   plans: "Plans",
   addons: "Add-ons",
   new: "New plan",
+  orders: "Orders",
+  tickets: "Tickets",
+  activations: "Activations",
+  customers: "Customers",
+  agents: "Agents",
+  settings: "Settings",
+  design: "Design system",
 }
 
-/** Where you are in the console. Plan ids show as "Edit plan"; the page title carries the name. */
+/** An id segment is labelled by its section: /orders/<id> is "Order", /plans/<id> "Edit plan". */
+const DETAIL: Record<string, string> = { plans: "Edit plan", orders: "Order", tickets: "Ticket" }
+
+/** Where you are in the portal. The page title carries the record's own name. */
 export function AdminBreadcrumbs() {
-  const parts = usePathname().split("/").filter(Boolean).slice(1)
+  const [root = "admin", ...parts] = usePathname().split("/").filter(Boolean)
   const crumbs = [
-    { href: "/admin", label: "Overview" },
+    { href: `/${root}`, label: ROOTS[root] ?? "Overview" },
     ...parts.map((part, i) => ({
-      href: `/admin/${parts.slice(0, i + 1).join("/")}`,
-      label: LABELS[part] ?? "Edit plan",
+      href: `/${root}/${parts.slice(0, i + 1).join("/")}`,
+      label: LABELS[part] ?? DETAIL[parts[i - 1] ?? ""] ?? "Details",
     })),
   ]
 

@@ -6,11 +6,13 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/ssr"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Container } from "@/components/site/section"
+import { CarrierLogo } from "@/components/site/carrier-logo"
 import { getIntlCallingAddon, getPlanBySlug } from "@/lib/catalog"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import { dataLabel, hotspotLabel } from "@/lib/format"
+import { createServiceClient } from "@/lib/supabase/service"
 import { cn } from "@/lib/utils"
+import { CheckoutForm } from "./checkout-form"
 
-// Placeholder until crypto checkout lands in Milestone 2.
 export const metadata: Metadata = {
   title: "Checkout",
   robots: { index: false, follow: false },
@@ -18,69 +20,105 @@ export const metadata: Metadata = {
 
 export default function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
   return (
-    <Container className="max-w-2xl py-12 sm:py-16">
-      <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>
-        <CheckoutSummary searchParams={searchParams} />
+    <Container className="py-8 sm:py-12">
+      <Suspense fallback={<CheckoutSkeleton />}>
+        <Checkout searchParams={searchParams} />
       </Suspense>
     </Container>
   )
 }
 
-async function CheckoutSummary({ searchParams }: Pick<PageProps<"/checkout">, "searchParams">) {
+async function Checkout({
+  searchParams,
+}: Pick<PageProps<"/checkout">, "searchParams">) {
   const params = await searchParams
   const slug = typeof params.plan === "string" ? params.plan : ""
   const days = Number(params.days)
-  const intl = params.intl === "1"
 
-  const [plan, addon] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon()])
+  const [plan, addon, shippingCents] = await Promise.all([
+    getPlanBySlug(slug),
+    getIntlCallingAddon(),
+    getShippingFee(),
+  ])
   const pkg = plan?.packages.find((p) => p.days === days)
 
   if (!plan || !pkg) {
     return (
-      <div className="rounded-xl border p-8 text-center">
-        <h1 className="text-2xl font-semibold">Choose a plan first</h1>
-        <p className="mt-2 text-muted-foreground">This plan or day package is no longer available.</p>
-        <Link href="/plans" className={cn(buttonVariants({ size: "lg" }), "mt-6 h-11")}>
+      <div className="rounded-xl border bg-card p-8 text-center">
+        <h2 className="text-2xl font-semibold">Choose a plan first</h2>
+        <p className="mt-2 text-muted-foreground">
+          This plan or day package is no longer available.
+        </p>
+        <Link
+          href="/plans"
+          className={cn(buttonVariants({ size: "lg" }), "mt-6 h-11")}
+        >
           Browse plans
         </Link>
       </div>
     )
   }
 
-  const addonCents = intl && addon ? addon.price_cents : 0
-
   return (
     <>
       <Link
         href={`/plans/${plan.slug}`}
-        className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-ml-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" />
-        Back to plan
+        {plan.carrier.name} {plan.name}
       </Link>
-      <h1 className="mt-4 text-4xl font-semibold">Checkout</h1>
-      <div className="mt-8 rounded-xl border bg-card">
-        <dl className="divide-y">
-          <Row label="Plan" value={`${plan.carrier.name} ${plan.name}`} />
-          <Row label="Product" value={productTypeLabel[plan.product_type]} />
-          <Row label="Days" value={formatDays(pkg.days)} />
-          <Row label="Price" value={formatPrice(pkg.price_cents)} mono />
-          {intl && addon ? <Row label={addon.name} value={`+${formatPrice(addon.price_cents)}`} mono /> : null}
-          <Row label="Total" value={formatPrice(pkg.price_cents + addonCents)} mono strong />
-        </dl>
-      </div>
-      <p className="mt-6 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-ink">
-        Online checkout is not open yet. Payment in USDT and Bitcoin is coming soon.
+      <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Checkout</h1>
+      <p className="mt-2 text-muted-foreground">
+        No account needed. Your order gets its own private page.
       </p>
+      <div className="mt-8">
+        <CheckoutForm
+          plan={{
+            slug: plan.slug,
+            name: plan.name,
+            carrierName: plan.carrier.name,
+            productType: plan.product_type,
+          }}
+          logo={<CarrierLogo carrier={plan.carrier} size="sm" />}
+          facts={[dataLabel(plan), plan.hotspot_gb ? hotspotLabel(plan) : null]
+            .filter(Boolean)
+            .join(", ")}
+          days={pkg.days}
+          unitCents={pkg.price_cents}
+          addon={addon}
+          initialIntl={params.intl === "1"}
+          shippingCents={shippingCents}
+        />
+      </div>
     </>
   )
 }
 
-function Row({ label, value, mono, strong }: { label: string; value: string; mono?: boolean; strong?: boolean }) {
+async function getShippingFee() {
+  const { data } = await createServiceClient()
+    .from("settings")
+    .select("shipping_fee_cents")
+    .maybeSingle()
+  return data?.shipping_fee_cents ?? 0
+}
+
+function CheckoutSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4">
-      <dt className={cn("text-sm", strong ? "font-medium" : "text-muted-foreground")}>{label}</dt>
-      <dd className={cn(mono && "font-mono tabular", strong ? "text-lg font-medium" : "text-sm")}>{value}</dd>
-    </div>
+    <>
+      <Skeleton className="h-5 w-48" />
+      <Skeleton className="mt-4 h-10 w-56" />
+      <div className="mt-8" />
+      <div
+        aria-hidden
+        className="grid gap-6 lg:grid-cols-[1fr_24rem] lg:gap-10"
+      >
+        <div className="space-y-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+        <Skeleton className="h-80 rounded-xl max-lg:-order-1" />
+      </div>
+    </>
   )
 }

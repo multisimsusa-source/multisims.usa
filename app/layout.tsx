@@ -51,9 +51,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  // Browser chrome colours must be literal strings; they mirror --background in each theme.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#160f17" },
+    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" }, // design-allow: color-literal
+    { media: "(prefers-color-scheme: dark)", color: "#160f17" }, // design-allow: color-literal
   ],
 }
 

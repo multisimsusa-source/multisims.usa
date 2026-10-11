@@ -5,7 +5,7 @@ Derived from `MultiSims_USA_Developer_Brief.docx` (2 Oct 2026). Three milestones
 | Milestone | Scope | Target |
 |---|---|---|
 | M1 | Public website, plan system, admin catalogue, SEO foundation | ~9 Oct 2026 |
-| M2 | Crypto checkout, orders, agent portal, alerts, customer order page, tickets and replacements | ~21 Oct 2026 |
+| M2 | Checkout (payment deferred), orders, agent portal, alerts, customer order page, tickets and replacements | ~21 Oct 2026 |
 | M3 | Dealer portal and wallet, reviews, dashboard and reports, launch | 28 Oct 2026 |
 
 ## Architecture
@@ -31,7 +31,7 @@ Derived from `MultiSims_USA_Developer_Brief.docx` (2 Oct 2026). Three milestones
 | plans * | carrier_id, name, slug, product_type (esim, physical), talk, sms, data_gb (null = unlimited), hotspot_gb, network, slowdown_after_gb, slowdown_speed, countries_covered[], summary, description, published, display_order |
 | day_packages * | plan_id, days, price_cents, wholesale_price_cents, active (unique plan + days) |
 | addons * | code, name, description, price_cents, wholesale_price_cents, active (only `intl_calling` in scope) |
-| settings * | singleton: owner_email, unclaimed_alert_minutes (5), shipping_fee_cents (0), replacement_needs_approval (false) |
+| settings * | singleton: owner_email, unclaimed_alert_minutes (5), shipping_fee_cents (0), replacement_needs_approval (false), max_replacements_per_order (2) |
 | dealer_prices | M3 |
 | orders, order_items, payments | M2 |
 | tickets, ticket_types | M2 |
@@ -124,16 +124,51 @@ Open before the demo (need the client or Saad):
 
 ---
 
-## Milestone 2: Selling and filling orders (outline)
+## Milestone 2: Selling and filling orders
 
-1. **Payments**: `PaymentProvider` interface (`createInvoice`, `verifyWebhook`, `parseEvent`), first implementation for the chosen crypto provider. Webhook route verifies signatures; handles expired, underpaid, overpaid, confirming.
-2. **Checkout**: plan + day package + add-on + quantity; name, email, phone, ZIP, area code; address for physical SIMs. Order only enters the agent queue on webhook-confirmed payment. Confirmation email (Resend).
-3. **Orders**: `orders`, `order_items` (one per SIM), `payments`. Internal statuses (paid, claimed, fulfilled, needs_attention, cancelled, refunded) mapped to customer statuses (Processing, Delivered, Shipped).
-4. **Agent portal**: admin creates agents; Realtime queue; atomic claim (`UPDATE ... WHERE claimed_by IS NULL RETURNING`); fulfilment screen (QR upload to private bucket, phone, ICCID; tracking number for physical); mark complete delivers by email and on order page. Alerts: email to active agents, sound with "Enable sound" switch, Notification API.
-5. **Customer order page**: unguessable token link; Processing state; contact button after 5 minutes (emails owner + agents); delivered QR via signed URL or tracking number.
-6. **Unclaimed alert**: Supabase pg_cron every minute + Edge Function, threshold from `settings`.
-7. **Tickets**: issue types table, severity, 50-char description, screenshot (5 MB, PNG/JPG/GIF/WebP), Turnstile + rate limit; queue in admin and agent portal; one team answer; Issue Replacement creates a linked zero-payment order.
-8. **Admin**: all orders with filters, reassign, cancel/refund record, activation history search, customer list CSV export, settings for open-point defaults.
+Target ~21 Oct 2026. Email: **Resend**, domain `multisimsusa.com` verified (9 Oct 2026). Senders: `orders@multisimsusa.com` (orders, alerts, tickets), `hello@multisimsusa.com` (contact form).
+
+**Payments: deferred (decision 10 Oct 2026).** Crypto (NOWPayments) is not built for now. Checkout places the order and sends it straight to the agent queue (`payment_status = not_required`). The `PaymentProvider` interface (`lib/payments/provider.ts`) and the `payments` / `payment_events` tables stay, so a provider plugs in later without touching fulfilment. **Do not open production checkout to the public until a payment provider is live**, or orders are free.
+
+### As built
+
+1. **Database** (`supabase/migrations/20261010000001_orders.sql`): `orders` (number `MS-10001`+, 48-hex private token, price snapshot, claim, attention, staff note, cancel/refund, replacement links), `order_items` (one per SIM: phone, ICCID, QR path, tracking), `payments`, `payment_events`, `order_messages`, `ticket_types` (seeded), `tickets` (#501+), `order_alerts` (one-time emails), view `customer_contacts`. Every state change is a SECURITY DEFINER function that checks role and state in one statement: `mark_order_paid`, `claim_order` (atomic), `release_order`, `reassign_order`, `flag_order`, `save_order_item`, `complete_order`, `cancel_order`, `record_refund`, `answer_ticket`, `issue_replacement`, `approve_replacement`, `take_unclaimed_alerts`. RLS: staff read, writes only through those functions, public nothing. Private buckets `esim-qr` (2 MB) and `ticket-screenshots` (5 MB), signed URLs only. Realtime on `orders` and `tickets`.
+2. **Checkout** (`app/(site)/checkout`): quantity 1 to 10, international calling per SIM, name, email, phone/WhatsApp, US ZIP (required), area code (optional), US delivery address for SIM cards, shipping fee from settings. Prices re-read from the database. Rate limited, honeypot. Redirects to the private order page.
+3. **Customer order page** (`/order/<token>`, noindex, no-referrer): Processing / Delivered / Shipped only; refreshes itself every 15 s while processing; contact button appears after the alert window; QR codes (1 h signed URLs), phone, ICCID, install steps; USPS tracking link; replacements shown with the old QR marked "No longer valid"; ticket form (type, which SIM, severity, 50+ chars, screenshot checked by magic bytes, Turnstile, rate limit) and each ticket's status and answer.
+4. **Agent portal** (`/agent`, agents and owner): queue (Yours, Waiting, Needs the owner, With other agents, Replacements awaiting approval), live via Realtime with chime ("Enable sound" switch, remembered per browser), toast and system notification, Live/Offline indicator. Fulfilment screen: QR by drop, pick or paste, phone, ICCID, one tracking number per parcel, flag "Needs attention", release, mark complete (blocked until every SIM has its QR or tracking). Orders search, tickets queue and ticket page.
+5. **Admin additions**: Orders (filters by status, product, agent, search), order page with reassign/assign, send back with instruction, approve replacement, cancel, record refund; Tickets; Activations (search phone, ICCID, tracking, order, email); Customers + CSV export (formula-injection safe); Agents (create login, welcome email, switch off with auth ban and queue release, reset password); Settings (owner alert email, alert minutes, shipping fee, replacement approval, replacements per order, issue types).
+6. **Email** (`lib/emails.ts`, `lib/notify.ts`): confirmation, delivered (QR inline), shipped, replacement delivered, ticket answered (customer); new order, customer message, new ticket (owner + every active agent, one email each); agent welcome. One-time guards plus Resend idempotency keys.
+7. **Unclaimed alert** (`supabase/migrations/20261010000002_unclaimed_alert_cron.sql`, `supabase/functions/unclaimed-alert`): pg_cron every minute checks in SQL and calls the Edge Function only when an order is overdue; it emails the owner once per order.
+
+### Verified (10 Oct 2026, local Supabase, Playwright, 33/33)
+- [x] eSIM order (qty 2) to delivery: two agents claim at once, exactly one wins; complete blocked until both QRs; customer sees both QR codes via signed URLs.
+- [x] Ticket from the order page, owner answers and issues a replacement, agent fills it, customer sees the new QR and the old one marked replaced.
+- [x] SIM card order with address, tracking number, customer sees Shipped with USPS link.
+- [x] Needs attention, owner sends back with "deliver nearest area code", agent sees it.
+- [x] Contact button hidden before the window, appears after it, message reaches owner and agents.
+- [x] All admin pages render; activation search by ICCID; CSV export works for admin and is refused to the public; unknown token shows not-found.
+- [x] No horizontal scroll at 375 px (order page, agent queue). `tsc`, `eslint`, `next build` clean; impeccable detector: no findings.
+- [x] SQL: claim race, holder-only completion, one open replacement per SIM, anonymous sees no orders.
+- [ ] Unclaimed alert end to end on the client project (needs the deploy steps below).
+- [ ] Real emails to real inboxes (local runs log instead of sending).
+
+### To deploy on the client project
+1. `supabase db push --linked` (applies the M2 migrations; the project is linked).
+2. Vault secrets (SQL editor): `select vault.create_secret('https://fucecskubggngxqgdzyo.supabase.co', 'project_url');` and `select vault.create_secret('<random 32+ chars>', 'cron_secret');`
+3. `supabase secrets set CRON_SECRET=<same> RESEND_API_KEY=<key> ORDERS_FROM_EMAIL="MultiSims USA <orders@multisimsusa.com>" SITE_URL=https://multisimsusa.com` then `supabase functions deploy unclaimed-alert`.
+4. In admin Settings, set the owner alert email. Create agent logins under Agents.
+
+### Client decisions (answered 11 Oct 2026, all configurable)
+| Question | Client's answer | Built |
+|---|---|---|
+| Shipping on SIM cards | Not free | Flat fee per order in Settings. **Amount still needed from Saad**; until it is set, checkout shows Free |
+| Who adds tracking | Owner or agents | Agents and owner |
+| Area code unavailable | Deliver the nearest | Agents deliver the nearest area code without flagging; shown on the order screen, checkout field and FAQ |
+| Owner approves replacements | No, straight to agents | Setting, default off; owner-issued replacements never wait |
+| Replacement limit | 2 per order | `settings.max_replacements_per_order` (default 2), enforced in `issue_replacement` (cancelled ones do not count); used/limit shown on ticket and order (migration `20261011000001`) |
+| Support form issue types | Keep the six proposed | Seeded; editable in Settings |
+| Area code required? | Optional at checkout (flag to Saad) |
+| Payments | Deferred; checkout is free until a provider is added |
 
 ## Milestone 3: Dealers, reviews, launch (outline)
 

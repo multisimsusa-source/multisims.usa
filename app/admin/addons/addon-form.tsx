@@ -49,18 +49,18 @@ export function AddonForm({ addon }: { addon: Addon }) {
       <div className="grid gap-5 p-4 sm:grid-cols-2 sm:p-6">
         <Field data-invalid={Boolean(errors.name) || undefined}>
           <FieldLabel htmlFor={`${addon.id}-name`}>Name</FieldLabel>
-          <Input id={`${addon.id}-name`} name="name" defaultValue={addon.name} className="h-10" />
+          <Input id={`${addon.id}-name`} name="name" defaultValue={addon.name} />
           {errors.name ? <FieldError>{errors.name}</FieldError> : null}
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={Boolean(errors.price) || undefined}>
             <FieldLabel htmlFor={`${addon.id}-price`}>Price (USD)</FieldLabel>
-            <Input id={`${addon.id}-price`} name="price" inputMode="decimal" defaultValue={centsToInput(addon.price_cents)} className="h-10 font-mono tabular" />
+            <Input id={`${addon.id}-price`} name="price" inputMode="decimal" defaultValue={centsToInput(addon.price_cents)} className="font-mono tabular" />
             {errors.price ? <FieldError>{errors.price}</FieldError> : null}
           </Field>
           <Field data-invalid={Boolean(errors.wholesale_price) || undefined}>
             <FieldLabel htmlFor={`${addon.id}-wholesale`}>Wholesale</FieldLabel>
-            <Input id={`${addon.id}-wholesale`} name="wholesale_price" inputMode="decimal" defaultValue={centsToInput(addon.wholesale_price_cents)} placeholder="Not set" className="h-10 font-mono tabular" />
+            <Input id={`${addon.id}-wholesale`} name="wholesale_price" inputMode="decimal" defaultValue={centsToInput(addon.wholesale_price_cents)} placeholder="Not set" className="font-mono tabular" />
             {errors.wholesale_price ? <FieldError>{errors.wholesale_price}</FieldError> : null}
           </Field>
         </div>
@@ -71,7 +71,7 @@ export function AddonForm({ addon }: { addon: Addon }) {
         </Field>
       </div>
       <div className="flex justify-end border-t p-4 sm:px-6">
-        <Button type="submit" size="lg" disabled={pending} className="h-10">
+        <Button type="submit" size="lg" disabled={pending}>
           {pending ? "Saving..." : "Save add-on"}
         </Button>
       </div>

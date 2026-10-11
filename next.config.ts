@@ -25,8 +25,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // Carrier logos are capped at 1 MB in storage; leave room for form overhead.
-      bodySizeLimit: "2mb",
+      // Largest upload is a 5 MB ticket screenshot (QR codes 2 MB, logos 1 MB);
+      // leave room for the rest of the form.
+      bodySizeLimit: "6mb",
     },
   },
 }

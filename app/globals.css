@@ -61,6 +61,9 @@
   --color-canvas: var(--canvas);
   --color-copper: var(--copper);
   --color-copper-ink: var(--copper-ink);
+  --color-copper-foreground: var(--copper-foreground);
+  --color-plum: var(--plum);
+  --color-scrim: var(--scrim);
   --font-logo: var(--font-logo);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -75,6 +78,10 @@
 
 :root {
   --radius: 0.5rem;
+  /* Control height (inputs, selects, large buttons): 44px everywhere (WCAG target
+     size), 40px inside the admin and agent portals via the density-compact class.
+     Primitives read it as h-(--control-h); screens never set control heights. */
+  --control-h: 2.75rem;
 
   /* From the MSU logo: deep plum primary, copper secondary, lavender-grey ground. */
   --background: oklch(0.992 0.002 300);
@@ -103,6 +110,11 @@
   --brand-ink: oklch(0.3 0.1 324);
   --copper: oklch(0.61 0.066 61);
   --copper-ink: oklch(0.53 0.069 58);
+  --copper-foreground: oklch(1 0 0);
+  /* Constant in both themes: the logo plum (text on white buttons over photos) and the
+     plum-black scrim under any text set on a photo. */
+  --plum: oklch(0.25 0.097 324);
+  --scrim: oklch(0.15 0.04 324);
   --success-soft: oklch(0.955 0.02 145);
   --success-ink: oklch(0.42 0.09 145);
   --warning-soft: oklch(0.965 0.035 80);
@@ -153,6 +165,7 @@
   --brand-ink: oklch(0.86 0.07 330);
   --copper: oklch(0.74 0.07 62);
   --copper-ink: oklch(0.78 0.07 62);
+  --copper-foreground: oklch(0.2 0.03 60);
   --success-soft: oklch(0.27 0.04 145);
   --success-ink: oklch(0.82 0.1 145);
   --warning-soft: oklch(0.29 0.05 75);
@@ -215,6 +228,63 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+}
+
+/* Photo scrims: text on a photo always sits on one of these, never on the raw image. */
+@utility scrim-left {
+  background-image: linear-gradient(90deg, oklch(from var(--scrim) l c h / 0.88) 0%, oklch(from var(--scrim) l c h / 0.6) 38%, oklch(from var(--scrim) l c h / 0) 62%);
+}
+@utility scrim-bottom {
+  background-image: linear-gradient(180deg, transparent 45%, oklch(from var(--scrim) l c h / 0.85) 100%);
+}
+@utility scrim-band {
+  background-color: oklch(from var(--scrim) l c h / 0.66);
+  @media (width >= 40rem) {
+    background-color: transparent;
+    background-image: linear-gradient(90deg, oklch(from var(--scrim) l c h / 0.86) 0%, oklch(from var(--scrim) l c h / 0.5) 50%, oklch(from var(--scrim) l c h / 0) 100%);
+  }
+}
+
+/* Desk density for the admin and agent portals: 40px controls. Set once on the shell. */
+@utility density-compact {
+  --control-h: 2.5rem;
+}
+
+/* Type roles. Use these instead of re-composing size, weight and tracking per screen. */
+@utility type-page-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  @media (width >= 40rem) {
+    font-size: var(--text-4xl);
+  }
+}
+@utility type-section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+@utility type-card-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+@utility type-overline {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
 }
 
 @layer utilities {

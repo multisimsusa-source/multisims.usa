@@ -60,7 +60,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
               value={carrierId}
               onValueChange={(v) => setCarrierId(String(v ?? ""))}
             >
-              <SelectTrigger id="carrier_id" aria-invalid={invalid("carrier_id")} className="h-10 w-full">
+              <SelectTrigger id="carrier_id" aria-invalid={invalid("carrier_id")} className="w-full">
                 <SelectValue placeholder="Choose a carrier" />
               </SelectTrigger>
               <SelectContent>
@@ -105,19 +105,19 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
         <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={invalid("name")}>
             <FieldLabel htmlFor="name">Plan name</FieldLabel>
-            <Input id="name" name="name" defaultValue={plan?.name} placeholder="Unlimited Plus" className="h-10" aria-invalid={invalid("name")} />
+            <Input id="name" name="name" defaultValue={plan?.name} placeholder="Unlimited Plus" aria-invalid={invalid("name")} />
             {err("name")}
           </Field>
           <Field data-invalid={invalid("slug")}>
             <FieldLabel htmlFor="slug">URL name</FieldLabel>
-            <Input id="slug" name="slug" defaultValue={plan?.slug} placeholder="Made from carrier and name if empty" className="h-10 font-mono text-sm" aria-invalid={invalid("slug")} />
+            <Input id="slug" name="slug" defaultValue={plan?.slug} placeholder="Made from carrier and name if empty" className="font-mono text-sm" aria-invalid={invalid("slug")} />
             {errors.slug ? err("slug") : <FieldDescription>The plan page lives at /plans/this-name</FieldDescription>}
           </Field>
         </div>
 
         <Field data-invalid={invalid("summary")}>
           <FieldLabel htmlFor="summary">Short summary</FieldLabel>
-          <Input id="summary" name="summary" defaultValue={plan?.summary} maxLength={200} placeholder="Unlimited data on T-Mobile 5G with 10 GB hotspot." className="h-10" aria-invalid={invalid("summary")} />
+          <Input id="summary" name="summary" defaultValue={plan?.summary} maxLength={200} placeholder="Unlimited data on T-Mobile 5G with 10 GB hotspot." aria-invalid={invalid("summary")} />
           {errors.summary ? err("summary") : <FieldDescription>One line, shown on plan cards and in search results.</FieldDescription>}
         </Field>
       </Section>
@@ -126,12 +126,12 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
         <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={invalid("talk")}>
             <FieldLabel htmlFor="talk">Talk</FieldLabel>
-            <Input id="talk" name="talk" defaultValue={plan?.talk ?? "Unlimited US talk"} className="h-10" aria-invalid={invalid("talk")} />
+            <Input id="talk" name="talk" defaultValue={plan?.talk ?? "Unlimited US talk"} aria-invalid={invalid("talk")} />
             {err("talk")}
           </Field>
           <Field data-invalid={invalid("sms")}>
             <FieldLabel htmlFor="sms">Text</FieldLabel>
-            <Input id="sms" name="sms" defaultValue={plan?.sms ?? "Unlimited US text"} className="h-10" aria-invalid={invalid("sms")} />
+            <Input id="sms" name="sms" defaultValue={plan?.sms ?? "Unlimited US text"} aria-invalid={invalid("sms")} />
             {err("sms")}
           </Field>
 
@@ -145,7 +145,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
                 defaultValue={plan?.data_gb ?? ""}
                 disabled={unlimited}
                 placeholder={unlimited ? "Unlimited" : "20"}
-                className="h-10"
+               
                 aria-invalid={invalid("data_gb")}
               />
               <label className="flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm">
@@ -157,13 +157,13 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
           </Field>
           <Field data-invalid={invalid("hotspot_gb")}>
             <FieldLabel htmlFor="hotspot_gb">Hotspot (GB)</FieldLabel>
-            <Input id="hotspot_gb" name="hotspot_gb" inputMode="decimal" defaultValue={plan?.hotspot_gb ?? ""} placeholder="Empty means no hotspot" className="h-10" aria-invalid={invalid("hotspot_gb")} />
+            <Input id="hotspot_gb" name="hotspot_gb" inputMode="decimal" defaultValue={plan?.hotspot_gb ?? ""} placeholder="Empty means no hotspot" aria-invalid={invalid("hotspot_gb")} />
             {err("hotspot_gb")}
           </Field>
 
           <Field data-invalid={invalid("network")}>
             <FieldLabel htmlFor="network">Network and speed</FieldLabel>
-            <Input id="network" name="network" defaultValue={plan?.network ?? "5G / 4G LTE"} className="h-10" aria-invalid={invalid("network")} />
+            <Input id="network" name="network" defaultValue={plan?.network ?? "5G / 4G LTE"} aria-invalid={invalid("network")} />
             {err("network")}
           </Field>
           <Field data-invalid={invalid("countries_covered")}>
@@ -172,7 +172,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
               id="countries_covered"
               name="countries_covered"
               defaultValue={(plan?.countries_covered ?? ["United States"]).join(", ")}
-              className="h-10"
+             
               aria-invalid={invalid("countries_covered")}
             />
             {errors.countries_covered ? err("countries_covered") : <FieldDescription>Separate with commas</FieldDescription>}
@@ -180,12 +180,12 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
 
           <Field data-invalid={invalid("slowdown_after_gb")}>
             <FieldLabel htmlFor="slowdown_after_gb">Slows down after (GB)</FieldLabel>
-            <Input id="slowdown_after_gb" name="slowdown_after_gb" inputMode="decimal" defaultValue={plan?.slowdown_after_gb ?? ""} placeholder="Empty means no slowdown" className="h-10" aria-invalid={invalid("slowdown_after_gb")} />
+            <Input id="slowdown_after_gb" name="slowdown_after_gb" inputMode="decimal" defaultValue={plan?.slowdown_after_gb ?? ""} placeholder="Empty means no slowdown" aria-invalid={invalid("slowdown_after_gb")} />
             {err("slowdown_after_gb")}
           </Field>
           <Field data-invalid={invalid("slowdown_speed")}>
             <FieldLabel htmlFor="slowdown_speed">Speed after slowdown</FieldLabel>
-            <Input id="slowdown_speed" name="slowdown_speed" defaultValue={plan?.slowdown_speed ?? ""} placeholder="1.5 Mbps" className="h-10" aria-invalid={invalid("slowdown_speed")} />
+            <Input id="slowdown_speed" name="slowdown_speed" defaultValue={plan?.slowdown_speed ?? ""} placeholder="1.5 Mbps" aria-invalid={invalid("slowdown_speed")} />
             {err("slowdown_speed")}
           </Field>
         </div>
@@ -217,7 +217,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
         ) : (
           <p className="text-sm text-muted-foreground">Next you will add day packages, then publish.</p>
         )}
-        <Button type="submit" size="lg" disabled={pending} className="h-11 sm:px-6">
+        <Button type="submit" size="lg" disabled={pending} className="sm:px-6">
           {pending ? "Saving..." : plan ? "Save plan" : "Create plan"}
         </Button>
       </div>

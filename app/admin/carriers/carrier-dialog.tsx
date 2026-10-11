@@ -65,7 +65,7 @@ export function CarrierDialog(props: Props) {
               <PencilSimpleIcon className="size-4" />
             </Button>
           ) : (
-            <Button size="lg" className="h-10">
+            <Button size="lg">
               <PlusIcon weight="bold" data-icon="inline-start" />
               Add carrier
             </Button>
@@ -83,13 +83,13 @@ export function CarrierDialog(props: Props) {
 
           <Field data-invalid={Boolean(errors.name) || undefined}>
             <FieldLabel htmlFor="carrier-name">Name</FieldLabel>
-            <Input id="carrier-name" name="name" required defaultValue={carrier?.name} placeholder="T-Mobile" className="h-10" />
+            <Input id="carrier-name" name="name" required defaultValue={carrier?.name} placeholder="T-Mobile" />
             {errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field data-invalid={Boolean(errors.slug) || undefined}>
             <FieldLabel htmlFor="carrier-slug">URL name</FieldLabel>
-            <Input id="carrier-slug" name="slug" defaultValue={carrier?.slug} placeholder="Made from the name if empty" className="h-10 font-mono text-sm" />
+            <Input id="carrier-slug" name="slug" defaultValue={carrier?.slug} placeholder="Made from the name if empty" className="font-mono text-sm" />
             {errors.slug ? <FieldError>{errors.slug}</FieldError> : <FieldDescription>Used in links such as /plans?carrier=t-mobile</FieldDescription>}
           </Field>
 
@@ -105,7 +105,7 @@ export function CarrierDialog(props: Props) {
                 </label>
               </div>
             ) : null}
-            <Input id="carrier-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="h-10 pt-2 text-sm" />
+            <Input id="carrier-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="pt-2 text-sm" />
             {errors.logo ? <FieldError>{errors.logo}</FieldError> : <FieldDescription>PNG, JPG or WebP, up to 1 MB. A wide logo on a transparent background works best.</FieldDescription>}
           </Field>
 
@@ -126,7 +126,7 @@ export function CarrierDialog(props: Props) {
           </label>
 
           <DialogFooter>
-            <Button type="submit" size="lg" disabled={pending} className="h-10">
+            <Button type="submit" size="lg" disabled={pending}>
               {pending ? "Saving..." : carrier ? "Save carrier" : "Add carrier"}
             </Button>
           </DialogFooter>

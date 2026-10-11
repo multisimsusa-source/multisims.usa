@@ -17,16 +17,3 @@ export function AdminPageHeader({
     </div>
   )
 }
-
-export function StatusTag({ tone, children }: { tone: "live" | "hidden" | "neutral"; children: React.ReactNode }) {
-  const tones = {
-    live: "bg-success-soft text-success-ink",
-    hidden: "bg-warning-soft text-warning-ink",
-    neutral: "bg-muted text-muted-foreground",
-  }
-  return (
-    <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium tracking-[0.04em] uppercase whitespace-nowrap ${tones[tone]}`}>
-      {children}
-    </span>
-  )
-}

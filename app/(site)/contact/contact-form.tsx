@@ -4,6 +4,7 @@ import * as React from "react"
 import Script from "next/script"
 import { CheckCircleIcon } from "@phosphor-icons/react"
 
+import { Notice } from "@/components/patterns/notice"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -41,12 +42,12 @@ export function ContactForm() {
       <div className="grid gap-5 sm:grid-cols-2">
         <Field data-invalid={Boolean(errors.name) || undefined}>
           <FieldLabel htmlFor="name">Name</FieldLabel>
-          <Input id="name" name="name" autoComplete="name" required defaultValue={values.name} aria-invalid={Boolean(errors.name) || undefined} className="h-11" />
+          <Input id="name" name="name" autoComplete="name" required defaultValue={values.name} aria-invalid={Boolean(errors.name) || undefined} />
           {errors.name ? <FieldError>{errors.name}</FieldError> : null}
         </Field>
         <Field data-invalid={Boolean(errors.email) || undefined}>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={values.email} aria-invalid={Boolean(errors.email) || undefined} className="h-11" />
+          <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={values.email} aria-invalid={Boolean(errors.email) || undefined} />
           {errors.email ? <FieldError>{errors.email}</FieldError> : null}
         </Field>
       </div>
@@ -55,7 +56,7 @@ export function ContactForm() {
         <FieldLabel htmlFor="order">
           Order number <span className="font-normal text-muted-foreground">(optional)</span>
         </FieldLabel>
-        <Input id="order" name="order" defaultValue={values.order} className="h-11" />
+        <Input id="order" name="order" defaultValue={values.order} />
       </Field>
 
       <Field data-invalid={Boolean(errors.message) || undefined}>
@@ -73,12 +74,12 @@ export function ContactForm() {
       {turnstileSiteKey ? <div className="cf-turnstile" data-sitekey={turnstileSiteKey} /> : null}
 
       {state.status === "error" ? (
-        <p role="alert" className="rounded-md bg-danger-soft px-4 py-3 text-sm text-danger-ink">
+        <Notice tone="danger" icon={false}>
           {state.message}
-        </p>
+        </Notice>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending} className="h-12 w-full text-base sm:w-fit sm:px-8">
+      <Button type="submit" size="xl" disabled={pending} className="w-full sm:w-fit sm:px-8">
         {pending ? "Sending..." : "Send message"}
       </Button>
     </form>

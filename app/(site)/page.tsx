@@ -113,7 +113,7 @@ export default async function HomePage() {
                   href="/plans"
                   className={cn(
                     buttonVariants({ size: "lg" }),
-                    "h-12 px-6 text-base lg:bg-white lg:text-[oklch(0.25_0.097_324)] lg:hover:bg-white/90"
+                    "h-12 px-6 text-base lg:bg-white lg:text-plum lg:hover:bg-white/90"
                   )}
                 >
                   Browse plans
@@ -143,9 +143,9 @@ export default async function HomePage() {
               />
               <div
                 aria-hidden
-                className="absolute inset-0 hidden bg-[linear-gradient(90deg,oklch(0.15_0.04_324/0.88)_0%,oklch(0.15_0.04_324/0.6)_38%,oklch(0.15_0.04_324/0)_62%)] lg:block"
+                className="absolute inset-0 hidden scrim-left lg:block"
               />
-              <figcaption className="absolute top-3 right-3 rounded-full bg-black/50 px-2.5 py-1 text-xs text-white backdrop-blur-sm lg:top-5 lg:right-5">
+              <figcaption className="absolute top-3 right-3 rounded-full bg-scrim/60 px-2.5 py-1 text-xs text-white backdrop-blur-sm lg:top-5 lg:right-5">
                 Liberty Island, New York
               </figcaption>
             </figure>
@@ -427,7 +427,7 @@ export default async function HomePage() {
                   />
                   <div
                     aria-hidden
-                    className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,oklch(0.15_0.04_324/0.85)_100%)]"
+                    className="absolute inset-0 scrim-bottom"
                   />
                   <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
                     <h3 className="text-lg font-semibold text-white sm:text-xl">{trip.title}</h3>
@@ -558,7 +558,7 @@ export default async function HomePage() {
         />
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 bg-[oklch(0.17_0.05_324/0.66)] sm:bg-[linear-gradient(90deg,oklch(0.17_0.05_324/0.86)_0%,oklch(0.17_0.05_324/0.5)_50%,oklch(0.17_0.05_324/0)_100%)]"
+          className="absolute inset-0 -z-10 scrim-band"
         />
         <Container className="py-24 sm:py-32">
           <h2 id="close" className="max-w-lg text-4xl font-semibold text-white sm:text-5xl">
@@ -572,7 +572,7 @@ export default async function HomePage() {
             href="/plans"
             className={cn(
               buttonVariants({ size: "lg" }),
-              "mt-8 h-12 bg-white px-6 text-base text-[oklch(0.25_0.097_324)] hover:bg-white/90 dark:bg-white"
+              "mt-8 h-12 bg-white px-6 text-base text-plum hover:bg-white/90 dark:bg-white"
             )}
           >
             Browse plans
@@ -670,7 +670,7 @@ function ProductPanel(props: {
           aria-hidden
           className={cn(
             "sim-cut -mt-6 inline-flex size-12 items-center justify-center rounded-md [--sim-cut:12px]",
-            props.tone === "brand" ? "bg-brand text-brand-foreground" : "bg-copper text-white dark:text-[oklch(0.2_0.03_60)]"
+            props.tone === "brand" ? "bg-brand text-brand-foreground" : "bg-copper text-copper-foreground"
           )}
         >
           {props.icon}
