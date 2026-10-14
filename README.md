@@ -36,4 +36,4 @@ Seed data is placeholder only: prices are deliberately fake ($1 per day plus a s
 
 Paste `supabase/manual/setup_client_project.sql` into Dashboard > SQL Editor and run it once. It creates the schema, RLS, the `carrier-logos` bucket and the placeholder catalogue in one transaction, and records the migration so `supabase db push` stays in sync. The admin-login steps are at the bottom of the file.
 
-Then run each later file in `supabase/manual/` in date order (currently `20261003_rate_limits_and_plan_lookup.sql`: the shared rate limiter and the plan 404 check).
+Then run each later file in `supabase/manual/` in date order (currently `20261003_rate_limits_and_plan_lookup.sql`: the shared rate limiter and the plan 404 check)..
