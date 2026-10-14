@@ -15,7 +15,7 @@ import { ActionButton, ClaimButton } from "@/components/staff/order-actions"
 import { NoteDialog } from "@/components/staff/note-dialog"
 import { completeOrder, flagOrder, issueReplacement, releaseOrder, saveTracking } from "@/app/agent/actions"
 import { approveReplacement, cancelOrder, markOrderPaid, reassignOrder, recordRefund } from "@/app/admin/orders/actions"
-import type { ItemNeed } from "@/components/staff/item-form"
+import type { ItemNeed } from "@/lib/staff/item-need"
 import type { OrderStatus } from "@/lib/types"
 
 type WorkProps = {

@@ -11,23 +11,17 @@ import { Tag } from "@/components/patterns/tag"
 import { saveItem } from "@/app/agent/actions"
 import { itemStatusLabel } from "@/lib/orders"
 import type { ProductType } from "@/lib/types"
+import { itemReady, type ItemNeed } from "@/lib/staff/item-need"
 import type { WorkItem } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp"]
 
-/** What this SIM still needs: its QR (eSIM), ICCID and tracking (posting), or its number (activation). */
-export type ItemNeed = "qr" | "ship" | "activate"
-
 type Props = { item: WorkItem; productType: ProductType; need: ItemNeed; editable: boolean; title: string }
 
 const needLabel: Record<ItemNeed, string> = { qr: "Needs QR", ship: "Needs ICCID and tracking", activate: "Needs phone number" }
 
-export function itemReady(item: Pick<WorkItem, "qr_path" | "tracking_number" | "iccid" | "phone_number">, need: ItemNeed) {
-  if (need === "qr") return Boolean(item.qr_path)
-  if (need === "ship") return Boolean(item.tracking_number && item.iccid)
-  return Boolean(item.phone_number)
-}
+
 
 /**
  * One SIM on the fulfilment screen. eSIM: the QR image (required) plus phone number
