@@ -10,7 +10,7 @@ US SIM card and eSIM storefront with admin, agent and dealer portals. Next.js 16
 ...
 Requires Bun, Docker and the Supabase CLI.
 
-```bash
+```bash...
 bun install
 supabase start                       # local Postgres, Auth, Storage; applies migrations + seed
 cp .env.example .env.local           # then fill the Supabase values from:
