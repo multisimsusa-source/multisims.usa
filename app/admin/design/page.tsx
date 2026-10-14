@@ -10,6 +10,7 @@ import { DetailList, DetailRow } from "@/components/patterns/detail-list"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { KeyValue, Panel } from "@/components/patterns/panel"
 import { Notice } from "@/components/patterns/notice"
+import { Reveal } from "@/components/patterns/reveal"
 import { Tag } from "@/components/patterns/tag"
 import { ProductBadge } from "@/components/site/product-mark"
 import { DemoFormSection, DemoSelect, DemoSwitch } from "./demos"
@@ -191,6 +192,33 @@ export default function DesignSystemPage() {
 
         <Block title="Empty states" note="Say why it is empty and what happens next. Filtered-empty and truly-empty use different words.">
           <EmptyState title="No orders yet">Orders appear here as soon as customers check out.</EmptyState>
+        </Block>
+
+        <Block
+          title="Motion (public site)"
+          note="Reveal settles marketing sections in as they scroll into view (rise, fade, un-blur; lists stagger by index, capped at 6). Only blocks that start below the fold are hidden, so nothing flickers and a failed script hides nothing. The home hero's entrance uses the enter and enter-photo classes. Task pages (plans browser, plan page, checkout, order page) stay still, and the portals never use Reveal: this demo is the one exception. Reduced motion keeps the fade only."
+        >
+          <Reveal as="ol" className="max-w-md rounded-xl border bg-card p-5">
+            {["Choose", "Pay", "Connect"].map((step, i, all) => (
+              <li key={step} className="relative grid grid-cols-[2rem_1fr] items-center gap-x-4 py-3">
+                {i < all.length - 1 ? (
+                  <span
+                    aria-hidden
+                    style={{ transitionDelay: `${300 + i * 450}ms` }}
+                    className="reveal-draw absolute top-11 -bottom-3 left-4 w-px bg-brand"
+                  />
+                ) : null}
+                <span
+                  aria-hidden
+                  style={{ transitionDelay: `${150 + i * 450}ms` }}
+                  className="reveal-mark relative flex size-8 items-center justify-center rounded-full border bg-background font-mono text-sm text-copper-ink tabular"
+                >
+                  {i + 1}
+                </span>
+                <span className="font-medium">{step}</span>
+              </li>
+            ))}
+          </Reveal>
         </Block>
       </div>
     </>

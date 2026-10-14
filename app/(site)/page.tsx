@@ -14,13 +14,18 @@ import {
 } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
+import { Reveal } from "@/components/patterns/reveal"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { FaqList } from "@/components/site/faq-list"
 import { PlanCard } from "@/components/site/plan-card"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
-import { getActiveCarriers, getIntlCallingAddon, getPublishedPlans } from "@/lib/catalog"
+import {
+  getActiveCarriers,
+  getIntlCallingAddon,
+  getPublishedPlans,
+} from "@/lib/catalog"
 import { faqs } from "@/lib/faq"
 import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -44,7 +49,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 }
 
-const trips: { title: string; length: string; photo: StaticImageData; alt: string; position: string }[] = [
+const trips: {
+  title: string
+  length: string
+  photo: StaticImageData
+  alt: string
+  position: string
+}[] = [
   {
     title: "City break",
     length: "A long weekend to a week",
@@ -82,14 +93,20 @@ export default async function HomePage() {
     getIntlCallingAddon(),
   ])
 
-  const carriersWithPlans = carriers.filter((c) => plans.some((p) => p.carrier.id === c.id))
+  const carriersWithPlans = carriers.filter((c) =>
+    plans.some((p) => p.carrier.id === c.id)
+  )
   const featured =
-    plans.find((p) => p.product_type === "esim" && p.data_gb === null) ?? plans[0] ?? null
+    plans.find((p) => p.product_type === "esim" && p.data_gb === null) ??
+    plans[0] ??
+    null
   const esimCount = plans.filter((p) => p.product_type === "esim").length
   const simCount = plans.filter((p) => p.product_type === "physical").length
   const showcase = pickShowcase(plans)
   const carrierNames = carriersWithPlans.slice(0, 3).map((c) => c.name)
-  const lengths = [...new Set(plans.flatMap((p) => p.packages.map((pkg) => pkg.days)))].sort((a, b) => a - b)
+  const lengths = [
+    ...new Set(plans.flatMap((p) => p.packages.map((pkg) => pkg.days))),
+  ].sort((a, b) => a - b)
 
   return (
     <>
@@ -99,16 +116,16 @@ export default async function HomePage() {
         <Container className="relative pt-8 pb-16 sm:pt-10 lg:pt-6 lg:pb-20">
           <div className="lg:relative lg:isolate lg:flex lg:min-h-[41rem] lg:items-center lg:overflow-hidden lg:rounded-xl">
             <div className="max-w-xl lg:p-14 lg:pr-0">
-              <h1 className="text-[2.6rem] leading-[1.05] font-semibold sm:text-6xl lg:text-white">
+              <h1 className="enter text-[2.6rem] leading-[1.05] font-semibold sm:text-6xl lg:text-white">
                 US SIM cards and eSIMs, ready before you land.
               </h1>
-              <p className="mt-5 max-w-[44ch] text-lg text-muted-foreground lg:text-white/80">
+              <p className="enter mt-5 max-w-[44ch] text-lg text-muted-foreground [--enter-delay:120ms] lg:text-white/80">
                 {carrierNames.length
                   ? `Lines on ${carrierNames.join(", ")} and more. `
                   : "Lines on the major US networks. "}
                 Pick your days, pay, and get connected.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="enter mt-8 flex flex-col gap-3 [--enter-delay:220ms] sm:flex-row">
                 <Link
                   href="/plans"
                   className={cn(
@@ -139,7 +156,7 @@ export default async function HomePage() {
                 preload
                 placeholder="blur"
                 sizes="(min-width: 1152px) 1104px, 100vw"
-                className="object-cover object-[50%_45%] lg:object-[50%_40%]"
+                className="enter-photo object-cover object-[50%_45%] lg:object-[50%_40%]"
               />
               <div
                 aria-hidden
@@ -152,14 +169,14 @@ export default async function HomePage() {
           </div>
 
           {featured ? (
-            <div className="relative mx-3 -mt-12 rounded-xl border bg-card p-5 shadow-pop sm:mx-auto sm:-mt-20 sm:max-w-md sm:p-6 lg:absolute lg:right-10 lg:bottom-[6.5rem] lg:mx-0 lg:mt-0 lg:w-[21rem] lg:max-w-none">
+            <div className="enter relative mx-3 -mt-12 rounded-xl border bg-card p-5 shadow-pop [--enter-delay:380ms] sm:mx-auto sm:-mt-20 sm:max-w-md sm:p-6 lg:absolute lg:right-10 lg:bottom-[6.5rem] lg:mx-0 lg:mt-0 lg:w-[21rem] lg:max-w-none">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <CarrierLogo carrier={featured.carrier} size="sm" />
                   <p className="mt-2 font-heading text-xl font-semibold tracking-[-0.02em]">
                     <Link
                       href={`/plans/${featured.slug}`}
-                      className="-my-2.5 inline-flex min-h-11 items-center hover:underline underline-offset-4"
+                      className="-my-2.5 inline-flex min-h-11 items-center underline-offset-4 hover:underline"
                     >
                       {featured.name}
                     </Link>
@@ -170,7 +187,12 @@ export default async function HomePage() {
                 </div>
                 <ProductBadge type={featured.product_type} />
               </div>
-              <PlanConfigurator plan={featured} addon={addon} variant="compact" className="mt-5" />
+              <PlanConfigurator
+                plan={featured}
+                addon={addon}
+                variant="compact"
+                className="mt-5"
+              />
             </div>
           ) : null}
         </Container>
@@ -209,18 +231,22 @@ export default async function HomePage() {
       {/* What the line does for a visitor. */}
       <section aria-labelledby="benefits">
         <Container className="py-20 sm:py-28">
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end">
-            <h2 id="benefits" className="max-w-md text-3xl font-semibold sm:text-4xl">
+          <Reveal className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end">
+            <h2
+              id="benefits"
+              className="max-w-md text-3xl font-semibold sm:text-4xl"
+            >
               A real US line, not just data
             </h2>
             <p className="max-w-[46ch] text-lg text-muted-foreground lg:justify-self-end">
-              Every plan comes on a US carrier, with talk and text alongside the data, so your phone
-              works the way it does at home.
+              Every plan comes on a US carrier, with talk and text alongside the
+              data, so your phone works the way it does at home.
             </p>
-          </div>
+          </Reveal>
 
           <div className="mt-12 grid gap-4 lg:grid-cols-6">
             <BenefitPhoto
+              index={0}
               className="lg:col-span-4"
               photo={cabPhoto}
               alt="A traveller hailing a yellow cab on a New York avenue"
@@ -230,6 +256,7 @@ export default async function HomePage() {
               body="Call and text US numbers, receive sign-in codes, and use ride and delivery apps that ask for a US number."
             />
             <BenefitPhoto
+              index={1}
               className="lg:col-span-2"
               photo={hotspotPhoto}
               alt="An espresso, a phone and a laptop on a cafe table"
@@ -238,15 +265,24 @@ export default async function HomePage() {
               title="Share it with your laptop"
               body="Each plan lists its hotspot allowance, so you know before you buy."
             />
-            <div className="flex flex-col justify-between gap-8 rounded-xl bg-brand-soft p-7 sm:p-8 lg:col-span-2">
+            <Reveal
+              index={2}
+              className="flex flex-col justify-between gap-8 rounded-xl bg-brand-soft p-7 sm:p-8 lg:col-span-2"
+            >
               <div>
-                <h3 className="text-xl font-semibold">Pay for the days you stay</h3>
+                <h3 className="text-xl font-semibold">
+                  Pay for the days you stay
+                </h3>
                 <p className="mt-2 text-foreground/75">
-                  Plans are sold by the day, not by the month. Pick the length that matches your trip.
+                  Plans are sold by the day, not by the month. Pick the length
+                  that matches your trip.
                 </p>
               </div>
               {lengths.length ? (
-                <ul aria-label="Package lengths on sale" className="flex flex-wrap gap-2">
+                <ul
+                  aria-label="Package lengths on sale"
+                  className="flex flex-wrap gap-2"
+                >
                   {lengths.slice(0, 8).map((days) => (
                     <li
                       key={days}
@@ -257,9 +293,10 @@ export default async function HomePage() {
                   ))}
                 </ul>
               ) : null}
-            </div>
+            </Reveal>
             {addon ? (
               <BenefitPhoto
+                index={3}
                 className="lg:col-span-4"
                 photo={callPhoto}
                 alt="A woman smiling during a phone call at her desk"
@@ -276,9 +313,15 @@ export default async function HomePage() {
       {/* Two separate products. */}
       <section id="products" className="scroll-mt-20 border-t bg-canvas">
         <Container className="py-20 sm:py-28">
-          <h2 className="max-w-2xl text-3xl font-semibold sm:text-4xl">Two ways to get a US number</h2>
+          <Reveal
+            as="h2"
+            className="max-w-2xl text-3xl font-semibold sm:text-4xl"
+          >
+            Two ways to get a US number
+          </Reveal>
           <div className="mt-10 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
             <ProductPanel
+              index={0}
               tone="brand"
               photo={esimPhoto}
               photoAlt="A traveller holding up a phone to photograph a New York street lined with yellow taxis"
@@ -287,13 +330,20 @@ export default async function HomePage() {
               title="eSIM"
               body="Delivered as a QR code by email and on your order page. Scan it and your phone joins the network, no plastic card needed."
               points={[
-                { icon: <EnvelopeSimpleIcon className="size-4" />, text: "QR code sent to your inbox" },
-                { icon: <CellTowerIcon className="size-4" />, text: "Needs an eSIM-capable, unlocked phone" },
+                {
+                  icon: <EnvelopeSimpleIcon className="size-4" />,
+                  text: "QR code sent to your inbox",
+                },
+                {
+                  icon: <CellTowerIcon className="size-4" />,
+                  text: "Needs an eSIM-capable, unlocked phone",
+                },
               ]}
               href="/plans?type=esim"
               cta={`See ${plural(esimCount, "eSIM plan", "eSIM plans")}`}
             />
             <ProductPanel
+              index={1}
               tone="muted"
               photo={simPhoto}
               photoAlt="A nano SIM card beside an open SIM tray and a phone"
@@ -302,8 +352,14 @@ export default async function HomePage() {
               title="SIM card"
               body="A physical SIM card for any unlocked phone, posted from the US by USPS."
               points={[
-                { icon: <TruckIcon className="size-4" />, text: "Tracking number on your order page" },
-                { icon: <CellTowerIcon className="size-4" />, text: "Works in phones without eSIM" },
+                {
+                  icon: <TruckIcon className="size-4" />,
+                  text: "Tracking number on your order page",
+                },
+                {
+                  icon: <CellTowerIcon className="size-4" />,
+                  text: "Works in phones without eSIM",
+                },
               ]}
               href="/plans?type=physical"
               cta={`See ${plural(simCount, "SIM card plan", "SIM card plans")}`}
@@ -315,7 +371,10 @@ export default async function HomePage() {
       {/* Phone readiness check. */}
       <section aria-labelledby="phone-check" className="border-t">
         <Container className="grid items-center gap-12 py-20 sm:py-28 lg:grid-cols-[0.85fr_1fr] lg:gap-16">
-          <figure className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted lg:aspect-[4/5]">
+          <Reveal
+            as="figure"
+            className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted lg:aspect-[4/5]"
+          >
             <Image
               src={phonePhoto}
               alt="A hand holding a smartphone showing its home screen"
@@ -324,14 +383,17 @@ export default async function HomePage() {
               sizes="(min-width: 1152px) 460px, (min-width: 1024px) 40vw, 100vw"
               className="object-cover object-[55%_50%] dark:brightness-90"
             />
-          </figure>
-          <div>
-            <h2 id="phone-check" className="max-w-md text-3xl font-semibold sm:text-4xl">
+          </Reveal>
+          <Reveal index={1}>
+            <h2
+              id="phone-check"
+              className="max-w-md text-3xl font-semibold sm:text-4xl"
+            >
               Will my phone work?
             </h2>
             <p className="mt-4 max-w-[52ch] text-lg text-muted-foreground">
-              Two things matter: your phone must be unlocked, and for an eSIM it must support eSIM. A
-              one-minute check before you buy:
+              Two things matter: your phone must be unlocked, and for an eSIM it
+              must support eSIM. A one-minute check before you buy:
             </p>
 
             <div className="mt-8 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
@@ -353,17 +415,20 @@ export default async function HomePage() {
               />
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              On any phone, dial <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">*#06#</kbd>.
-              If an EID number appears, the phone supports eSIM.
+              On any phone, dial{" "}
+              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">
+                *#06#
+              </kbd>
+              . If an EID number appears, the phone supports eSIM.
             </p>
             <Link
               href="/plans?type=physical"
-              className="mt-6 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand hover:underline underline-offset-4"
+              className="mt-6 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline"
             >
               No eSIM? Choose a SIM card instead
               <ArrowRightIcon weight="bold" className="size-4" />
             </Link>
-          </div>
+          </Reveal>
         </Container>
       </section>
 
@@ -371,22 +436,29 @@ export default async function HomePage() {
       {showcase.length ? (
         <section className="border-t bg-canvas">
           <Container className="py-20 sm:py-28">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <h2 className="max-w-xl text-3xl font-semibold sm:text-4xl">Plans on every major network</h2>
+            <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <h2 className="max-w-xl text-3xl font-semibold sm:text-4xl">
+                Plans on every major network
+              </h2>
               <Link
                 href="/plans"
-                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand hover:underline underline-offset-4"
+                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
               >
                 All {plural(plans.length, "plan", "plans")}
                 <ArrowRightIcon weight="bold" className="size-4" />
               </Link>
-            </div>
+            </Reveal>
             {/* Phones swipe through the plans; wider screens get the grid. */}
-            <ul className="-mx-4 mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-              {showcase.map((plan) => (
-                <li key={plan.id} className="w-[84%] shrink-0 snap-start sm:w-auto [&>*]:h-full">
+            <ul className="-mx-4 mt-10 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+              {showcase.map((plan, i) => (
+                <Reveal
+                  as="li"
+                  key={plan.id}
+                  index={i}
+                  className="w-[84%] shrink-0 snap-start sm:w-auto [&>*]:h-full"
+                >
                   <PlanCard plan={plan} />
-                </li>
+                </Reveal>
               ))}
             </ul>
           </Container>
@@ -396,20 +468,24 @@ export default async function HomePage() {
       {/* Trip lengths, shown as trips. */}
       <section aria-labelledby="trips" className="border-t">
         <Container className="py-20 sm:py-28">
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end">
-            <h2 id="trips" className="max-w-md text-3xl font-semibold sm:text-4xl">
+          <Reveal className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end">
+            <h2
+              id="trips"
+              className="max-w-md text-3xl font-semibold sm:text-4xl"
+            >
               Match the days to your trip
             </h2>
             {lengths.length > 1 ? (
               <p className="max-w-[46ch] text-lg text-muted-foreground lg:justify-self-end">
-                Packages run from {formatLength(lengths[0])} to {formatLength(lengths[lengths.length - 1])}.
-                Buy the length of your stay and nothing more.
+                Packages run from {formatLength(lengths[0])} to{" "}
+                {formatLength(lengths[lengths.length - 1])}. Buy the length of
+                your stay and nothing more.
               </p>
             ) : null}
-          </div>
+          </Reveal>
           <ul className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            {trips.map((trip) => (
-              <li key={trip.title}>
+            {trips.map((trip, i) => (
+              <Reveal as="li" key={trip.title} index={i}>
                 <Link
                   href="/plans"
                   className="group relative block aspect-[3/4] overflow-hidden rounded-xl bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -421,20 +497,21 @@ export default async function HomePage() {
                     placeholder="blur"
                     sizes="(min-width: 1152px) 264px, (min-width: 1024px) 23vw, 50vw"
                     className={cn(
-                      "object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none",
+                      "object-cover transition-transform duration-700 ease-out-expo group-hover:scale-[1.05] motion-reduce:transition-none",
                       trip.position
                     )}
                   />
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 scrim-bottom"
-                  />
+                  <div aria-hidden className="absolute inset-0 scrim-bottom" />
                   <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
-                    <h3 className="text-lg font-semibold text-white sm:text-xl">{trip.title}</h3>
-                    <p className="mt-0.5 text-sm text-white/80">{trip.length}</p>
+                    <h3 className="text-lg font-semibold text-white sm:text-xl">
+                      {trip.title}
+                    </h3>
+                    <p className="mt-0.5 text-sm text-white/80">
+                      {trip.length}
+                    </p>
                   </div>
                 </Link>
-              </li>
+              </Reveal>
             ))}
           </ul>
         </Container>
@@ -443,8 +520,10 @@ export default async function HomePage() {
       {/* How it works, beside the moment it leads to. */}
       <section className="border-t">
         <Container className="grid items-center gap-10 py-20 sm:py-28 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <h2 className="max-w-sm text-3xl font-semibold sm:text-4xl">From checkout to signal</h2>
+          <Reveal>
+            <h2 className="max-w-sm text-3xl font-semibold sm:text-4xl">
+              From checkout to signal
+            </h2>
             <figure className="relative mt-8 aspect-[3/2] overflow-hidden rounded-xl bg-muted">
               <Image
                 src={arrivalPhoto}
@@ -455,8 +534,10 @@ export default async function HomePage() {
                 className="object-cover object-[70%_50%] dark:brightness-90"
               />
             </figure>
-          </div>
-          <ol className="divide-y border-y">
+          </Reveal>
+          {/* The steps light up in order as they come into view, joined by a drawn plum line:
+              the sequence is the point. */}
+          <Reveal as="ol" index={1}>
             {[
               {
                 title: "Choose",
@@ -470,25 +551,41 @@ export default async function HomePage() {
                 title: "Connect",
                 body: "Scan your eSIM QR code, or insert the SIM card when it arrives.",
               },
-            ].map((step, i) => (
-              <li key={step.title} className="grid grid-cols-[2.5rem_1fr] gap-x-4 py-7 sm:py-8">
-                <span aria-hidden className="pt-1 font-mono text-sm text-copper-ink tabular-nums">
+            ].map((step, i, all) => (
+              <li
+                key={step.title}
+                className="relative grid grid-cols-[2rem_1fr] gap-x-5 py-6 sm:py-7"
+              >
+                {i < all.length - 1 ? (
+                  <span
+                    aria-hidden
+                    style={{ transitionDelay: `${300 + i * 450}ms` }}
+                    className="reveal-draw absolute top-14 -bottom-6 left-4 w-px bg-brand sm:top-15 sm:-bottom-7"
+                  />
+                ) : null}
+                <span
+                  aria-hidden
+                  style={{ transitionDelay: `${150 + i * 450}ms` }}
+                  className="reveal-mark relative flex size-8 items-center justify-center rounded-full border bg-background font-mono text-sm text-copper-ink tabular-nums"
+                >
                   {i + 1}
                 </span>
                 <div>
                   <h3 className="text-xl font-semibold">{step.title}</h3>
-                  <p className="mt-1.5 max-w-[46ch] text-muted-foreground">{step.body}</p>
+                  <p className="mt-1.5 max-w-[46ch] text-muted-foreground">
+                    {step.body}
+                  </p>
                 </div>
               </li>
             ))}
-          </ol>
+          </Reveal>
         </Container>
       </section>
 
       {/* Dealers and wholesalers. */}
       <section aria-labelledby="dealers" className="border-t bg-canvas">
         <Container className="grid items-center gap-10 py-20 sm:py-24 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
-          <div className="lg:order-2">
+          <Reveal className="lg:order-2">
             <figure className="relative aspect-[3/2] overflow-hidden rounded-xl bg-muted">
               <Image
                 src={shopPhoto}
@@ -499,55 +596,82 @@ export default async function HomePage() {
                 className="origin-top-left scale-105 object-cover object-[50%_40%] dark:brightness-90"
               />
             </figure>
-          </div>
-          <div className="lg:order-1">
-            <h2 id="dealers" className="max-w-md text-3xl font-semibold sm:text-4xl">
+          </Reveal>
+          <Reveal index={1} className="lg:order-1">
+            <h2
+              id="dealers"
+              className="max-w-md text-3xl font-semibold sm:text-4xl"
+            >
               Selling US lines to your own customers?
             </h2>
             <p className="mt-4 max-w-[48ch] text-lg text-muted-foreground">
-              Dealers and wholesalers buy in bulk at wholesale prices through our dealer portal, with
-              eSIM and SIM card orders in one place.
+              Dealers and wholesalers buy in bulk at wholesale prices through
+              our dealer portal, with eSIM and SIM card orders in one place.
             </p>
             <ul className="mt-6 space-y-2.5">
-              {["Wholesale prices on every plan", "Bulk orders, mixed carriers", "Order history for every line"].map(
-                (item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-foreground/85">
-                    <CheckIcon weight="bold" aria-hidden className="size-4 text-brand" />
-                    {item}
-                  </li>
-                )
-              )}
+              {[
+                "Wholesale prices on every plan",
+                "Bulk orders, mixed carriers",
+                "Order history for every line",
+              ].map((item) => (
+                <li
+                  key={item}
+                  className="flex items-center gap-2.5 text-foreground/85"
+                >
+                  <CheckIcon
+                    weight="bold"
+                    aria-hidden
+                    className="size-4 text-brand"
+                  />
+                  {item}
+                </li>
+              ))}
             </ul>
             <div className="mt-8 flex flex-col gap-3 sm:items-start">
-              <Link href="/contact" className={cn(buttonVariants({ size: "lg" }), "h-12 px-6 text-base")}>
+              <Link
+                href="/contact"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "h-12 px-6 text-base"
+                )}
+              >
                 Ask about a dealer account
                 <ArrowRightIcon weight="bold" data-icon="inline-end" />
               </Link>
-              <p className="text-sm text-muted-foreground">Dealer accounts are set up by our team.</p>
+              <p className="text-sm text-muted-foreground">
+                Dealer accounts are set up by our team.
+              </p>
             </div>
-          </div>
+          </Reveal>
         </Container>
       </section>
 
       {/* FAQ teaser. */}
       <section className="border-t">
         <Container className="grid gap-10 py-20 sm:py-28 lg:grid-cols-[1fr_1.6fr]">
-          <div>
-            <h2 className="max-w-sm text-3xl font-semibold sm:text-4xl">Questions before you buy</h2>
+          <Reveal>
+            <h2 className="max-w-sm text-3xl font-semibold sm:text-4xl">
+              Questions before you buy
+            </h2>
             <Link
               href="/faq"
-              className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand hover:underline underline-offset-4"
+              className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
             >
               Read the full FAQ
               <ArrowRightIcon weight="bold" className="size-4" />
             </Link>
-          </div>
-          <FaqList items={faqs.slice(0, 4)} />
+          </Reveal>
+          <Reveal index={1}>
+            <FaqList items={faqs.slice(0, 4)} />
+          </Reveal>
         </Container>
       </section>
 
       {/* Closing band: one decision, over a US city at dusk. */}
-      <section aria-labelledby="close" className="relative isolate overflow-hidden">
+      <section
+        aria-labelledby="close"
+        className="relative isolate overflow-hidden"
+      >
         <Image
           src={duskPhoto}
           alt=""
@@ -556,28 +680,30 @@ export default async function HomePage() {
           sizes="100vw"
           className="-z-20 object-cover object-[60%_55%]"
         />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 scrim-band"
-        />
+        <div aria-hidden className="absolute inset-0 -z-10 scrim-band" />
         <Container className="py-24 sm:py-32">
-          <h2 id="close" className="max-w-lg text-4xl font-semibold text-white sm:text-5xl">
-            Land with a working US number.
-          </h2>
-          <p className="mt-4 max-w-md text-lg text-white/80">
-            Choose a carrier and the days you need. eSIM QR codes arrive by email; SIM cards travel by
-            USPS with tracking.
-          </p>
-          <Link
-            href="/plans"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "mt-8 h-12 bg-white px-6 text-base text-plum hover:bg-white/90 dark:bg-white"
-            )}
-          >
-            Browse plans
-            <ArrowRightIcon weight="bold" data-icon="inline-end" />
-          </Link>
+          <Reveal>
+            <h2
+              id="close"
+              className="max-w-lg text-4xl font-semibold text-white sm:text-5xl"
+            >
+              Land with a working US number.
+            </h2>
+            <p className="mt-4 max-w-md text-lg text-white/80">
+              Choose a carrier and the days you need. eSIM QR codes arrive by
+              email; SIM cards travel by USPS with tracking.
+            </p>
+            <Link
+              href="/plans"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "mt-8 h-12 bg-white px-6 text-base text-plum hover:bg-white/90 dark:bg-white"
+              )}
+            >
+              Browse plans
+              <ArrowRightIcon weight="bold" data-icon="inline-end" />
+            </Link>
+          </Reveal>
         </Container>
       </section>
     </>
@@ -585,6 +711,7 @@ export default async function HomePage() {
 }
 
 function BenefitPhoto(props: {
+  index: number
   className?: string
   photo: StaticImageData
   alt: string
@@ -594,26 +721,36 @@ function BenefitPhoto(props: {
   body: string
 }) {
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-xl border bg-card", props.className)}>
-      <div className={cn("relative", props.aspect)}>
+    <Reveal
+      index={props.index}
+      className={cn(
+        "group flex flex-col overflow-hidden rounded-xl border bg-card",
+        props.className
+      )}
+    >
+      <div className={cn("relative overflow-hidden", props.aspect)}>
         <Image
           src={props.photo}
           alt={props.alt}
           fill
           placeholder="blur"
           sizes="(min-width: 1152px) 720px, (min-width: 1024px) 64vw, 100vw"
-          className={cn("object-cover dark:brightness-90", props.position)}
+          className={cn(photoHover, props.position)}
         />
       </div>
       <div className="flex-1 p-7 sm:p-8">
         <h3 className="text-xl font-semibold">{props.title}</h3>
         <p className="mt-2 max-w-[52ch] text-muted-foreground">{props.body}</p>
       </div>
-    </div>
+    </Reveal>
   )
 }
 
-function CheckPanel(props: { icon: React.ReactNode; title: string; steps: string[] }) {
+function CheckPanel(props: {
+  icon: React.ReactNode
+  title: string
+  steps: string[]
+}) {
   return (
     <div className="bg-card p-6">
       <h3 className="flex items-center gap-2 text-lg font-semibold">
@@ -625,7 +762,10 @@ function CheckPanel(props: { icon: React.ReactNode; title: string; steps: string
       <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
         {props.steps.map((step, i) => (
           <li key={step} className="grid grid-cols-[1.25rem_1fr] gap-2">
-            <span aria-hidden className="font-mono text-copper-ink tabular-nums">
+            <span
+              aria-hidden
+              className="font-mono text-copper-ink tabular-nums"
+            >
               {i + 1}
             </span>
             <span>{step}</span>
@@ -637,6 +777,7 @@ function CheckPanel(props: { icon: React.ReactNode; title: string; steps: string
 }
 
 function ProductPanel(props: {
+  index: number
   tone: "brand" | "muted"
   photo: StaticImageData
   photoAlt: string
@@ -649,20 +790,21 @@ function ProductPanel(props: {
   cta: string
 }) {
   return (
-    <div
+    <Reveal
+      index={props.index}
       className={cn(
-        "flex flex-col overflow-hidden rounded-xl",
+        "group flex flex-col overflow-hidden rounded-xl",
         props.tone === "brand" ? "bg-brand-soft" : "bg-muted"
       )}
     >
-      <div className="relative aspect-[16/10]">
+      <div className="relative aspect-[16/10] overflow-hidden">
         <Image
           src={props.photo}
           alt={props.photoAlt}
           fill
           placeholder="blur"
           sizes="(min-width: 1152px) 620px, (min-width: 1024px) 54vw, 100vw"
-          className={cn("object-cover dark:brightness-90", props.photoPosition)}
+          className={cn(photoHover, props.photoPosition)}
         />
       </div>
       <div className="relative flex flex-1 flex-col px-7 pb-7 sm:px-9 sm:pb-9">
@@ -670,7 +812,9 @@ function ProductPanel(props: {
           aria-hidden
           className={cn(
             "sim-cut -mt-6 inline-flex size-12 items-center justify-center rounded-md [--sim-cut:12px]",
-            props.tone === "brand" ? "bg-brand text-brand-foreground" : "bg-copper text-copper-foreground"
+            props.tone === "brand"
+              ? "bg-brand text-brand-foreground"
+              : "bg-copper text-copper-foreground"
           )}
         >
           {props.icon}
@@ -679,7 +823,10 @@ function ProductPanel(props: {
         <p className="mt-2 max-w-[44ch] text-foreground/75">{props.body}</p>
         <ul className="mt-6 space-y-2 text-sm">
           {props.points.map((p) => (
-            <li key={p.text} className="flex items-center gap-2.5 text-foreground/80">
+            <li
+              key={p.text}
+              className="flex items-center gap-2.5 text-foreground/80"
+            >
               <span aria-hidden className="text-foreground/60">
                 {p.icon}
               </span>
@@ -689,15 +836,22 @@ function ProductPanel(props: {
         </ul>
         <Link
           href={props.href}
-          className="mt-auto inline-flex min-h-11 w-fit items-center gap-1.5 pt-8 text-sm font-semibold hover:underline underline-offset-4"
+          className="mt-auto inline-flex min-h-11 w-fit items-center gap-1.5 pt-8 text-sm font-semibold underline-offset-4 hover:underline"
         >
           {props.cta}
-          <ArrowRightIcon weight="bold" className="size-4" />
+          <ArrowRightIcon
+            weight="bold"
+            className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+          />
         </Link>
       </div>
-    </div>
+    </Reveal>
   )
 }
+
+/** Photos inside cards lean in a little on hover; still for reduced motion. */
+const photoHover =
+  "object-cover transition-transform duration-700 ease-out-expo group-hover:scale-[1.04] motion-reduce:transition-none dark:brightness-90"
 
 /** One plan per carrier, up to six, so the slice shows the range of networks. */
 function pickShowcase<T extends { carrier: { id: string } }>(plans: T[]) {

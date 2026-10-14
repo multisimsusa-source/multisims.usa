@@ -117,7 +117,15 @@ Real US places and real phones (Unsplash License, credits in `docs/IMAGE_CREDITS
 
 ### Motion
 
-State-driven and quiet: 150 to 200ms colour transitions, `scale(0.98)` on button press, accordion height, a slow pulse only on "in progress" dots. No entrance choreography, no scroll-triggered reveals in the portals. Everything respects `prefers-reduced-motion` (use `motion-safe:`). The route loader is a 2px brand hairline at the top.
+State-driven and quiet: 150 to 200ms colour transitions, `scale(0.98)` on button press, accordion height, a slow pulse only on "in progress" dots. The route loader is a 2px brand hairline at the top. Everything respects `prefers-reduced-motion`.
+
+Marketing pages (home, about) also move on arrival and scroll, built from the system only (styles in `globals.css`, easing `--ease-out-expo`):
+
+- **Hero entrance** (home only, the one authored moment): `enter` on the headline, copy, buttons and plan picker, staggered with `[--enter-delay:...]`; `enter-photo` lets the hero photo settle from a slight zoom. Pure CSS, runs once.
+- **`Reveal`** (`components/patterns/reveal.tsx`): sections and cards rise 20px, fade and un-blur as they scroll into view; lists pass `index` for a 70ms stagger, capped at 6. Only blocks that start below the fold are hidden, after hydration, so nothing on screen flickers and a failed script hides nothing.
+- **Sequence** (home steps): `reveal-draw` lines draw between `reveal-mark` circles that turn plum in order, delays set per step.
+- **Hover depth:** photos inside cards scale to 1.04 to 1.05 over 700ms; arrows nudge 2px.
+- **Never:** in the portals, or on task pages (plans browser, plan page, checkout, order page). Reduced motion keeps the fade only: no movement, blur or zoom.
 
 ---
 
@@ -155,6 +163,7 @@ Every repeated piece of UI lives here. If you are about to write one of these by
 | Nothing to show | `EmptyState` | Lists and searches; different words for filtered-empty |
 | Phone action bar | `ActionBar` (`sticky` or `fixed`) | Keeps a flow's finishing action in reach on phones |
 | Copy a value | `CopyButton` | Phone numbers, ICCIDs, tracking numbers |
+| Scroll reveal | `Reveal` (`as`, `index`) | Marketing sections and card lists on the public site only (see Motion) |
 
 Product and brand composites live in `components/site/` (carrier logo, product badge, plan card, plan configurator, header, footer, wordmark) and portal composites in `components/staff/` and `components/admin/` (portal shell, filters, order workspace, alerts, ticket views, page header).
 
@@ -265,7 +274,7 @@ The client's MSU logo sets the identity: a deep plum Didone monogram over copper
 
 ### Public site
 
-- **Home** (Persuade): 1. hero stage (photo with `scrim-left`, live plan picker floating with `shadow-pop`; on phones offer, photo, then picker); 2. partner strip (carrier logos as one-ink silhouettes, colour on hover); 3. "A real US line" bento with photo cells and a brand-soft cell of live package lengths as SIM-cut chips; 4. eSIM and SIM card panels; 5. "Will my phone work?" (iPhone/Android check, `*#06#` in a `<kbd>`); 6. plans (grid from `sm`, swipe row on phones); 7. trip-length photo cards with `scrim-bottom`; 8. checkout-to-signal steps; 9. dealers; 10. FAQ; 11. closing band with `scrim-band`. Copy comes from the catalogue, never invented.
+- **Home** (Persuade; motion: hero entrance, `Reveal` on every section below the fold, steps drawn in sequence, photo hover depth): 1. hero stage (photo with `scrim-left`, live plan picker floating with `shadow-pop`; on phones offer, photo, then picker); 2. partner strip (carrier logos as one-ink silhouettes, colour on hover); 3. "A real US line" bento with photo cells and a brand-soft cell of live package lengths as SIM-cut chips; 4. eSIM and SIM card panels; 5. "Will my phone work?" (iPhone/Android check, `*#06#` in a `<kbd>`); 6. plans (grid from `sm`, swipe row on phones); 7. trip-length photo cards with `scrim-bottom`; 8. checkout-to-signal steps; 9. dealers; 10. FAQ; 11. closing band with `scrim-band`. Copy comes from the catalogue, never invented.
 - **Site header:** sticky 64px, translucent with a hairline; wordmark left, nav centred, icons right; current section gets a 2px plum bar. Phones: theme, portal, divider, menu sheet.
 - **Plan search:** command dialog (Cmd/Ctrl+K or `/`), whole-word matching over carrier, plan and facts, results with logo, facts and from price.
 - **Plans page:** toolbar with count, removable filter tags and three Selects ("Label Value"), choices in the URL, grid dims while streaming.
