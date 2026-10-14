@@ -17,6 +17,8 @@ const help: FooterLink[] = [
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact us" },
   { href: "/about", label: "About us" },
+  { href: "/terms", label: "Terms" },
+  { href: "/refund-policy", label: "Refund Policy" },
 ]
 const business: FooterLink[] = [
   { href: "/contact", label: "Dealer accounts" },

@@ -9,6 +9,7 @@ import { Container } from "@/components/site/section"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { getIntlCallingAddon, getPlanBySlug } from "@/lib/catalog"
 import { dataLabel, hotspotLabel } from "@/lib/format"
+import { minimumOrderCents, paymentsEnabled } from "@/lib/payments"
 import { createServiceClient } from "@/lib/supabase/service"
 import { cn } from "@/lib/utils"
 import { CheckoutForm } from "./checkout-form"
@@ -35,10 +36,10 @@ async function Checkout({
   const slug = typeof params.plan === "string" ? params.plan : ""
   const days = Number(params.days)
 
-  const [plan, addon, shippingCents] = await Promise.all([
+  const [plan, addon, fees] = await Promise.all([
     getPlanBySlug(slug),
     getIntlCallingAddon(),
-    getShippingFee(),
+    getCheckoutFees(),
   ])
   const pkg = plan?.packages.find((p) => p.days === days)
 
@@ -88,19 +89,26 @@ async function Checkout({
           unitCents={pkg.price_cents}
           addon={addon}
           initialIntl={params.intl === "1"}
-          shippingCents={shippingCents}
+          fees={fees}
+          takesPayment={paymentsEnabled()}
         />
       </div>
     </>
   )
 }
 
-async function getShippingFee() {
+/** Fees and the minimum order, read fresh on every checkout (the server checks again). */
+async function getCheckoutFees() {
   const { data } = await createServiceClient()
     .from("settings")
-    .select("shipping_fee_cents")
+    .select("shipping_fee_cents, sim_card_price_cents, network_fee_cents, min_order_cents")
     .maybeSingle()
-  return data?.shipping_fee_cents ?? 0
+  return {
+    shippingCents: data?.shipping_fee_cents ?? 0,
+    simCardCents: data?.sim_card_price_cents ?? 0,
+    networkFeeCents: data?.network_fee_cents ?? 0,
+    minimumCents: await minimumOrderCents(data?.min_order_cents ?? 0),
+  }
 }
 
 function CheckoutSkeleton() {

@@ -7,7 +7,7 @@ import { Tag } from "@/components/patterns/tag"
 import { KeyValue, Panel } from "@/components/patterns/panel"
 import { Notice } from "@/components/patterns/notice"
 import { Age } from "@/components/staff/age"
-import { ItemForm } from "@/components/staff/item-form"
+import { ItemForm, itemReady, type ItemNeed } from "@/components/staff/item-form"
 import { AdminOrderControls, ReplaceButton, TrackingForm, WorkControls } from "@/components/staff/work-controls"
 import type { Profile } from "@/lib/types"
 import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
@@ -16,6 +16,9 @@ import {
   orderLabel,
   orderStatusLabel,
   orderStatusTone,
+  paymentStatusLabel,
+  paymentStatusTone,
+  planStartLabel,
   severityLabel,
   ticketStatusLabel,
   ticketStatusTone,
@@ -31,14 +34,16 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
   const isAdmin = viewer.role === "admin"
   const [data, staff] = await Promise.all([getWorkOrder(id), isAdmin ? listStaff() : Promise.resolve([])])
   if (!data) notFound()
-  const { order, items, original, replacements, tickets, messages, allowance } = data
+  const { order, items, original, replacements, tickets, messages, payments, allowance } = data
 
   const esim = order.product_type === "esim"
   const holder = order.claimed_by === viewer.id || isAdmin
   const canWork = holder && (order.status === "claimed" || order.status === "needs_attention")
   const canClaim = order.status === "queued"
-  const pending = items.filter((i) => i.status === "pending")
-  const missing = pending.filter((i) => (esim ? !i.qr_path : !i.tracking_number)).length
+  const activation = order.phase === "activate"
+  const need: ItemNeed = esim ? "qr" : activation ? "activate" : "ship"
+  const working = items.filter((i) => (activation ? i.status === "fulfilled" : i.status === "pending"))
+  const missing = working.filter((i) => !itemReady(i, need)).length
   const base = isAdmin ? "/admin" : "/agent"
   const unit = esim ? "eSIM" : "SIM"
   const tracking = items.find((i) => i.tracking_number)?.tracking_number ?? null
@@ -67,7 +72,7 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
           {order.carrier_name} {order.plan_name}
           <ProductBadge type={order.product_type} />
         </p>
-        <WorkControls orderId={order.id} status={order.status} productType={order.product_type} canClaim={canClaim} canWork={canWork} missing={missing} />
+        <WorkControls orderId={order.id} status={order.status} need={need} canClaim={canClaim} canWork={canWork} missing={missing} />
         {order.claimed_by && !holder && order.status === "claimed" ? (
           <p className="text-sm text-muted-foreground">
             Claimed by {order.claimer?.full_name || order.claimer?.email} <Age since={order.claimed_at ?? order.created_at} className="text-sm" /> ago.
@@ -81,6 +86,19 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
         </Notice>
       ) : null}
       {order.staff_note && order.status !== "fulfilled" ? <Notice tone="info" title="From the owner">{order.staff_note}</Notice> : null}
+      {activation && order.status === "shipped" ? (
+        <Notice tone="info" title={order.plan_start === "on_date" ? `Activation scheduled: ${planStartLabel(order).replace(/^On /, "")}` : "Posted, waiting for the customer"}>
+          {order.plan_start === "on_date"
+            ? "It comes into the queue on that date. Start the line then, so the plan days do not run while the card is in the post."
+            : "It comes into the queue when the customer says the SIM has arrived. Do not start the line before then."}
+        </Notice>
+      ) : null}
+      {activation && order.status !== "shipped" && order.status !== "fulfilled" && order.status !== "cancelled" ? (
+        <Notice tone="warning" title="Activate the line">
+          {order.plan_start === "on_date" ? "The start date has come. " : "The customer has the SIM. "}
+          Start each line by its ICCID, add the phone number, then mark it active. The customer gets the number by email and on their order page.
+        </Notice>
+      ) : null}
       {original ? (
         <Notice tone="warning" title={`Replaces ${unit} ${original.item?.seq ?? ""} of ${orderLabel(original)}`}>
           {original.item?.phone_number ? `Old number ${original.item.phone_number}. ` : ""}
@@ -94,7 +112,7 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <section aria-label={`${unit}s`} className="flex min-w-0 flex-col gap-4">
-          {!esim ? <TrackingForm orderId={order.id} current={tracking} editable={canWork} /> : null}
+          {!esim ? <TrackingForm orderId={order.id} current={tracking} editable={canWork && !activation} /> : null}
           {items.map((item) => (
             <div key={item.id}>
               <ItemForm
@@ -102,7 +120,8 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
                 key={`${item.status}-${item.qr_path}-${item.phone_number}-${item.iccid}`}
                 item={item}
                 productType={order.product_type}
-                editable={canWork && item.status === "pending"}
+                need={need}
+                editable={canWork && (activation ? item.status === "fulfilled" : item.status === "pending")}
                 title={items.length > 1 ? `${unit} ${item.seq} of ${items.length}` : unit}
               />
               {item.status === "fulfilled" ? (
@@ -140,6 +159,7 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
             <KeyValue label="ZIP code" value={order.zip_code ?? "Not given"} mono={Boolean(order.zip_code)} />
             <KeyValue label="Area code" value={order.area_code ?? "Any"} mono={Boolean(order.area_code)} strong={Boolean(order.area_code)} />
+            {!esim && order.plan_start ? <KeyValue label="Plan start" value={planStartLabel(order)} strong /> : null}
             {order.area_code ? <KeyValue label="If not available" value="Deliver the nearest area code" /> : null}
             {order.addon_name ? <KeyValue label="Add-on" value={`${order.addon_name}: switch it on`} strong /> : null}
           </Panel>
@@ -213,6 +233,33 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
                       <span className="font-mono tabular">{orderLabel(r)}</span>
                       <Tag tone={orderStatusTone[r.status]}>{orderStatusLabel[r.status]}</Tag>
                     </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          ) : null}
+
+          {isAdmin && payments.length ? (
+            <Panel title="Payments">
+              <ul className="flex flex-col divide-y">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm">{formatDateTime(p.created_at)}</span>
+                      <span className="flex gap-1.5">
+                        {p.overpaid ? <Tag tone="warning">Overpaid</Tag> : null}
+                        <Tag tone={paymentStatusTone[p.status]}>{paymentStatusLabel[p.status]}</Tag>
+                      </span>
+                    </div>
+                    {p.pay_currency ? <KeyValue label="Coin" value={p.pay_currency.toUpperCase()} mono /> : null}
+                    {p.pay_amount ? <KeyValue label="Expected" value={p.pay_amount} mono /> : null}
+                    {p.actually_paid ? <KeyValue label="Received" value={p.actually_paid} mono strong /> : null}
+                    {p.provider_payment_id ? <KeyValue label="Reference" value={p.provider_payment_id} mono /> : null}
+                    {p.status === "awaiting" && p.invoice_url ? (
+                      <a href={p.invoice_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-sm font-medium text-brand hover:underline">
+                        Payment page
+                      </a>
+                    ) : null}
                   </li>
                 ))}
               </ul>

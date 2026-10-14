@@ -12,7 +12,7 @@ import { Age } from "@/components/staff/age"
 import { ClaimButton } from "@/components/staff/order-actions"
 import { getSessionProfile } from "@/lib/auth"
 import { formatDays } from "@/lib/format"
-import { orderLabel } from "@/lib/orders"
+import { orderLabel, planStartLabel } from "@/lib/orders"
 import { getSettings, listOpenOrders, type QueueOrder } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
@@ -23,7 +23,7 @@ export default function QueuePage() {
     <>
       <AdminPageHeader
         title="Queue"
-        description="Paid orders waiting for a line, oldest first. Claim one to work on it; nobody else can take it while it is yours."
+        description="Paid orders and SIM cards ready to activate, oldest first. Claim one to work on it; nobody else can take it while it is yours."
       />
       <Suspense fallback={<ListSkeleton rows={4} />}>
         <Queue />
@@ -43,6 +43,7 @@ async function Queue() {
   const others = orders.filter((o) => o.claimed_by !== me && o.status === "claimed")
   const flagged = orders.filter((o) => o.claimed_by !== me && o.status === "needs_attention")
   const held = orders.filter((o) => o.status === "awaiting_approval")
+  const scheduled = orders.filter((o) => o.status === "shipped").sort((a, b) => (a.activate_on ?? "").localeCompare(b.activate_on ?? ""))
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,6 +82,20 @@ async function Queue() {
         </Group>
       ) : null}
 
+      {scheduled.length ? (
+        <Group title="Scheduled activations" count={scheduled.length}>
+          {scheduled.map((o) => (
+            <Row
+              key={o.id}
+              order={o}
+              warn={warn}
+              href={isAdmin ? `/admin/orders/${o.id}` : `/agent/orders/${o.id}`}
+              action={<span className="text-sm text-muted-foreground">{planStartLabel(o)}</span>}
+            />
+          ))}
+        </Group>
+      ) : null}
+
       {isAdmin && held.length ? (
         <Group title="Replacements waiting for your approval" count={held.length}>
           {held.map((o) => (
@@ -105,17 +120,26 @@ function Group({ title, count, children }: { title: string; count: number; child
 }
 
 function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; action: React.ReactNode; href?: string }) {
-  const since = order.paid_at ?? order.created_at
+  const since = order.activation_requested_at ?? order.paid_at ?? order.created_at
+  const activation = order.phase === "activate"
+  const startsToday = activation && order.plan_start === "on_date" && order.activate_on === usToday()
   const facts = [
     `${order.quantity} x`,
     formatDays(order.days),
     order.addon_name,
     order.zip_code ? `ZIP ${order.zip_code}` : null,
     order.area_code ? `Area ${order.area_code}` : null,
+    order.plan_start ? (order.plan_start === "on_date" ? `Starts ${planStartLabel(order).replace(/^On /, "")}` : "Starts on arrival") : null,
   ].filter(Boolean)
 
   return (
-    <li className={cn("relative flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center sm:gap-4", href && "hover:bg-muted/40")}>
+    <li
+      className={cn(
+        "relative flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center sm:gap-4",
+        href && "hover:bg-muted/40",
+        startsToday && order.status === "queued" && "bg-warning-soft/50"
+      )}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {href ? (
@@ -125,7 +149,9 @@ function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; a
           ) : (
             <span className="font-mono text-sm font-medium tabular">{orderLabel(order)}</span>
           )}
-          <Age since={since} warnAfterMin={order.status === "queued" ? warn : undefined} className="text-xs" />
+          {order.status === "shipped" ? null : <Age since={since} warnAfterMin={order.status === "queued" ? warn : undefined} className="text-xs" />}
+          {activation ? <Tag tone="brand">Activate</Tag> : null}
+          {startsToday ? <Tag tone="warning">Starts today</Tag> : null}
           {order.replacement_of ? (
             <Tag tone="warning">
               <ArrowsClockwiseIcon className="mr-1 size-3" />
@@ -170,4 +196,9 @@ function OpenLink({ id, label, primary, admin }: { id: string; label: string; pr
       <ArrowRightIcon data-icon="inline-end" />
     </Link>
   )
+}
+
+/** Today in the US, where lines are activated (YYYY-MM-DD). */
+function usToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
 }

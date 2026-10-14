@@ -6,7 +6,11 @@ import type { Order, OrderItem, Ticket, TicketType } from "@/lib/types"
 /** How long a QR link on the order page stays valid. Reloading the page issues a new one. */
 const QR_URL_SECONDS = 60 * 60
 
+/** The order a SIM belongs to (the original, or its replacement order). */
+export type ItemOwner = Pick<Order, "id" | "status" | "phase" | "product_type" | "plan_start" | "activate_on" | "activation_requested_at">
+
 export type CustomerItem = OrderItem & {
+  owner: ItemOwner
   qr_url: string | null
   /** Set on items of a replacement order: which original SIM it replaces. */
   replaces_seq: number | null
@@ -18,10 +22,24 @@ export type CustomerOrder = {
   items: CustomerItem[]
   /** Replacements still being prepared, by the original SIM's number. */
   pendingReplacements: number[]
+  /** Physical SIMs posted but not yet active: the original order and any replacements. */
+  activations: Activation[]
   tickets: Pick<Ticket, "id" | "number" | "type_name" | "severity" | "status" | "answer" | "created_at" | "order_item_id">[]
   ticketTypes: Pick<TicketType, "id" | "name">[]
   lastMessageAt: string | null
 }
+
+export type Activation = {
+  orderId: string
+  /** "Your SIM cards", or "SIM card 2 replacement". */
+  label: string
+  /** "on_receipt": the customer presses the button; "on_date": it starts by itself. */
+  start: "on_receipt" | "on_date"
+  activateOn: string | null
+  requested: boolean
+}
+
+const OWNER_SELECT = "id, status, phase, product_type, plan_start, activate_on, activation_requested_at, replaces_item_id"
 
 export function isOrderToken(token: string) {
   return /^[0-9a-f]{48}$/.test(token)
@@ -40,7 +58,7 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
 
   const { data: replacementOrders } = await db
     .from("orders")
-    .select("id, status, replaces_item_id")
+    .select(OWNER_SELECT)
     .eq("replacement_of", order.id)
     .order("created_at")
 
@@ -74,6 +92,7 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
     if (rep && item.status !== "fulfilled") continue
     items.push({
       ...item,
+      owner: (rep ?? order) as ItemOwner,
       qr_url: item.status === "fulfilled" && item.qr_path ? (signed.get(item.qr_path) ?? null) : null,
       replacement: Boolean(rep),
       replaces_seq: rep?.replaces_item_id ? (seqById.get(rep.replaces_item_id) ?? null) : null,
@@ -85,10 +104,25 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
     .map((r) => seqById.get(r.replaces_item_id as string))
     .filter((s): s is number => typeof s === "number")
 
+  const unit = order.product_type === "esim" ? "eSIM" : "SIM card"
+  const activations: Activation[] = [order as ItemOwner & { replaces_item_id: string | null }, ...(replacementOrders ?? [])]
+    .filter((o) => o.product_type === "physical" && o.phase === "activate" && o.status !== "fulfilled" && o.status !== "cancelled")
+    .map((o) => {
+      const seq = o.replaces_item_id ? seqById.get(o.replaces_item_id) : null
+      return {
+        orderId: o.id,
+        label: o.id === order.id ? `Your ${order.quantity > 1 ? `${unit}s` : unit}` : `${unit} ${seq ?? ""} replacement`.replace("  ", " "),
+        start: o.plan_start === "on_date" ? "on_date" : "on_receipt",
+        activateOn: o.activate_on,
+        requested: Boolean(o.activation_requested_at),
+      }
+    })
+
   return {
     order: order as Order,
     items,
     pendingReplacements,
+    activations,
     tickets: tickets ?? [],
     ticketTypes: types ?? [],
     lastMessageAt: lastMessage?.created_at ?? null,

@@ -73,6 +73,7 @@ export type OrderStatus =
   | "queued"
   | "claimed"
   | "needs_attention"
+  | "shipped"
   | "fulfilled"
   | "cancelled"
 export type PaymentStatus =
@@ -86,6 +87,9 @@ export type PaymentStatus =
 export type ItemStatus = "pending" | "fulfilled" | "replaced" | "cancelled"
 export type TicketSeverity = "low" | "medium" | "high" | "urgent"
 export type TicketStatus = "open" | "in_progress" | "resolved"
+
+export type PlanStart = "on_receipt" | "on_date"
+export type OrderPhase = "fulfil" | "activate"
 
 export type ShippingAddress = { line1: string; line2?: string; city: string; state: string; zip: string }
 
@@ -115,7 +119,18 @@ export type Order = {
   unit_price_cents: number
   addon_price_cents: number
   shipping_cents: number
+  /** Per physical SIM card, copied from settings at purchase. */
+  sim_card_price_cents: number
+  /** Flat, once per order. */
+  network_fee_cents: number
   total_cents: number
+  /** Physical SIMs: when the plan should start. */
+  plan_start: PlanStart | null
+  activate_on: string | null
+  /** Physical SIMs go through the queue twice: post the cards, then start the lines. */
+  phase: OrderPhase
+  shipped_at: string | null
+  activation_requested_at: string | null
   claimed_by: string | null
   claimed_at: string | null
   attention_reason: string | null
@@ -190,4 +205,7 @@ export type Settings = {
   shipping_fee_cents: number
   replacement_needs_approval: boolean
   max_replacements_per_order: number
+  sim_card_price_cents: number
+  network_fee_cents: number
+  min_order_cents: number
 }

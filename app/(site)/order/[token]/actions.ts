@@ -3,10 +3,12 @@
 import { randomUUID } from "node:crypto"
 import { after } from "next/server"
 import { refresh } from "next/cache"
+import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { isOrderToken } from "@/lib/customer-order"
-import { notifyCustomerMessage, notifyNewTicket } from "@/lib/notify"
+import { notifyActivationRequested, notifyCustomerMessage, notifyNewTicket } from "@/lib/notify"
+import { getPaymentProvider, invoiceUrlForOrder } from "@/lib/payments"
 import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -24,6 +26,49 @@ async function loadOrder(token: string) {
   if (!isOrderToken(token)) return null
   const { data } = await createServiceClient().from("orders").select("*").eq("public_token", token).maybeSingle()
   return (data as Order | null) ?? null
+}
+
+/**
+ * The Pay button on an unpaid order: back to the open invoice, or a fresh one once the
+ * old one has expired. The price is the one saved on the order, never recalculated.
+ */
+export async function startPayment(token: string): Promise<void> {
+  const order = await loadOrder(token)
+  if (!order) redirect("/")
+  const page = `/order/${order.public_token}`
+  const provider = getPaymentProvider()
+  if (order.status !== "awaiting_payment" || !provider || ["confirming", "partially_paid", "paid"].includes(order.payment_status)) redirect(page)
+  if (!(await rateLimit(`pay:${await clientIp()}`, 10, 10 * 60_000)).ok) redirect(`${page}?pay=busy`)
+
+  let url: string | null = null
+  try {
+    url = await invoiceUrlForOrder(provider, order)
+  } catch (err) {
+    console.error("[order] could not open an invoice", err)
+  }
+  redirect(url ?? `${page}?pay=error`)
+}
+
+/**
+ * "My SIM has arrived, activate it". Works once per order: the database only moves an
+ * order that is still waiting for this. The order can be the original or one of its
+ * replacements, so it is checked against the token's order.
+ */
+export async function requestActivation(token: string, orderId: string): Promise<void> {
+  const order = await loadOrder(token)
+  if (!order) redirect("/")
+  const page = `/order/${order.public_token}`
+  if (!z.uuid().safeParse(orderId).success) redirect(page)
+  if (!(await rateLimit(`activate:${token.slice(0, 16)}`, 5, 10 * 60_000)).ok) redirect(page)
+
+  const db = createServiceClient()
+  if (orderId !== order.id) {
+    const { data: rep } = await db.from("orders").select("id").eq("id", orderId).eq("replacement_of", order.id).maybeSingle()
+    if (!rep) redirect(page)
+  }
+  const { data, error } = await db.rpc("request_activation", { p_order_id: orderId })
+  if (!error && data) after(() => notifyActivationRequested(data as Order))
+  redirect(`${page}?activation=${error ? "done" : "requested"}`)
 }
 
 const messageSchema = z

@@ -4,11 +4,14 @@ import { after } from "next/server"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 
-import { notifyOrderPaid } from "@/lib/notify"
+import { notifyAwaitingPayment, notifyOrderPaid } from "@/lib/notify"
 import { MAX_QUANTITY } from "@/lib/orders"
+import { getPaymentProvider, invoiceUrlForOrder, minimumOrderCents } from "@/lib/payments"
+import { minimumOrderMessage, orderTotal } from "@/lib/pricing"
 import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
+import type { Order } from "@/lib/types"
 import { usStateCodes } from "@/lib/us-states"
 
 const base = z.object({
@@ -32,9 +35,27 @@ const address = z.object({
   city: z.string().trim().min(2, "Enter the city").max(80),
   state: z.string().refine((s) => usStateCodes.has(s), "Choose a state"),
   ship_zip: z.string().trim().regex(/^[0-9]{5}(-[0-9]{4})?$/, "Enter a US ZIP code"),
+  plan_start: z.enum(["on_receipt", "on_date"], "Choose when your plan should start"),
+  activate_on: z.string(),
 })
 
 export type CheckoutField = keyof z.infer<typeof base> | keyof z.infer<typeof address>
+
+/** Today in the US (where lines are activated), as YYYY-MM-DD. */
+function usToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+}
+
+/** A start date from today up to a year ahead, or an error message. */
+function checkStartDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Choose the date your plan should start"
+  const today = usToday()
+  const limit = new Date(`${today}T00:00:00Z`)
+  limit.setUTCFullYear(limit.getUTCFullYear() + 1)
+  if (value < today) return "Choose today or a later date"
+  if (value > limit.toISOString().slice(0, 10)) return "Choose a date within the next year"
+  return null
+}
 export type CheckoutState = {
   status: "idle" | "error"
   message?: string
@@ -44,8 +65,9 @@ export type CheckoutState = {
 
 /**
  * Places an order. Prices are always re-read from the database, never taken from the
- * form. Version one takes no payment yet: the order goes straight to the agent queue
- * and the customer lands on their private order page.
+ * form. The order waits for payment and the buyer goes to the provider's payment page;
+ * it reaches the agent queue only when the provider's webhook confirms payment. With no
+ * provider configured (development), it goes straight to the queue.
  */
 export async function placeOrder(_prev: CheckoutState, formData: FormData): Promise<CheckoutState> {
   const values = Object.fromEntries(
@@ -72,7 +94,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, active)")
       .eq("slug", slug)
       .maybeSingle(),
-    db.from("settings").select("shipping_fee_cents").maybeSingle(),
+    db.from("settings").select("shipping_fee_cents, sim_card_price_cents, network_fee_cents, min_order_cents").maybeSingle(),
     db.from("addons").select("id, name, price_cents").eq("code", "intl_calling").eq("active", true).maybeSingle(),
   ])
 
@@ -85,9 +107,14 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   const physical = plan.product_type === "physical"
   let shipping: z.infer<typeof address> | null = null
   if (physical) {
-    const a = address.safeParse(values)
-    if (a.success) shipping = a.data
-    else for (const issue of a.error.issues) fieldErrors[issue.path[0] as CheckoutField] ??= issue.message
+    const a = address.safeParse({ plan_start: "on_receipt", activate_on: "", ...values })
+    if (a.success) {
+      shipping = a.data
+      if (a.data.plan_start === "on_date") {
+        const dateError = checkStartDate(a.data.activate_on)
+        if (dateError) fieldErrors.activate_on = dateError
+      }
+    } else for (const issue of a.error.issues) fieldErrors[issue.path[0] as CheckoutField] ??= issue.message
   }
 
   if (!parsed.success || Object.keys(fieldErrors).length) {
@@ -97,7 +124,24 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   const input = parsed.data
   const useAddon = input.intl && addon ? addon : null
   const shippingCents = physical ? (settings?.shipping_fee_cents ?? 0) : 0
-  const total = (pkg.price_cents + (useAddon?.price_cents ?? 0)) * input.quantity + shippingCents
+  const simCardCents = physical ? (settings?.sim_card_price_cents ?? 0) : 0
+  const networkFeeCents = settings?.network_fee_cents ?? 0
+  const total = orderTotal({
+    unitCents: pkg.price_cents,
+    addonCents: useAddon?.price_cents ?? 0,
+    quantity: input.quantity,
+    physical,
+    simCardCents,
+    shippingCents,
+    networkFeeCents,
+  })
+
+  // Below the minimum the payment provider refuses the payment, and a payment it refuses
+  // usually cannot be refunded: stop here, before any order or invoice exists.
+  const minimum = await minimumOrderCents(settings?.min_order_cents ?? 0)
+  if (total < minimum) {
+    return { status: "error", message: minimumOrderMessage(minimum), values }
+  }
 
   const { data: order, error } = await db
     .from("orders")
@@ -124,9 +168,13 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       unit_price_cents: pkg.price_cents,
       addon_price_cents: useAddon?.price_cents ?? 0,
       shipping_cents: shippingCents,
+      sim_card_price_cents: simCardCents,
+      network_fee_cents: networkFeeCents,
       total_cents: total,
+      plan_start: shipping ? shipping.plan_start : null,
+      activate_on: shipping?.plan_start === "on_date" ? shipping.activate_on : null,
     })
-    .select("id, public_token")
+    .select("*")
     .single()
   if (error || !order) {
     console.error("[checkout] order insert failed", error)
@@ -135,16 +183,31 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
 
   const items = Array.from({ length: input.quantity }, (_, i) => ({ order_id: order.id, seq: i + 1 }))
   const { error: itemsError } = await db.from("order_items").insert(items)
-  // No payment step in version one yet: the order goes straight to the queue.
-  const { error: queueError } = itemsError
-    ? { error: itemsError }
-    : await db.rpc("mark_order_paid", { p_order_id: order.id, p_payment_status: "not_required" })
-  if (queueError) {
-    console.error("[checkout] could not queue order", queueError)
+  if (itemsError) {
+    console.error("[checkout] order items insert failed", itemsError)
     await db.from("orders").delete().eq("id", order.id)
     return { status: "error", message: "We could not place your order. Please try again.", values }
   }
 
-  after(() => notifyOrderPaid(order.id))
-  redirect(`/order/${order.public_token}?placed=1`)
+  const provider = getPaymentProvider()
+  if (!provider) {
+    const { error: queueError } = await db.rpc("mark_order_paid", { p_order_id: order.id, p_payment_status: "not_required" })
+    if (queueError) {
+      console.error("[checkout] could not queue order", queueError)
+      await db.from("orders").delete().eq("id", order.id)
+      return { status: "error", message: "We could not place your order. Please try again.", values }
+    }
+    after(() => notifyOrderPaid(order.id))
+    redirect(`/order/${order.public_token}?placed=1`)
+  }
+
+  after(() => notifyAwaitingPayment(order.id))
+  let invoiceUrl: string | null = null
+  try {
+    invoiceUrl = await invoiceUrlForOrder(provider, order as Order)
+  } catch (err) {
+    // The order is saved: its page offers the payment again.
+    console.error("[checkout] could not open an invoice", err)
+  }
+  redirect(invoiceUrl ?? `/order/${order.public_token}?pay=error`)
 }

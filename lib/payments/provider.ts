@@ -11,7 +11,13 @@ export interface PaymentProvider {
   createInvoice(request: InvoiceRequest): Promise<Invoice>
   /** True only when the webhook really came from the provider. */
   verifyWebhook(rawBody: string, headers: Headers): boolean
-  parseWebhook(rawBody: string): PaymentEvent
+  /**
+   * Turns a verified webhook into a payment event. The webhook is only a trigger: the
+   * provider is asked again for the payment, and that answer is what gets recorded.
+   */
+  confirmWebhook(rawBody: string): Promise<PaymentEvent>
+  /** The smallest payment the provider accepts right now, in US cents, or null if unknown. */
+  minimumCents(): Promise<number | null>
 }
 
 export type InvoiceRequest = {
@@ -27,7 +33,8 @@ export type InvoiceRequest = {
 export type Invoice = { providerInvoiceId: string; url: string }
 
 export type PaymentEvent = {
-  paymentId: string
+  /** Our payments.id, when the provider echoed it back. */
+  paymentId: string | null
   providerInvoiceId: string | null
   providerPaymentId: string | null
   providerStatus: string
@@ -48,4 +55,9 @@ export const paymentRank: Record<PaymentStatus, number> = {
   partially_paid: 3,
   paid: 4,
   not_required: 4,
+}
+
+/** Statuses a payment may move from on its way to `status` (same rank or lower). */
+export function statusesBelow(status: PaymentStatus): PaymentStatus[] {
+  return (Object.keys(paymentRank) as PaymentStatus[]).filter((s) => paymentRank[s] <= paymentRank[status] && s !== "not_required")
 }

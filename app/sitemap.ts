@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/site"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const plans = await getPublishedPlans()
-  const staticPages = ["/", "/plans", "/about", "/faq", "/contact"].map((path) => ({
+  const staticPages = ["/", "/plans", "/about", "/faq", "/contact", "/terms", "/refund-policy"].map((path) => ({
     url: absoluteUrl(path),
     changeFrequency: path === "/" || path === "/plans" ? ("daily" as const) : ("monthly" as const),
     priority: path === "/" ? 1 : path === "/plans" ? 0.9 : 0.5,

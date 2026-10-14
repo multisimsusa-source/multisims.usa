@@ -20,6 +20,7 @@ type OrderRow = {
   plan_name: string
   quantity: number
   replacement_of: string | null
+  phase: "fulfil" | "activate"
 }
 type TicketRow = { id: string; number: number; type_name: string; severity: string }
 
@@ -33,13 +34,14 @@ type TicketRow = { id: string; number: number; type_name: string; severity: stri
  * an "Enable sound" switch turned on at the start of a shift. The choice is remembered
  * per browser; after a reload the first tap anywhere re-arms it.
  */
-export function OrderAlerts({ queuedIds }: { queuedIds: string[] }) {
+export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const sound = React.useSyncExternalStore(subscribeSound, readSound, () => false)
   const [live, setLive] = React.useState<"connecting" | "live" | "offline">("connecting")
   const audio = React.useRef<AudioContext | null>(null)
-  const seen = React.useRef(new Set(queuedIds))
+  // Keyed by order and phase: a posted SIM card comes back to the queue to be activated.
+  const seen = React.useRef(new Set(queuedKeys))
   const soundRef = React.useRef(false)
   const pathRef = React.useRef(pathname)
   const refreshTimer = React.useRef<number | undefined>(undefined)
@@ -49,8 +51,8 @@ export function OrderAlerts({ queuedIds }: { queuedIds: string[] }) {
   }, [pathname])
 
   React.useEffect(() => {
-    for (const id of queuedIds) seen.current.add(id)
-  }, [queuedIds])
+    for (const key of queuedKeys) seen.current.add(key)
+  }, [queuedKeys])
 
   // A remembered "on" still needs a gesture before the browser lets audio play.
   React.useEffect(() => {
@@ -84,8 +86,9 @@ export function OrderAlerts({ queuedIds }: { queuedIds: string[] }) {
       .channel("staff-alerts")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
         const row = payload.new as Partial<OrderRow>
-        if (row?.id && row.status === "queued" && !seen.current.has(row.id)) {
-          seen.current.add(row.id)
+        const key = `${row?.id}:${row?.phase ?? "fulfil"}`
+        if (row?.id && row.status === "queued" && !seen.current.has(key)) {
+          seen.current.add(key)
           announceOrder(row as OrderRow)
         }
         scheduleRefresh()
@@ -106,7 +109,7 @@ export function OrderAlerts({ queuedIds }: { queuedIds: string[] }) {
 
     function announceOrder(order: OrderRow) {
       announce({
-        title: `${order.replacement_of ? "Replacement" : "New order"} MS-${order.number}`,
+        title: `${order.phase === "activate" ? "Activate" : order.replacement_of ? "Replacement" : "New order"} MS-${order.number}`,
         body: `${order.quantity} x ${order.carrier_name} ${order.plan_name}`,
         href: `/agent/orders/${order.id}`,
         tag: `order-${order.id}`,

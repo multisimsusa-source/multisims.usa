@@ -155,7 +155,8 @@ export async function completeOrder(orderId: string): Promise<ActionResult> {
   const order = data as Order
   after(() => notifyOrderDelivered(order.id))
   refresh()
-  return { ok: true, message: order.product_type === "esim" ? "Delivered to the customer" : "Marked shipped" }
+  const message = order.product_type === "esim" ? "Delivered to the customer" : order.status === "fulfilled" ? "Line active. The customer has the number." : "Marked shipped"
+  return { ok: true, message }
 }
 
 const answerSchema = z.object({

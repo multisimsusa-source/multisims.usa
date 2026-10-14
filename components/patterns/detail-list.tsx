@@ -11,8 +11,9 @@ export function DetailList({ className, children }: { className?: string; childr
 export function DetailRow({ label, value, mono, strong }: { label: string; value: React.ReactNode; mono?: boolean; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-6 py-3">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className={cn("min-w-0 text-right break-words", mono && "font-mono tabular", strong && "font-semibold")}>{value}</dd>
+      {/* Long labels (a priced line) wrap; mono values (prices, numbers, codes) never break. */}
+      <dt className={cn("text-muted-foreground", mono ? "min-w-0" : "shrink-0")}>{label}</dt>
+      <dd className={cn("text-right", mono ? "shrink-0 font-mono whitespace-nowrap tabular" : "min-w-0 break-words", strong && "font-semibold")}>{value}</dd>
     </div>
   )
 }

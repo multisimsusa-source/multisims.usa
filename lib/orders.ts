@@ -1,4 +1,4 @@
-import type { ItemStatus, Order, OrderItem, OrderStatus, TicketSeverity, TicketStatus } from "@/lib/types"
+import type { ItemStatus, Order, OrderItem, OrderStatus, PaymentStatus, TicketSeverity, TicketStatus } from "@/lib/types"
 
 /** Most SIMs one website order can hold. Dealers order in bulk through their portal. */
 export const MAX_QUANTITY = 10
@@ -15,20 +15,38 @@ export function parseOrderLabel(value: string): number | null {
 
 export type CustomerStatus = "Processing" | "Delivered" | "Shipped" | "Cancelled"
 
+type StatusSource = Pick<Order, "status" | "product_type" | "phase">
+
 /**
- * What the customer sees. Only Processing, Delivered and Shipped (plus Cancelled once
- * the owner cancels): nothing may suggest a person fills orders.
+ * What the customer sees. Only Processing, Shipped and Delivered (plus Cancelled once
+ * the owner cancels): nothing may suggest a person fills orders. An unpaid order is
+ * Processing too; its page asks for the payment.
+ *
+ * Physical SIMs: Shipped once posted, Delivered once the line is active. Orders shipped
+ * before the activation step existed (phase 'fulfil', fulfilled) stay Shipped.
  */
-export function customerItemStatus(order: Pick<Order, "status" | "product_type">, item: Pick<OrderItem, "status">): CustomerStatus {
-  if (order.status === "cancelled" || item.status === "cancelled") return "Cancelled"
-  if (item.status === "fulfilled" || item.status === "replaced") return order.product_type === "esim" ? "Delivered" : "Shipped"
-  return "Processing"
+export function customerOrderStatus(order: StatusSource): CustomerStatus {
+  if (order.status === "cancelled") return "Cancelled"
+  if (order.product_type === "esim") return order.status === "fulfilled" ? "Delivered" : "Processing"
+  if (order.phase === "activate") return order.status === "fulfilled" ? "Delivered" : "Shipped"
+  return order.status === "fulfilled" ? "Shipped" : "Processing"
 }
 
-export function customerOrderStatus(order: Pick<Order, "status" | "product_type">): CustomerStatus {
-  if (order.status === "cancelled") return "Cancelled"
-  if (order.status === "fulfilled") return order.product_type === "esim" ? "Delivered" : "Shipped"
-  return "Processing"
+/** One SIM, judged by the order it belongs to (a replacement has its own order). */
+export function customerItemStatus(order: StatusSource, item: Pick<OrderItem, "status">): CustomerStatus {
+  if (order.status === "cancelled" || item.status === "cancelled") return "Cancelled"
+  if (item.status === "pending") return "Processing"
+  const status = customerOrderStatus(order)
+  return status === "Processing" ? "Shipped" : status
+}
+
+/** "When the SIM arrives" or "On Oct 20, 2026". */
+export function planStartLabel(order: Pick<Order, "plan_start" | "activate_on">) {
+  if (order.plan_start === "on_date" && order.activate_on) {
+    const d = new Date(`${order.activate_on}T12:00:00Z`)
+    return `On ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(d)}`
+  }
+  return "When the SIM arrives"
 }
 
 /** Internal labels for staff screens. */
@@ -38,11 +56,33 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
   queued: "In queue",
   claimed: "Claimed",
   needs_attention: "Needs attention",
+  shipped: "Shipped, not active",
   fulfilled: "Fulfilled",
   cancelled: "Cancelled",
 }
 
 export type Tone = "neutral" | "brand" | "success" | "warning" | "danger"
+
+/** Internal payment labels for staff screens. */
+export const paymentStatusLabel: Record<PaymentStatus, string> = {
+  awaiting: "Not paid",
+  confirming: "Confirming",
+  paid: "Paid",
+  partially_paid: "Underpaid",
+  expired: "Expired",
+  failed: "Failed",
+  not_required: "No payment",
+}
+
+export const paymentStatusTone: Record<PaymentStatus, Tone> = {
+  awaiting: "neutral",
+  confirming: "brand",
+  paid: "success",
+  partially_paid: "danger",
+  expired: "neutral",
+  failed: "danger",
+  not_required: "neutral",
+}
 
 export const orderStatusTone: Record<OrderStatus, Tone> = {
   awaiting_payment: "neutral",
@@ -50,6 +90,7 @@ export const orderStatusTone: Record<OrderStatus, Tone> = {
   queued: "brand",
   claimed: "brand",
   needs_attention: "danger",
+  shipped: "neutral",
   fulfilled: "success",
   cancelled: "neutral",
 }

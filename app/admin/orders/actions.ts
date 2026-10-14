@@ -6,7 +6,7 @@ import { z } from "zod"
 
 import type { ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
-import { notifyNewOrderToStaff } from "@/lib/notify"
+import { notifyNewOrderToStaff, notifyOrderPaid } from "@/lib/notify"
 import { createClient } from "@/lib/supabase/server"
 import type { Order } from "@/lib/types"
 
@@ -45,6 +45,21 @@ export async function recordRefund(orderId: string, note: string): Promise<Actio
   if (error) return fail(error)
   refresh()
   return { ok: true, message: "Refund recorded" }
+}
+
+/**
+ * The owner accepts payment by hand: an underpayment he agreed with the customer, or a
+ * payment he checked in his own wallet. The order goes into the queue as if paid.
+ */
+export async function markOrderPaid(orderId: string): Promise<ActionResult> {
+  await requireRole("admin")
+  if (!uuid.safeParse(orderId).success) return { ok: false, error: "Unknown order" }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("mark_order_paid", { p_order_id: orderId, p_payment_status: "paid" })
+  if (error) return fail(error)
+  after(() => notifyOrderPaid(orderId))
+  refresh()
+  return { ok: true, message: "Marked as paid. It is in the queue." }
 }
 
 export async function approveReplacement(orderId: string): Promise<ActionResult> {

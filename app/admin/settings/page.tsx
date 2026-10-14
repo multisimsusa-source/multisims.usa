@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Settings" }
 export default function SettingsPage() {
   return (
     <>
-      <AdminPageHeader title="Settings" description="Alerts, shipping and how replacements and support requests work." />
+      <AdminPageHeader title="Settings" description="Alerts, prices and fees, and how replacements and support requests work." />
       <Suspense fallback={<FormSkeleton sections={2} />}>
         <Forms />
       </Suspense>

@@ -9,13 +9,15 @@ import { DetailList, DetailRow } from "@/components/patterns/detail-list"
 import { Notice } from "@/components/patterns/notice"
 import { Container } from "@/components/site/section"
 import { Tag } from "@/components/patterns/tag"
-import { getCustomerOrder, type CustomerItem } from "@/lib/customer-order"
+import { getCustomerOrder, type Activation, type CustomerItem } from "@/lib/customer-order"
+import { orderLines } from "@/lib/pricing"
 import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
 import {
   customerItemStatus,
   customerOrderStatus,
   formatDateTime,
   orderLabel,
+  planStartLabel,
   severityLabel,
   ticketStatusLabel,
   ticketStatusTone,
@@ -24,8 +26,10 @@ import {
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Order } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { requestActivation, startPayment } from "./actions"
 import { ContactPanel } from "./contact-panel"
 import { LiveRefresh } from "./live-refresh"
+import { ActivateButton, PayButton } from "./pay-button"
 import { SupportPanel } from "./support-panel"
 
 export const metadata: Metadata = {
@@ -53,10 +57,12 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
   ])
   if (!data) notFound()
 
-  const { order, items, pendingReplacements, tickets, ticketTypes, lastMessageAt } = data
+  const { order, items, pendingReplacements, activations, tickets, ticketTypes, lastMessageAt } = data
   const status = customerOrderStatus(order)
   const esim = order.product_type === "esim"
-  const processing = status === "Processing"
+  const unpaid = order.status === "awaiting_payment"
+  const processing = status === "Processing" && !unpaid
+  const activating = activations.some((a) => a.requested)
   const unit = esim ? "eSIM" : "SIM card"
   const delivered = items.filter((i) => i.status === "fulfilled" || i.status === "replaced")
   const availableAt = order.paid_at ? new Date(order.paid_at).getTime() + (settings?.unclaimed_alert_minutes ?? 5) * 60_000 : Infinity
@@ -70,9 +76,25 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
 
   return (
     <>
-      <LiveRefresh active={processing || pendingReplacements.length > 0} />
+      <LiveRefresh active={processing || unpaid || activating || pendingReplacements.length > 0} />
 
-      {query.placed === "1" ? (
+      {query.activation === "requested" || query.activation === "done" ? (
+        <Notice tone="success" className="mb-8">
+          {query.activation === "requested"
+            ? "Thanks. Your line is starting up. Your phone number appears on this page once it is active, and we email it to you."
+            : "Your activation is already on its way. Your phone number appears on this page once your line is active."}
+        </Notice>
+      ) : null}
+
+      {query.pay === "error" || query.pay === "busy" ? (
+        <Notice tone="danger" className="mb-8">
+          {query.pay === "busy"
+            ? "Too many attempts from this connection. Please wait a few minutes, then try again."
+            : "We could not open the payment page. Your order is saved: try again below in a moment."}
+        </Notice>
+      ) : null}
+
+      {(query.placed === "1" || query.paid === "1") && !unpaid ? (
         <Notice tone="success" className="mb-8">
             <span className="font-medium">Order placed.</span> We emailed this page&apos;s link to{" "}
             <span className="font-medium break-all">{order.customer_email}</span>. Bookmark it: it is the only way back to your order.
@@ -94,7 +116,9 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
       </header>
 
       <section aria-label="Order status" className="mt-8">
-        {status === "Cancelled" ? (
+        {unpaid ? (
+          <PaymentPanel order={order} returned={query.paid === "1"} />
+        ) : status === "Cancelled" ? (
           <div className="rounded-xl border bg-card p-6">
             <p className="text-lg font-semibold">This order was cancelled</p>
             <p className="mt-1 text-muted-foreground">
@@ -111,10 +135,17 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
                   : `Your tracking number appears here as soon as your SIM card ships, and we email it to ${order.customer_email}. This page updates on its own.`
                 : esim
                   ? "Scan the QR code below with the phone you will use in the US. We also emailed it to you."
-                  : "Your SIM card is on its way by USPS. Track it with the number below."}
+                  : status === "Delivered"
+                    ? "Your line is active. Your phone number is below, and we emailed it to you."
+                    : "Your SIM card is on its way by USPS. Track it with the number below."}
             </p>
           </div>
         )}
+        {activations.map((a) => (
+          <div key={a.orderId} className="mt-4">
+            <ActivationPanel token={order.public_token} activation={a} single={activations.length === 1} />
+          </div>
+        ))}
         {processing ? (
           <div className="mt-4">
             <ContactPanel token={order.public_token} availableAt={availableAt} alreadySent={Boolean(lastMessageAt)} />
@@ -130,7 +161,7 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
           <ul className="mt-4 grid gap-4">
             {shown.map((item) => (
               <li key={item.id}>
-                <ItemCard item={item} esim={esim} title={itemTitle(item, unit, items.length)} status={customerItemStatus(order, item)} />
+                <ItemCard item={item} esim={esim} title={itemTitle(item, unit, items.length)} status={customerItemStatus(item.owner, item)} />
               </li>
             ))}
           </ul>
@@ -164,6 +195,10 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
                 .join(", ")}
             />
           ) : null}
+          {order.product_type === "physical" && order.plan_start ? <DetailRow label="Plan starts" value={planStartLabel(order)} /> : null}
+          {orderLines(order).map((l) => (
+            <DetailRow key={l.key} label={l.label} value={formatPrice(l.cents)} mono />
+          ))}
           <DetailRow label="Total" value={formatPrice(order.total_cents)} mono strong />
         </DetailList>
       </section>
@@ -209,16 +244,28 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
   )
 }
 
-/** Placed, Processing, Delivered or Shipped: where the order is, at a glance. */
+/**
+ * Where the order is, at a glance. eSIM: Placed, Processing, Delivered. Physical SIM:
+ * Placed, Processing, Shipped, Delivered (line active). Physical orders shipped before
+ * the activation step existed end at Shipped.
+ */
 function Progress({ order, status }: { order: Order; status: CustomerStatus }) {
-  const done = status !== "Processing"
-  const steps = [
-    { label: "Placed", time: formatDateTime(order.created_at), state: "done" as const },
-    { label: "Processing", time: "", state: done ? ("done" as const) : ("current" as const) },
-    { label: order.product_type === "esim" ? "Delivered" : "Shipped", time: done ? formatDateTime(order.fulfilled_at) : "", state: done ? ("done" as const) : ("todo" as const) },
-  ]
+  const physical = order.product_type === "physical"
+  const legacy = physical && order.phase === "fulfil" && order.status === "fulfilled"
+  const labels: string[] = physical && !legacy ? ["Placed", "Processing", "Shipped", "Delivered"] : ["Placed", "Processing", physical ? "Shipped" : "Delivered"]
+  const reached = Math.max(1, labels.indexOf(status))
+  const times: Record<string, string> = {
+    Placed: formatDateTime(order.created_at),
+    Shipped: formatDateTime(order.shipped_at ?? (legacy ? order.fulfilled_at : null)),
+    Delivered: formatDateTime(order.status === "fulfilled" ? order.fulfilled_at : null),
+  }
+  const steps = labels.map((label, i) => ({
+    label,
+    time: i <= reached ? (times[label] ?? "") : "",
+    state: i < reached || (i === reached && label !== "Processing") ? ("done" as const) : i === reached ? ("current" as const) : ("todo" as const),
+  }))
   return (
-    <ol className="grid grid-cols-3">
+    <ol className={cn("grid", steps.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
       {steps.map((step, i) => (
         <li key={step.label} aria-current={step.state === "current" ? "step" : undefined} className="relative flex flex-col items-start">
           {i < steps.length - 1 ? (
@@ -239,12 +286,57 @@ function Progress({ order, status }: { order: Order; status: CustomerStatus }) {
             {step.state === "done" ? <CheckIcon weight="bold" className="size-3.5" /> : null}
             {step.state === "current" ? <span className="size-2 rounded-full bg-brand motion-safe:animate-pulse" /> : null}
           </span>
-          <span className={cn("mt-3 text-sm font-medium", step.state === "todo" && "text-muted-foreground")}>{step.label}</span>
+          {/* Four steps on a phone: smaller type so labels never run into each other. */}
+          <span className={cn("mt-3 pr-1 font-medium", steps.length === 4 ? "text-xs sm:text-sm" : "text-sm", step.state === "todo" && "text-muted-foreground")}>{step.label}</span>
           <span className="mt-0.5 min-h-4 text-xs text-muted-foreground">{step.time}</span>
           <span className="sr-only">{step.state === "done" ? "done" : step.state === "current" ? "in progress" : "next"}</span>
         </li>
       ))}
     </ol>
+  )
+}
+
+/**
+ * A posted SIM card whose line has not started yet. With "When I receive my SIM" the
+ * customer presses the button once it arrives; with a date it starts by itself.
+ */
+function ActivationPanel({ token, activation: a, single }: { token: string; activation: Activation; single: boolean }) {
+  const prefix = single ? "" : `${a.label}: `
+  if (a.requested) {
+    return (
+      <div className="rounded-xl border bg-card p-5 sm:p-6">
+        <p className="flex items-center gap-3 font-semibold">
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-brand motion-safe:animate-pulse" />
+          {prefix}Your line is starting up
+        </p>
+        <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
+          Your phone number appears here once the line is active, and we email it to you. This page updates on its own.
+        </p>
+      </div>
+    )
+  }
+  if (a.start === "on_date") {
+    return (
+      <div className="rounded-xl border bg-card p-5 sm:p-6">
+        <p className="font-semibold">
+          {prefix}Your line starts {planStartLabel({ plan_start: "on_date", activate_on: a.activateOn }).replace(/^On /, "on ")}
+        </p>
+        <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
+          Your plan days count from then. Your phone number appears here once the line is active, and we email it to you.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-xl border bg-card p-5 sm:p-6">
+      <p className="font-semibold">{prefix}Got your SIM?</p>
+      <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
+        Press this once the SIM card is in your hands. Your plan days start from activation, so wait until it has arrived. You can press it once.
+      </p>
+      <form action={requestActivation.bind(null, token, a.orderId)} className="mt-5">
+        <ActivateButton />
+      </form>
+    </div>
   )
 }
 
@@ -364,8 +456,70 @@ function InstallSteps() {
   )
 }
 
+/**
+ * An order waiting for its crypto payment. The order reaches the queue only once the
+ * provider confirms the payment, so this page never says Processing before then.
+ */
+function PaymentPanel({ order, returned }: { order: Order; returned: boolean }) {
+  const total = formatPrice(order.total_cents)
+  if (order.payment_status === "confirming" || (returned && order.payment_status === "awaiting")) {
+    return (
+      <div className="rounded-xl border bg-card p-5 sm:p-6">
+        <p className="flex items-center gap-3 text-lg font-semibold">
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-brand motion-safe:animate-pulse" />
+          {order.payment_status === "confirming" ? "Payment received, confirming" : "Checking your payment"}
+        </p>
+        <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
+          Your order starts as soon as the network confirms the payment. That usually takes a few minutes for USDT and can take up to an hour for Bitcoin. This page updates on its own, and we email {order.customer_email} once it is confirmed.
+        </p>
+        {order.payment_status === "awaiting" ? (
+          <form action={startPayment.bind(null, order.public_token)} className="mt-4">
+            <p className="mb-3 text-sm text-muted-foreground">Did not pay after all?</p>
+            <PayButton label={`Pay ${total}`} />
+          </form>
+        ) : null}
+      </div>
+    )
+  }
+  if (order.payment_status === "partially_paid") {
+    return (
+      <div className="rounded-xl border bg-card p-5 sm:p-6">
+        <p className="text-lg font-semibold">We received less than the total</p>
+        <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
+          Your payment arrived but was below the order total of {total}, so your order has not started yet. We will email {order.customer_email} about the difference. Please do not send another payment until we do.
+        </p>
+      </div>
+    )
+  }
+  const copy =
+    order.payment_status === "expired"
+      ? {
+          title: "Your payment window closed",
+          body: "No payment arrived in time, so the last payment page expired. Open a new one below: the price of your order stays the same.",
+        }
+      : order.payment_status === "failed"
+        ? {
+            title: "Your payment did not go through",
+            body: "Our payment partner could not complete the last payment. Try again below: the price of your order stays the same.",
+          }
+        : {
+            title: "Pay to start your order",
+            body: "Pay with USDT on the TRC-20 network, or with Bitcoin, on our payment partner's secure page. Your order starts as soon as the payment is confirmed.",
+          }
+  return (
+    <div className="rounded-xl border bg-card p-5 sm:p-6">
+      <p className="text-lg font-semibold">{copy.title}</p>
+      <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">{copy.body}</p>
+      <form action={startPayment.bind(null, order.public_token)} className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <PayButton label={`Pay ${total}`} />
+        <span className="text-sm text-muted-foreground">USDT (TRC-20) or Bitcoin</span>
+      </form>
+    </div>
+  )
+}
+
 function StatusTag({ status }: { status: CustomerStatus }) {
-  const tone = status === "Processing" ? "brand" : status === "Cancelled" ? "neutral" : "success"
+  const tone = status === "Processing" || status === "Shipped" ? "brand" : status === "Cancelled" ? "neutral" : "success"
   return <Tag tone={tone}>{status}</Tag>
 }
 

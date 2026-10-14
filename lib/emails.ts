@@ -1,7 +1,8 @@
 import "server-only"
 
 import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
-import { orderLabel } from "@/lib/orders"
+import { orderLabel, planStartLabel } from "@/lib/orders"
+import { orderLines } from "@/lib/pricing"
 import { site } from "@/lib/site"
 import type { Order, OrderItem, Ticket } from "@/lib/types"
 
@@ -70,8 +71,11 @@ function orderRows(order: Order): [string, string][] {
     ["Days", formatDays(order.days)],
     ["Quantity", String(order.quantity)],
   ]
-  if (order.addon_name) out.push([order.addon_name, "Included"])
-  if (order.total_cents > 0) out.push(["Total", formatPrice(order.total_cents)])
+  if (order.product_type === "physical" && order.plan_start) out.push(["Plan starts", planStartLabel(order)])
+  if (order.total_cents > 0) {
+    for (const l of orderLines(order)) out.push([l.label, formatPrice(l.cents)])
+    out.push(["Total", formatPrice(order.total_cents)])
+  } else if (order.addon_name) out.push([order.addon_name, "Included"])
   return out
 }
 
@@ -103,38 +107,71 @@ export function orderConfirmationEmail(order: Order, orderUrl: string): Rendered
   }
 }
 
+/** Sent when an order is placed but not yet paid, so the buyer can always get back to it. */
+export function paymentPendingEmail(order: Order, orderUrl: string): Rendered {
+  const pairs = orderRows(order)
+  return {
+    subject: `Order ${orderLabel(order)}: finish your payment`,
+    text: `Hi ${order.customer_name},\n\nWe have your order. It starts as soon as your crypto payment is confirmed.\n\n${textRows(pairs)}\n\nIf you closed the payment page, open your order page to pay: ${orderUrl}\n\nKeep this link to yourself: anyone with it can see your order.`,
+    html: layout({
+      preheader: `Order ${orderLabel(order)} starts once your payment is confirmed.`,
+      heading: "Finish your payment",
+      body:
+        p(`Hi ${esc(order.customer_name)}, we have your order. It starts as soon as your crypto payment is confirmed.`) +
+        rows(pairs) +
+        p("If you closed the payment page, open your order page to pay. If you have already paid, there is nothing more to do: we email you once the payment is confirmed.") +
+        p(`<span style="color:${muted};font-size:13px;">Keep your order link to yourself: anyone with it can see your order.</span>`),
+      cta: { label: "Open your order page", url: orderUrl },
+    }),
+  }
+}
+
 export type DeliveredItem = Pick<OrderItem, "seq" | "phone_number" | "iccid" | "tracking_number"> & { qrCid?: string }
 
 export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderUrl: string, opts: { replacement?: boolean } = {}): Rendered {
   const esim = order.product_type === "esim"
-  const heading = opts.replacement
-    ? esim
-      ? "Your replacement eSIM is ready"
-      : "Your replacement SIM card has shipped"
-    : esim
-      ? items.length > 1
-        ? "Your eSIMs are ready"
-        : "Your eSIM is ready"
-      : "Your SIM card has shipped"
+  // Physical SIMs get two emails: shipped (tracking), then active (phone number).
+  const active = !esim && order.status === "fulfilled" && order.phase === "activate"
+  const heading = active
+    ? opts.replacement
+      ? "Your replacement SIM card is active"
+      : items.length > 1
+        ? "Your SIM cards are active"
+        : "Your SIM card is active"
+    : opts.replacement
+      ? esim
+        ? "Your replacement eSIM is ready"
+        : "Your replacement SIM card has shipped"
+      : esim
+        ? items.length > 1
+          ? "Your eSIMs are ready"
+          : "Your eSIM is ready"
+        : "Your SIM card has shipped"
+  const shippedNext =
+    order.plan_start === "on_date" && order.activate_on
+      ? `Your line starts ${planStartLabel(order).replace(/^On /, "on ")}, and we email you its phone number then.`
+      : "When it arrives, open your order page and press \"My SIM has arrived, activate it\". Your plan days start from then."
 
   const itemBlocks = items.map((item) => {
     const pairs: [string, string][] = []
     if (item.phone_number) pairs.push(["Phone number", item.phone_number])
     if (item.iccid) pairs.push(["ICCID", item.iccid])
-    if (item.tracking_number) pairs.push(["Tracking number", item.tracking_number])
+    if (item.tracking_number && !active) pairs.push(["Tracking number", item.tracking_number])
     const title = items.length > 1 ? `${esim ? "eSIM" : "SIM"} ${item.seq}` : ""
     return { title, pairs, qrCid: item.qrCid }
   })
 
   const install = esim
     ? "To install: on your phone open Settings, then Cellular (iPhone) or Connections (Android), choose Add eSIM, and scan the QR code. Install it while you have Wi-Fi, and keep the line switched off until you land in the US if your plan starts on first use."
-    : "Tracking can take a few hours to show movement after the label is created."
+    : active
+      ? "Insert the SIM, restart your phone, and turn on the line. Your plan days count from today."
+      : `Tracking can take a few hours to show movement after the label is created. ${shippedNext}`
 
   const html = layout({
-    preheader: esim ? "Scan the QR code to install your line." : "Your tracking number is inside.",
+    preheader: esim ? "Scan the QR code to install your line." : active ? "Your phone number is inside." : "Your tracking number is inside.",
     heading,
     body:
-      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${esim ? "delivered" : "on its way"}.`) +
+      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${esim ? "delivered" : active ? "active" : "on its way"}.`) +
       itemBlocks
         .map(
           (b) =>
@@ -185,18 +222,20 @@ export function ticketAnsweredEmail(order: Order, ticket: Ticket, orderUrl: stri
 
 // Staff ---------------------------------------------------------------------------------
 
-export function staffNewOrderEmail(order: Order, workUrl: string): Rendered {
+export function staffNewOrderEmail(order: Order, workUrl: string, { activation = false } = {}): Rendered {
   const pairs = orderRows(order)
   if (order.area_code) pairs.push(["Area code", order.area_code])
   if (order.zip_code) pairs.push(["ZIP", order.zip_code])
-  const what = order.replacement_of ? "Replacement" : "New order"
+  const what = activation ? "Activate" : order.replacement_of ? "Replacement" : "New order"
+  const heading = activation ? "SIM arrived, ready to activate" : `${what} waiting`
+  const lead = activation ? "The customer has their SIM. Start the line and add its phone number." : `${what} waiting in the queue.`
   return {
     subject: `${what} ${orderLabel(order)}: ${order.quantity} x ${order.carrier_name} ${order.plan_name}`,
-    text: `${what} waiting in the queue.\n\n${textRows(pairs)}\n\nClaim it: ${workUrl}`,
+    text: `${lead}\n\n${textRows(pairs)}\n\nClaim it: ${workUrl}`,
     html: layout({
       preheader: `${order.quantity} x ${order.carrier_name} ${order.plan_name}, ${formatDays(order.days)}`,
-      heading: `${what} waiting`,
-      body: rows(pairs),
+      heading,
+      body: (activation ? p(esc(lead)) : "") + rows(pairs),
       cta: { label: "Open the queue", url: workUrl },
     }),
   }
@@ -235,6 +274,43 @@ export function staffNewTicketEmail(order: Order, ticket: Ticket, url: string): 
           ["Customer", `${order.customer_name} (${order.customer_email})`],
         ]) + p(esc(ticket.description).replace(/\n/g, "<br>")),
       cta: { label: "Open the ticket", url },
+    }),
+  }
+}
+
+export type PaymentIssue = "underpaid" | "overpaid" | "paid_after_cancel"
+
+const issueText: Record<PaymentIssue, { heading: string; body: string }> = {
+  underpaid: {
+    heading: "Underpaid",
+    body: "The customer sent less than the order total, so the order is not in the queue. Contact the customer about the difference, then use Mark as paid on the order, or cancel it and refund what arrived.",
+  },
+  overpaid: {
+    heading: "Overpaid",
+    body: "The customer sent more than the order total. The order is in the queue as normal. Refund the difference from your wallet if the customer asks.",
+  },
+  paid_after_cancel: {
+    heading: "Paid after cancelling",
+    body: "A payment completed on an order that was already cancelled. The money is in your wallet but the order is not in the queue. Refund it, or contact the customer.",
+  },
+}
+
+export function staffPaymentIssueEmail(order: Order, issue: PaymentIssue, detail: [string, string][], adminUrl: string): Rendered {
+  const { heading, body } = issueText[issue]
+  const pairs: [string, string][] = [
+    ["Order", orderLabel(order)],
+    ["Customer", `${order.customer_name} (${order.customer_email})`],
+    ["Order total", formatPrice(order.total_cents)],
+    ...detail,
+  ]
+  return {
+    subject: `${heading}: ${orderLabel(order)}`,
+    text: `${heading}: ${orderLabel(order)}\n\n${body}\n\n${textRows(pairs)}\n\nOpen the order: ${adminUrl}`,
+    html: layout({
+      preheader: body.slice(0, 120),
+      heading: `${heading}: ${orderLabel(order)}`,
+      body: p(esc(body)) + rows(pairs),
+      cta: { label: "Open the order", url: adminUrl },
     }),
   }
 }

@@ -63,18 +63,34 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             <FieldDescription>You get an email if no agent claims an order by then. The customer&apos;s contact button appears at the same time.</FieldDescription>
           )}
         </Field>
-        <Field data-invalid={Boolean(errors.shipping_fee) || undefined}>
-          <FieldLabel htmlFor="shipping_fee">Shipping fee for SIM cards (USD)</FieldLabel>
-          <Input id="shipping_fee" name="shipping_fee" inputMode="decimal" defaultValue={centsToInput(settings.shipping_fee_cents)} className="font-mono tabular" />
-          {errors.shipping_fee ? (
-            <FieldError>{errors.shipping_fee}</FieldError>
-          ) : (
-            <FieldDescription>
-              Charged once per SIM card order. eSIMs never pay shipping.
-              {settings.shipping_fee_cents === 0 ? " It is 0 now, so checkout shows Free shipping." : ""}
-            </FieldDescription>
-          )}
-        </Field>
+        <MoneyField
+          name="sim_card_price"
+          label="SIM card price (USD)"
+          cents={settings.sim_card_price_cents}
+          error={errors.sim_card_price}
+          help="Charged per physical SIM card, on top of the plan."
+        />
+        <MoneyField
+          name="shipping_fee"
+          label="Shipping fee (USD)"
+          cents={settings.shipping_fee_cents}
+          error={errors.shipping_fee}
+          help={`Charged once per SIM card order, however many cards. eSIMs never pay shipping.${settings.shipping_fee_cents === 0 ? " It is 0 now, so checkout shows Free shipping." : ""}`}
+        />
+        <MoneyField
+          name="network_fee"
+          label="Network fee (USD)"
+          cents={settings.network_fee_cents}
+          error={errors.network_fee}
+          help="Charged once on every order, eSIM and SIM card, to cover the crypto network cost."
+        />
+        <MoneyField
+          name="min_order"
+          label="Minimum order (USD)"
+          cents={settings.min_order_cents}
+          error={errors.min_order}
+          help="Checkout refuses smaller orders. When the payment provider's own minimum is higher, that one applies instead."
+        />
         <Field data-invalid={Boolean(errors.max_replacements_per_order) || undefined}>
           <FieldLabel htmlFor="max_replacements_per_order">Replacements per order (most)</FieldLabel>
           <Input
@@ -108,6 +124,16 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </Button>
       </div>
     </form>
+  )
+}
+
+function MoneyField({ name, label, cents, error, help }: { name: string; label: string; cents: number; error?: string; help: string }) {
+  return (
+    <Field data-invalid={Boolean(error) || undefined}>
+      <FieldLabel htmlFor={name}>{label}</FieldLabel>
+      <Input id={name} name={name} inputMode="decimal" defaultValue={centsToInput(cents)} className="font-mono tabular" />
+      {error ? <FieldError>{error}</FieldError> : <FieldDescription>{help}</FieldDescription>}
+    </Field>
   )
 }
 

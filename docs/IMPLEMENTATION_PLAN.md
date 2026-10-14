@@ -128,7 +128,14 @@ Open before the demo (need the client or Saad):
 
 Target ~21 Oct 2026. Email: **Resend**, domain `multisimsusa.com` verified (9 Oct 2026). Senders: `orders@multisimsusa.com` (orders, alerts, tickets), `hello@multisimsusa.com` (contact form).
 
-**Payments: deferred (decision 10 Oct 2026).** Crypto (NOWPayments) is not built for now. Checkout places the order and sends it straight to the agent queue (`payment_status = not_required`). The `PaymentProvider` interface (`lib/payments/provider.ts`) and the `payments` / `payment_events` tables stay, so a provider plugs in later without touching fulfilment. **Do not open production checkout to the public until a payment provider is live**, or orders are free.
+**Payments: NOWPayments (built 13 Oct 2026).** Checkout saves the order as `awaiting_payment`, emails the buyer their order page link, and redirects to a NOWPayments hosted invoice (`POST /v1/invoice`, fixed rate, USD price; the buyer picks BTC or USDT TRC-20 on their page). The IPN webhook (`/api/payments/nowpayments`) checks `x-nowpayments-sig` (HMAC-SHA512 of the key-sorted body), then re-reads `GET /v1/payment/{id}` and records that answer: `payment_events` keeps every event, a payment never moves backwards, and only `finished` calls `mark_order_paid`, which puts the order in the agent queue and sends the confirmation and new-order emails once. Edge cases:
+- **Confirming:** the order page says payment received, confirming.
+- **Expired or failed:** the order page offers a new invoice; an unpaid one is reused for 15 minutes.
+- **Underpaid:** the order stays out of the queue and the owner is emailed; Mark as paid on the admin order accepts it.
+- **Overpaid:** the order is queued, the payment is tagged Overpaid and the owner is emailed.
+- **Paid after cancelling:** recorded, and the owner is emailed.
+
+Admin order page shows every payment. Provider code: `lib/payments/` (`provider.ts` interface, `nowpayments.ts`, `index.ts` flows). With `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` unset, checkout takes no payment and queues orders directly (development only). **Production must have both set before checkout is public.**
 
 ### As built
 
@@ -157,18 +164,38 @@ Target ~21 Oct 2026. Email: **Resend**, domain `multisimsusa.com` verified (9 Oc
 2. Vault secrets (SQL editor): `select vault.create_secret('https://fucecskubggngxqgdzyo.supabase.co', 'project_url');` and `select vault.create_secret('<random 32+ chars>', 'cron_secret');`
 3. `supabase secrets set CRON_SECRET=<same> RESEND_API_KEY=<key> ORDERS_FROM_EMAIL="MultiSims USA <orders@multisimsusa.com>" SITE_URL=https://multisimsusa.com` then `supabase functions deploy unclaimed-alert`.
 4. In admin Settings, set the owner alert email. Create agent logins under Agents.
+5. NOWPayments (client account, custody off, payout wallets for BTC and USDT TRC-20, only those coins enabled): set `NOWPAYMENTS_API_KEY` and `NOWPAYMENTS_IPN_SECRET` in Vercel and redeploy. The webhook URL is sent with each invoice; nothing to set in their dashboard. Test with one small real payment of each coin (their sandbox is unmaintained).
 
 ### Client decisions (answered 11 Oct 2026, all configurable)
 | Question | Client's answer | Built |
 |---|---|---|
-| Shipping on SIM cards | Not free | Flat fee per order in Settings. **Amount still needed from Saad**; until it is set, checkout shows Free |
+| Shipping on SIM cards | Not free | Flat fee per order in Settings; $1.00 test placeholder until Zafir sets it |
 | Who adds tracking | Owner or agents | Agents and owner |
 | Area code unavailable | Deliver the nearest | Agents deliver the nearest area code without flagging; shown on the order screen, checkout field and FAQ |
 | Owner approves replacements | No, straight to agents | Setting, default off; owner-issued replacements never wait |
 | Replacement limit | 2 per order | `settings.max_replacements_per_order` (default 2), enforced in `issue_replacement` (cancelled ones do not count); used/limit shown on ticket and order (migration `20261011000001`) |
 | Support form issue types | Keep the six proposed | Seeded; editable in Settings |
 | Area code required? | Optional at checkout (flag to Saad) |
-| Payments | Deferred; checkout is free until a provider is added |
+| Payments | NOWPayments built; live once its two env vars are set |
+
+### Agreed changes, 14 Oct 2026 (call with Zafir; scope beyond the brief marked new)
+Deadlines: Milestone 2 on 16 or 17 Oct 2026, Milestone 3 about a week later.
+
+| Change | Built |
+|---|---|
+| **(new)** SIM card priced separately, per physical SIM | `settings.sim_card_price_cents` (default $5), stored per order |
+| **(new)** Network fee, once per order (our own line, not NOWPayments' "fee paid by user") | `settings.network_fee_cents` (default $3), stored per order |
+| Shipping | Flat per physical order, `shipping_fee_cents` set to $1.00 as a test placeholder until Zafir sets it |
+| **(new)** Minimum order | `settings.min_order_cents` (default $15). Checkout blocks below `max(setting, NOWPayments live minimum)`, rounded up to whole dollars. Live minimum = higher of USDT TRC-20 and BTC same-coin pairs at fixed rate (`GET /v1/min-amount`), cached 5 minutes, falls back to the setting. Blocked in the browser and again on the server before any order or invoice exists |
+| Price breakdown | `lib/pricing.ts`: plan, international calling, SIM cards, shipping, network fee, total. Same lines at checkout, on the order page and in the confirmation email |
+| **(new)** Physical SIM plan start and activation | Checkout asks "When I receive my SIM" (default) or "On a date". Agent posts the card (ICCID and tracking required), the order becomes `shipped` (phase `activate`). On receipt: the customer presses "My SIM has arrived, activate it" once; the order re-enters the queue and the owner and agents get the new-order alert. On a date: pg_cron (`queue_due_activations`, every 10 min) queues it on the day; it shows under Scheduled activations until then and is highlighted on the day. Agent adds the phone number and marks it active; the customer sees Delivered and gets the number by email |
+| Customer statuses | Unpaid orders show Processing (the page asks for payment). Physical: Processing, Shipped, Delivered |
+| Expired invoices | pg_cron `expire_stale_payments` (every 10 min) marks invoices unpaid after an hour as expired; NOWPayments sends no webhook for this |
+| **(new)** Terms and Refund Policy | `/terms` and `/refund-policy`, text in `lib/legal.ts` (draft for Zafir's review), linked from the footer and under the checkout Pay button |
+| Housekeeping | `package-lock.json` removed (Bun only) |
+| Milestone 3 additions **(new)** | Dealer wholesale and bulk SIM card prices; retail sale prices and discount codes (never on shipping or the network fee, minimum check after discounts). Not built in M2 |
+
+Migrations: `20261014000001_order_shipped_status.sql`, `20261014000002_pricing_activation_expiry.sql`.
 
 ## Milestone 3: Dealers, reviews, launch (outline)
 

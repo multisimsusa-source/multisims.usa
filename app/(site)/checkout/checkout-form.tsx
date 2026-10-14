@@ -31,6 +31,8 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { ProductBadge } from "@/components/site/product-mark"
 import { formatDays, formatPrice } from "@/lib/format"
+import { minimumOrderMessage, orderTotal } from "@/lib/pricing"
+import { cn } from "@/lib/utils"
 import { MAX_QUANTITY } from "@/lib/orders"
 import type { ProductType } from "@/lib/types"
 import { usStates } from "@/lib/us-states"
@@ -51,7 +53,10 @@ type Props = {
   unitCents: number
   addon: { name: string; description: string; price_cents: number } | null
   initialIntl: boolean
-  shippingCents: number
+  /** From Settings, plus the minimum order actually in force. */
+  fees: { shippingCents: number; simCardCents: number; networkFeeCents: number; minimumCents: number }
+  /** A payment provider is set up: the buyer pays on its page after placing the order. */
+  takesPayment: boolean
 }
 
 /**
@@ -67,7 +72,8 @@ export function CheckoutForm({
   unitCents,
   addon,
   initialIntl,
-  shippingCents,
+  fees,
+  takesPayment,
 }: Props) {
   const [state, action, pending] = React.useActionState<
     CheckoutState,
@@ -85,10 +91,20 @@ export function CheckoutForm({
     values.intl ? values.intl === "on" : initialIntl
   )
   const [stateCode, setStateCode] = React.useState(values.state ?? "")
+  const [planStart, setPlanStart] = React.useState<"on_receipt" | "on_date">(values.plan_start === "on_date" ? "on_date" : "on_receipt")
+  const [today] = React.useState(usToday)
 
-  const lineCents = unitCents + (intl && addon ? addon.price_cents : 0)
-  const shipping = physical ? shippingCents : 0
-  const total = lineCents * quantity + shipping
+  const addonCents = intl && addon ? addon.price_cents : 0
+  const total = orderTotal({
+    unitCents,
+    addonCents,
+    quantity,
+    physical,
+    simCardCents: fees.simCardCents,
+    shippingCents: fees.shippingCents,
+    networkFeeCents: fees.networkFeeCents,
+  })
+  const belowMinimum = total < fees.minimumCents
   const unit = physical ? "SIM card" : "eSIM"
 
   // After a failed submit, bring the first problem into view and focus it.
@@ -107,18 +123,37 @@ export function CheckoutForm({
     errors[name] ? <FieldError>{errors[name]}</FieldError> : null
   const invalid = (name: CheckoutField) => Boolean(errors[name]) || undefined
 
-  const alert =
-    state.status === "error" && state.message ? (
-      <Notice tone="danger" icon={false}>
-        {state.message}
-      </Notice>
-    ) : null
+  const alert = belowMinimum ? (
+    <Notice tone="warning" icon={false}>
+      {minimumOrderMessage(fees.minimumCents)}
+    </Notice>
+  ) : state.status === "error" && state.message ? (
+    <Notice tone="danger" icon={false}>
+      {state.message}
+    </Notice>
+  ) : null
+
+  const agreement = takesPayment ? (
+    <p className="text-center text-xs text-muted-foreground">
+      By paying you agree to our{" "}
+      <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+        Terms
+      </Link>{" "}
+      and{" "}
+      <Link href="/refund-policy" className="underline underline-offset-2 hover:text-foreground">
+        Refund Policy
+      </Link>
+      .
+    </p>
+  ) : null
 
   const submitLabel = pending ? (
     <>
       <SpinnerIcon className="animate-spin" />
-      Placing order...
+      {takesPayment ? "Opening payment..." : "Placing order..."}
     </>
+  ) : takesPayment ? (
+    "Continue to payment"
   ) : (
     "Place order"
   )
@@ -229,20 +264,29 @@ export function CheckoutForm({
 
           <dl className="space-y-2 border-t px-5 py-4 text-sm">
             <Line
-              label={`${quantity} x ${plan.carrierName} ${plan.name}`}
+              label={`${plan.carrierName} ${plan.name}, ${formatDays(days)} x ${quantity}`}
               value={formatPrice(unitCents * quantity)}
             />
             {intl && addon ? (
               <Line
-                label={`${quantity} x ${addon.name.toLowerCase()}`}
-                value={formatPrice(addon.price_cents * quantity)}
+                label={`${addon.name} x ${quantity}`}
+                value={formatPrice(addonCents * quantity)}
+              />
+            ) : null}
+            {physical && fees.simCardCents > 0 ? (
+              <Line
+                label={`SIM card x ${quantity}`}
+                value={formatPrice(fees.simCardCents * quantity)}
               />
             ) : null}
             {physical ? (
               <Line
                 label="Shipping"
-                value={shipping ? formatPrice(shipping) : "Free"}
+                value={fees.shippingCents ? formatPrice(fees.shippingCents) : "Free"}
               />
+            ) : null}
+            {fees.networkFeeCents > 0 ? (
+              <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} />
             ) : null}
             <div className="flex items-baseline justify-between gap-4 pt-2">
               <dt className="font-medium">Total</dt>
@@ -260,19 +304,20 @@ export function CheckoutForm({
             <Button
               type="submit"
               size="xl"
-              disabled={pending}
+              disabled={pending || belowMinimum}
               className="w-full"
             >
               {submitLabel}
             </Button>
+            {agreement}
             <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <LockSimpleIcon className="size-3.5" />
-              No account needed
+              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
             </p>
           </div>
         </div>
 
-        <NextSteps physical={physical} className="mt-6 max-lg:hidden" />
+        <NextSteps physical={physical} takesPayment={takesPayment} className="mt-6 max-lg:hidden" />
       </aside>
 
       {/* Keyed by the returned values so fields remount with them after a failed submit. */}
@@ -480,10 +525,73 @@ export function CheckoutForm({
               </Field>
             </FormSection>
           ) : null}
+
+          {physical ? (
+            <FormSection
+              title="Plan start"
+              description="Your plan days count from activation, so they never run while the SIM is in the post."
+            >
+              <fieldset className="sm:col-span-full">
+                <legend className="mb-2 text-sm font-medium">When should your plan start?</legend>
+                <input type="hidden" name="plan_start" value={planStart} />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ["on_receipt", "When I receive my SIM"],
+                      ["on_date", "On a date"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label
+                      key={value}
+                      className={cn(
+                        "flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors",
+                        "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                        planStart === value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="plan_start_choice"
+                        value={value}
+                        checked={planStart === value}
+                        onChange={() => setPlanStart(value)}
+                        className="sr-only"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {planStart === "on_receipt"
+                    ? "Your order page shows a button to start your line once the SIM arrives."
+                    : "Your line starts on this date. Allow a few days for USPS delivery."}
+                </p>
+              </fieldset>
+              {planStart === "on_date" ? (
+                <Field data-invalid={invalid("activate_on")}>
+                  <FieldLabel htmlFor="activate_on">Start date</FieldLabel>
+                  <Input
+                    id="activate_on"
+                    name="activate_on"
+                    type="date"
+                    min={today}
+                    required
+                    defaultValue={values.activate_on}
+                    aria-invalid={invalid("activate_on")}
+                    className="tabular font-mono"
+                  />
+                  {err("activate_on")}
+                </Field>
+              ) : null}
+            </FormSection>
+          ) : null}
         </FormCard>
 
-        <div className="lg:hidden">{alert}</div>
-        <NextSteps physical={physical} className="lg:hidden" />
+        <div className="flex flex-col gap-3 lg:hidden">
+          {alert}
+          {agreement}
+        </div>
+        <NextSteps physical={physical} takesPayment={takesPayment} className="lg:hidden" />
 
         {/* Honeypot */}
         <div
@@ -508,7 +616,7 @@ export function CheckoutForm({
             {formatPrice(total)}
           </p>
         </div>
-        <Button type="submit" size="xl" disabled={pending} className="flex-1">
+        <Button type="submit" size="xl" disabled={pending || belowMinimum} className="flex-1">
           {submitLabel}
         </Button>
       </ActionBar>
@@ -518,19 +626,24 @@ export function CheckoutForm({
 
 function NextSteps({
   physical,
+  takesPayment,
   className,
 }: {
   physical: boolean
+  takesPayment: boolean
   className?: string
 }) {
+  const first = takesPayment
+    ? "Pay in crypto on our payment partner's secure page. Your private order page follows."
+    : "Your private order page opens straight away."
   const steps = physical
     ? [
-        "Your private order page opens straight away.",
+        first,
         "Your SIM card ships by USPS, with tracking on that page and by email.",
         "Insert it when you land and switch the line on.",
       ]
     : [
-        "Your private order page opens straight away.",
+        first,
         "Your QR code arrives by email and on that page.",
         "Scan it to install, then switch the line on when you land.",
       ]
@@ -565,4 +678,9 @@ function Line({ label, value }: { label: string; value: string }) {
 
 function clamp(n: number) {
   return Math.min(MAX_QUANTITY, Math.max(1, Math.round(n)))
+}
+
+/** Today in the US (where lines are activated), for the start date picker. */
+function usToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
 }

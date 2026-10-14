@@ -14,21 +14,46 @@ import { ActionBar } from "@/components/patterns/action-bar"
 import { ActionButton, ClaimButton } from "@/components/staff/order-actions"
 import { NoteDialog } from "@/components/staff/note-dialog"
 import { completeOrder, flagOrder, issueReplacement, releaseOrder, saveTracking } from "@/app/agent/actions"
-import { approveReplacement, cancelOrder, reassignOrder, recordRefund } from "@/app/admin/orders/actions"
-import type { OrderStatus, ProductType } from "@/lib/types"
+import { approveReplacement, cancelOrder, markOrderPaid, reassignOrder, recordRefund } from "@/app/admin/orders/actions"
+import type { ItemNeed } from "@/components/staff/item-form"
+import type { OrderStatus } from "@/lib/types"
 
 type WorkProps = {
   orderId: string
   status: OrderStatus
-  productType: ProductType
+  need: ItemNeed
   canClaim: boolean
   canWork: boolean
   missing: number
 }
 
+const completeCopy: Record<ItemNeed, { button: string; title: string; description: string; confirm: string; missing: string }> = {
+  qr: {
+    button: "Mark complete and deliver",
+    title: "Deliver to the customer now?",
+    description: "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. This cannot be undone.",
+    confirm: "Deliver now",
+    missing: "a QR code",
+  },
+  ship: {
+    button: "Mark shipped",
+    title: "Mark this order shipped?",
+    description: "The tracking number goes to the customer by email and shows on their order page. The order comes back to the queue when it is time to activate. This cannot be undone.",
+    confirm: "Mark shipped",
+    missing: "an ICCID and tracking number",
+  },
+  activate: {
+    button: "Mark active and deliver",
+    title: "Are the lines active?",
+    description: "The phone numbers go to the customer by email and show on their order page straight away, and the order shows as Delivered. This cannot be undone.",
+    confirm: "Deliver now",
+    missing: "a phone number",
+  },
+}
+
 /** Claim, release, flag and complete: the agent's main row of actions. */
-export function WorkControls({ orderId, status, productType, canClaim, canWork, missing }: WorkProps) {
-  const esim = productType === "esim"
+export function WorkControls({ orderId, status, need, canClaim, canWork, missing }: WorkProps) {
+  const copy = completeCopy[need]
   if (canClaim) return <ClaimButton orderId={orderId} className="w-full px-8 sm:w-auto" />
   if (!canWork) return null
 
@@ -37,16 +62,12 @@ export function WorkControls({ orderId, status, productType, canClaim, canWork, 
       trigger={
         <Button size="lg" className={fullWidth ? "w-full" : "px-6"} disabled={missing > 0}>
           <PaperPlaneTiltIcon data-icon="inline-start" weight="bold" />
-          {esim ? "Mark complete and deliver" : "Mark shipped"}
+          {copy.button}
         </Button>
       }
-      title={esim ? "Deliver to the customer now?" : "Mark this order shipped?"}
-      description={
-        esim
-          ? "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. This cannot be undone."
-          : "The tracking number goes to the customer by email and shows on their order page straight away. This cannot be undone."
-      }
-      confirmLabel={esim ? "Deliver now" : "Mark shipped"}
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirm}
       action={() => completeOrder(orderId)}
     />
   )
@@ -60,7 +81,7 @@ export function WorkControls({ orderId, status, productType, canClaim, canWork, 
           {complete(true)}
           {missing > 0 ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {esim ? "a QR code" : "a tracking number"}
+              {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {copy.missing}
             </p>
           ) : null}
         </div>
@@ -95,7 +116,7 @@ export function WorkControls({ orderId, status, productType, canClaim, canWork, 
       />
       {missing > 0 ? (
         <p className="w-full text-sm text-muted-foreground max-sm:hidden">
-          {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {esim ? "a QR code" : "a tracking number"} before you can complete.
+          {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {copy.missing} before you can complete.
         </p>
       ) : null}
     </div>
@@ -193,6 +214,20 @@ export function AdminOrderControls({
         <ActionButton action={() => approveReplacement(orderId)} size="lg" className="h-10 w-full" pendingLabel="Approving...">
           Approve replacement
         </ActionButton>
+      ) : null}
+
+      {status === "awaiting_payment" ? (
+        <ConfirmAction
+          trigger={
+            <Button variant="outline" size="lg" className="w-full">
+              Mark as paid
+            </Button>
+          }
+          title="Mark this order as paid?"
+          description="Only when you have the money: an underpayment you agreed with the customer, or a payment you checked in your own wallet. The order goes into the agent queue and the customer gets the confirmation email."
+          confirmLabel="Mark as paid"
+          action={() => markOrderPaid(orderId)}
+        />
       ) : null}
 
       {flagged && claimedBy ? (

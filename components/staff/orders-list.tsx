@@ -13,7 +13,7 @@ import { listOrders, listStaff, ORDERS_PAGE_SIZE, type OrderFilters } from "@/li
 import type { OrderStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const STATUSES: (OrderStatus | "open" | "all")[] = ["all", "open", "queued", "claimed", "needs_attention", "awaiting_approval", "fulfilled", "cancelled"]
+const STATUSES: (OrderStatus | "open" | "all")[] = ["all", "open", "queued", "claimed", "needs_attention", "awaiting_approval", "awaiting_payment", "shipped", "fulfilled", "cancelled"]
 
 /** Every order, newest first, filterable by status, product, agent and a search. */
 export async function OrdersList({ searchParams, base, isAdmin }: { searchParams: Record<string, string | string[] | undefined>; base: "/admin" | "/agent"; isAdmin: boolean }) {

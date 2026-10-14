@@ -16,14 +16,25 @@ import { cn } from "@/lib/utils"
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp"]
 
-type Props = { item: WorkItem; productType: ProductType; editable: boolean; title: string }
+/** What this SIM still needs: its QR (eSIM), ICCID and tracking (posting), or its number (activation). */
+export type ItemNeed = "qr" | "ship" | "activate"
+
+type Props = { item: WorkItem; productType: ProductType; need: ItemNeed; editable: boolean; title: string }
+
+const needLabel: Record<ItemNeed, string> = { qr: "Needs QR", ship: "Needs ICCID and tracking", activate: "Needs phone number" }
+
+export function itemReady(item: Pick<WorkItem, "qr_path" | "tracking_number" | "iccid" | "phone_number">, need: ItemNeed) {
+  if (need === "qr") return Boolean(item.qr_path)
+  if (need === "ship") return Boolean(item.tracking_number && item.iccid)
+  return Boolean(item.phone_number)
+}
 
 /**
  * One SIM on the fulfilment screen. eSIM: the QR image (required) plus phone number
  * and ICCID. Physical: phone number and ICCID; the tracking number is set once for the
  * parcel. QR images can be dropped, picked, or pasted straight from WhatsApp.
  */
-export function ItemForm({ item, productType, editable, title }: Props) {
+export function ItemForm({ item, productType, need, editable, title }: Props) {
   const esim = productType === "esim"
   const [file, setFile] = React.useState<File | null>(null)
   const preview = React.useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
@@ -47,7 +58,8 @@ export function ItemForm({ item, productType, editable, title }: Props) {
     setErrors((e) => ({ ...e, qr: "" }))
   }
 
-  const ready = esim ? Boolean(item.qr_path) : Boolean(item.tracking_number)
+  const ready = itemReady(item, need)
+  const working = item.status === "pending" || (need === "activate" && item.status === "fulfilled")
   const shown = preview ?? item.qr_url
 
   return (
@@ -74,14 +86,14 @@ export function ItemForm({ item, productType, editable, title }: Props) {
     >
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
         <h3 className="font-sans text-base font-semibold tracking-normal">{title}</h3>
-        {item.status === "pending" ? (
+        {working ? (
           ready ? (
             <Tag tone="success">
               <CheckCircleIcon weight="fill" className="mr-1 size-3" />
               Ready
             </Tag>
           ) : (
-            <Tag tone="warning">{esim ? "Needs QR" : "Needs tracking"}</Tag>
+            <Tag tone="warning">{needLabel[need]}</Tag>
           )
         ) : (
           <Tag tone={item.status === "fulfilled" ? "success" : "neutral"}>{itemStatusLabel[item.status]}</Tag>

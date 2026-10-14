@@ -4,12 +4,16 @@ import { sendEmail, type EmailAttachment } from "@/lib/email"
 import {
   orderConfirmationEmail,
   orderDeliveredEmail,
+  paymentPendingEmail,
   staffCustomerMessageEmail,
   staffNewOrderEmail,
   staffNewTicketEmail,
+  staffPaymentIssueEmail,
   ticketAnsweredEmail,
   type DeliveredItem,
+  type PaymentIssue,
 } from "@/lib/emails"
+import type { PaymentEvent } from "@/lib/payments/provider"
 import { absoluteUrl } from "@/lib/site"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Order, OrderItem, Ticket } from "@/lib/types"
@@ -62,19 +66,54 @@ export async function notifyOrderPaid(orderId: string) {
   ])
 }
 
-/** A job entered the queue (paid order, or approved replacement). */
-export async function notifyNewOrderToStaff(order: Order) {
-  const to = await staffRecipients()
-  if (!to.length) return
-  const mail = staffNewOrderEmail(order, absoluteUrl("/agent"))
-  // Separate sends so agents never see each other's addresses.
-  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `queued-${order.id}-${address}` })))
+/** Order placed, payment not confirmed yet: the order page link, in case the buyer closes the payment page. */
+export async function notifyAwaitingPayment(orderId: string) {
+  const order = await loadOrder(orderId)
+  if (!order || !(await once(orderId, "placed"))) return
+  const mail = paymentPendingEmail(order, orderPageUrl(order))
+  await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `placed-${order.id}` })
 }
 
-/** Delivered (eSIM QR codes inline) or shipped (tracking). Replacements email too. */
+/** Underpaid, overpaid, or paid after cancelling: the owner decides. Once per order and kind. */
+export async function notifyPaymentIssue(orderId: string, issue: PaymentIssue, event: PaymentEvent) {
+  const order = await loadOrder(orderId)
+  if (!order || !(await once(orderId, `payment-${issue}`))) return
+  const to = await staffRecipients({ agents: false })
+  if (!to.length) return
+  const coin = event.payCurrency?.toUpperCase() ?? ""
+  const detail: [string, string][] = [
+    ["Expected", event.payAmount !== null ? `${event.payAmount} ${coin}` : "Unknown"],
+    ["Received", event.actuallyPaid !== null ? `${event.actuallyPaid} ${coin}` : "Unknown"],
+    ["Payment reference", event.providerPaymentId ?? "Unknown"],
+  ]
+  const mail = staffPaymentIssueEmail(order, issue, detail, absoluteUrl(`/admin/orders/${order.id}`))
+  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `payment-${issue}-${order.id}-${address}` })))
+}
+
+/** A job entered the queue (paid order, or approved replacement). */
+export async function notifyNewOrderToStaff(order: Order, { activation = false } = {}) {
+  const to = await staffRecipients()
+  if (!to.length) return
+  const mail = staffNewOrderEmail(order, absoluteUrl("/agent"), { activation })
+  const key = activation ? "activate" : "queued"
+  // Separate sends so agents never see each other's addresses.
+  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `${key}-${order.id}-${address}` })))
+}
+
+/** The customer says their SIM arrived: the same alert as a new order, once. */
+export async function notifyActivationRequested(order: Order) {
+  if (!(await once(order.id, "activation"))) return
+  await notifyNewOrderToStaff(order, { activation: true })
+}
+
+/**
+ * Delivered (eSIM QR codes inline), shipped (tracking), or a physical SIM's line now
+ * active (phone number). Replacements email too.
+ */
 export async function notifyOrderDelivered(orderId: string) {
   const order = await loadOrder(orderId)
-  if (!order || !(await once(orderId, "delivered"))) return
+  const kind = order?.product_type === "physical" && order.status === "fulfilled" && order.phase === "activate" ? "activated" : "delivered"
+  if (!order || !(await once(orderId, kind))) return
   const db = createServiceClient()
   const { data: rows } = await db.from("order_items").select("*").eq("order_id", orderId).order("seq")
   const items = (rows ?? []) as OrderItem[]
@@ -106,7 +145,7 @@ export async function notifyOrderDelivered(orderId: string) {
   }
 
   const mail = orderDeliveredEmail(order, delivered, orderPageUrl(pageOrder), { replacement: Boolean(order.replacement_of) })
-  await sendEmail({ sender: "orders", to: order.customer_email, ...mail, attachments, idempotencyKey: `delivered-${order.id}` })
+  await sendEmail({ sender: "orders", to: order.customer_email, ...mail, attachments, idempotencyKey: `${kind}-${order.id}` })
 }
 
 /** The contact button on a slow order page. Owner and every agent. */

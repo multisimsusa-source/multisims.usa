@@ -22,15 +22,24 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
     replacement_needs_approval: formData.get("replacement_needs_approval") === "on",
     max_replacements_per_order: formData.get("max_replacements_per_order"),
   })
-  const fee = parseMoney(formData.get("shipping_fee"))
+  const money = {
+    shipping_fee_cents: parseMoney(formData.get("shipping_fee")),
+    sim_card_price_cents: parseMoney(formData.get("sim_card_price")),
+    network_fee_cents: parseMoney(formData.get("network_fee")),
+    min_order_cents: parseMoney(formData.get("min_order")),
+  }
   const fieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error.issues)
-  if (fee === null || Number.isNaN(fee)) fieldErrors.shipping_fee = "Enter an amount"
+  const fieldFor = { shipping_fee_cents: "shipping_fee", sim_card_price_cents: "sim_card_price", network_fee_cents: "network_fee", min_order_cents: "min_order" } as const
+  for (const [key, cents] of Object.entries(money) as [keyof typeof money, number | null][]) {
+    if (cents === null || Number.isNaN(cents)) fieldErrors[fieldFor[key]] = "Enter an amount, for example 5.00"
+    else if (cents > 100_000) fieldErrors[fieldFor[key]] = "At most $1,000"
+  }
   if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "Check the highlighted fields", fieldErrors }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from("settings")
-    .update({ ...parsed.data, owner_email: parsed.data.owner_email || null, shipping_fee_cents: fee })
+    .update({ ...parsed.data, ...money, owner_email: parsed.data.owner_email || null })
     .eq("id", true)
   if (error) return { ok: false, error: "Could not save. Try again." }
   refresh()

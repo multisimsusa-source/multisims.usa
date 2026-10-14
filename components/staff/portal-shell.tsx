@@ -80,8 +80,8 @@ async function Alerts() {
   const profile = await getSessionProfile()
   if (!profile || (profile.role !== "admin" && profile.role !== "agent")) return null
   const supabase = await createClient()
-  const { data } = await supabase.from("orders").select("id").eq("status", "queued").limit(500)
-  return <OrderAlerts queuedIds={(data ?? []).map((o) => o.id)} />
+  const { data } = await supabase.from("orders").select("id, phase").eq("status", "queued").limit(500)
+  return <OrderAlerts queuedKeys={(data ?? []).map((o) => `${o.id}:${o.phase}`)} />
 }
 
 function PortalPageSkeleton() {

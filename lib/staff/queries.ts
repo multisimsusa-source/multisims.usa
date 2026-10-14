@@ -11,21 +11,26 @@ export type QueueOrder = Pick<
   | "id" | "number" | "status" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity"
   | "area_code" | "zip_code" | "addon_name" | "paid_at" | "claimed_by" | "claimed_at" | "attention_reason"
   | "replacement_of" | "staff_note" | "created_at"
+  | "phase" | "plan_start" | "activate_on" | "activation_requested_at" | "shipped_at"
 > & { claimer: Person | null }
 
 const QUEUE_SELECT = `
   id, number, status, carrier_name, plan_name, product_type, days, quantity, area_code, zip_code,
   addon_name, paid_at, claimed_by, claimed_at, attention_reason, replacement_of, staff_note, created_at,
+  phase, plan_start, activate_on, activation_requested_at, shipped_at,
   claimer:profiles!orders_claimed_by_fkey ( id, full_name, email )
 `
 
-/** Everything open: waiting, being worked on, flagged, or held for approval. */
+/**
+ * Everything open: waiting, being worked on, flagged, or held for approval, plus posted
+ * SIM cards with a start date still to come (shown as scheduled).
+ */
 export async function listOpenOrders(): Promise<QueueOrder[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
     .select(QUEUE_SELECT)
-    .in("status", ["queued", "claimed", "needs_attention", "awaiting_approval"])
+    .or("status.in.(queued,claimed,needs_attention,awaiting_approval),and(status.eq.shipped,plan_start.eq.on_date)")
     .order("paid_at", { ascending: true, nullsFirst: false })
     .limit(500)
   if (error) throw error
@@ -227,7 +232,7 @@ export async function getSettings() {
   const supabase = await createClient()
   const { data } = await supabase
     .from("settings")
-    .select("owner_email, unclaimed_alert_minutes, shipping_fee_cents, replacement_needs_approval, max_replacements_per_order")
+    .select("owner_email, unclaimed_alert_minutes, shipping_fee_cents, replacement_needs_approval, max_replacements_per_order, sim_card_price_cents, network_fee_cents, min_order_cents")
     .maybeSingle()
-  return data ?? { owner_email: null, unclaimed_alert_minutes: 5, shipping_fee_cents: 0, replacement_needs_approval: false, max_replacements_per_order: 2 }
+  return data ?? { owner_email: null, unclaimed_alert_minutes: 5, shipping_fee_cents: 100, replacement_needs_approval: false, max_replacements_per_order: 2, sim_card_price_cents: 500, network_fee_cents: 300, min_order_cents: 1500 }
 }
