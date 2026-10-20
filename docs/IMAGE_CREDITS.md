@@ -2,7 +2,7 @@
 
 All photos are from Unsplash under the Unsplash License (free for commercial use, no attribution required). Credited here anyway.
 
-- `public/images/statue-of-liberty-from-plane.jpg`: A view of the statue of liberty from a plane. Photo by Nathanaël Desmeules, https://unsplash.com/photos/-KaEnWKEgyE
+- `public/images/new-york-skyline-golden-hour.jpg`: The New York City skyline across the Hudson River from Hoboken at golden hour. Photo by Mike Chavarri, https://unsplash.com/photos/kZokA2VTKn4
 - `public/images/phone-new-york-street.jpg`: a person taking a picture of a street with a cell phone. Photo by Christian Lendl, https://unsplash.com/photos/OhoIWKV_0A4
 - `public/images/sim-card-and-tray.jpg`: sim card. Photo by Brett Jordan, https://unsplash.com/photos/o0kPG3RirHs
 - `public/images/traveller-call-airport.jpg`: Woman talking on phone near south terminal departure board. Photo by Holiday Extras, https://unsplash.com/photos/ks8cTegHAUU

@@ -29,7 +29,7 @@ import {
 import { faqs } from "@/lib/faq"
 import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import heroPhoto from "@/public/images/statue-of-liberty-from-plane.jpg"
+import heroPhoto from "@/public/images/new-york-skyline-golden-hour.jpg"
 import esimPhoto from "@/public/images/phone-new-york-street.jpg"
 import simPhoto from "@/public/images/sim-card-and-tray.jpg"
 import arrivalPhoto from "@/public/images/traveller-call-airport.jpg"
@@ -151,19 +151,19 @@ export default async function HomePage() {
             <figure className="relative mt-10 aspect-[5/4] overflow-hidden rounded-xl bg-muted sm:aspect-[16/10] lg:absolute lg:inset-0 lg:-z-10 lg:mt-0 lg:aspect-auto lg:rounded-none">
               <Image
                 src={heroPhoto}
-                alt="The Statue of Liberty and the New York skyline seen from an aircraft window"
+                alt="The New York City skyline across the Hudson River at golden hour"
                 fill
                 preload
                 placeholder="blur"
                 sizes="(min-width: 1152px) 1104px, 100vw"
-                className="enter-photo object-cover object-[50%_45%] lg:object-[50%_40%]"
+                className="enter-photo object-cover object-[56%_50%] lg:object-[50%_55%]"
               />
               <div
                 aria-hidden
                 className="absolute inset-0 hidden scrim-left lg:block"
               />
               <figcaption className="absolute top-3 right-3 rounded-full bg-scrim/60 px-2.5 py-1 text-xs text-white backdrop-blur-sm lg:top-5 lg:right-5">
-                Liberty Island, New York
+                Lower Manhattan from Hoboken
               </figcaption>
             </figure>
           </div>
