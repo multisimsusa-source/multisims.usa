@@ -7,7 +7,6 @@ US SIM card and eSIM storefront with admin, agent and dealer portals. Next.js 16
 - Product truth: `PRODUCT.md`. Design system: `DESIGN.md`. Agent rules: `CLAUDE.md`
 ---
 ## Local setup
-...
 Requires Bun, Docker and the Supabase CLI.
 
 ```bash...
