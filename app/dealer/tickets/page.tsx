@@ -6,24 +6,42 @@ import { LifebuoyIcon } from "@phosphor-icons/react/ssr"
 import { AdminPageHeader } from "@/components/admin/page-header"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { EmptyState } from "@/components/patterns/empty-state"
-import { Tag } from "@/components/patterns/tag"
+import { TicketStatusTag } from "@/components/patterns/status-tag"
 import { requireRole } from "@/lib/auth"
 import { batchLabel } from "@/lib/dealers"
-import { formatDateTime, orderLabel, severityLabel, ticketStatusLabel, ticketStatusTone } from "@/lib/orders"
+import { formatDateTime, orderLabel, severityLabel } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
 import type { Ticket } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Tickets" }
 
-type Row = Pick<Ticket, "id" | "number" | "type_name" | "severity" | "status" | "description" | "answer" | "answered_at" | "created_at"> & {
+type Row = Pick<
+  Ticket,
+  | "id"
+  | "number"
+  | "type_name"
+  | "severity"
+  | "status"
+  | "description"
+  | "answer"
+  | "answered_at"
+  | "created_at"
+> & {
   order: { number: number; batch: { id: string; number: number } | null }
-  item: { seq: number; phone_number: string | null; iccid: string | null } | null
+  item: {
+    seq: number
+    phone_number: string | null
+    iccid: string | null
+  } | null
 }
 
 export default function DealerTicketsPage() {
   return (
     <>
-      <AdminPageHeader title="Tickets" description="Problems you reported and our answers. To report a new one, open the order and choose Report a problem under the line." />
+      <AdminPageHeader
+        title="Tickets"
+        description="Problems you reported and our answers. To report a new one, open the order and choose Report a problem under the line."
+      />
       <Suspense fallback={<ListSkeleton rows={4} />}>
         <Tickets />
       </Suspense>
@@ -51,7 +69,10 @@ async function Tickets() {
         icon={<LifebuoyIcon />}
         title="No tickets"
         action={
-          <Link href="/dealer/orders" className="text-sm font-medium text-brand hover:underline">
+          <Link
+            href="/dealer/orders"
+            className="text-sm font-medium text-brand hover:underline"
+          >
             Go to your orders
           </Link>
         }
@@ -69,28 +90,41 @@ async function Tickets() {
             <div className="min-w-0">
               <p className="font-medium">{t.type_name}</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                <span className="font-mono tabular">#{t.number}</span>, {severityLabel[t.severity].toLowerCase()} priority, {formatDateTime(t.created_at)}
+                <span className="tabular font-mono">#{t.number}</span>,{" "}
+                {severityLabel[t.severity].toLowerCase()} priority,{" "}
+                {formatDateTime(t.created_at)}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t.order.batch ? (
-                  <Link href={`/dealer/orders/${t.order.batch.id}`} className="font-mono text-brand tabular hover:underline">
+                  <Link
+                    href={`/dealer/orders/${t.order.batch.id}`}
+                    className="tabular font-mono text-brand hover:underline"
+                  >
                     {batchLabel(t.order.batch.number)}
                   </Link>
                 ) : null}{" "}
-                <span className="font-mono tabular">{orderLabel(t.order)}</span>
-                {t.item ? `, SIM ${t.item.seq}${t.item.phone_number ? ` (${t.item.phone_number})` : ""}` : ""}
+                <span className="tabular font-mono">{orderLabel(t.order)}</span>
+                {t.item
+                  ? `, SIM ${t.item.seq}${t.item.phone_number ? ` (${t.item.phone_number})` : ""}`
+                  : ""}
               </p>
             </div>
-            <Tag tone={ticketStatusTone[t.status]}>{ticketStatusLabel[t.status]}</Tag>
+            <TicketStatusTag status={t.status} />
           </div>
-          <p className="mt-3 line-clamp-3 max-w-[65ch] text-sm whitespace-pre-line">{t.description}</p>
+          <p className="mt-3 line-clamp-3 max-w-[65ch] text-sm whitespace-pre-line">
+            {t.description}
+          </p>
           {t.answer ? (
             <div className="mt-4 rounded-lg bg-muted px-4 py-3 text-sm">
-              <p className="mb-1 text-xs font-medium tracking-[0.04em] text-muted-foreground uppercase">Our answer</p>
+              <p className="mb-1 text-xs font-medium tracking-[0.04em] text-muted-foreground uppercase">
+                Our answer
+              </p>
               <p className="whitespace-pre-line">{t.answer}</p>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">No answer yet. We email you when there is one.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              No answer yet. We email you when there is one.
+            </p>
           )}
         </li>
       ))}

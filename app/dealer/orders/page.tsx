@@ -39,7 +39,18 @@ async function Orders() {
   const batches = await listBatches(await createClient(), profile.id, 200)
   if (!batches.length) {
     return (
-      <EmptyState icon={<ReceiptIcon />} title="No orders yet" action={<Link href="/dealer/new" className={buttonVariants({ variant: "outline", size: "lg" })}>Place your first order</Link>}>
+      <EmptyState
+        icon={<ReceiptIcon />}
+        title="No orders yet"
+        action={
+          <Link
+            href="/dealer/new"
+            className={buttonVariants({ variant: "outline", size: "lg" })}
+          >
+            Place your first order
+          </Link>
+        }
+      >
         Your orders show here with how many SIMs are live.
       </EmptyState>
     )
@@ -47,7 +58,8 @@ async function Orders() {
   return (
     <>
       <p className="mb-3 text-sm text-muted-foreground">
-        <span className="tabular">{batches.length}</span> {batches.length === 1 ? "order" : "orders"}
+        <span className="tabular">{batches.length}</span>{" "}
+        {batches.length === 1 ? "order" : "orders"}
       </p>
       <BatchList batches={batches} />
     </>

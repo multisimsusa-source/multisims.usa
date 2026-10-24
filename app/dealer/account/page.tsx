@@ -13,7 +13,10 @@ export const metadata: Metadata = { title: "Login" }
 export default function DealerAccountPage() {
   return (
     <>
-      <AdminPageHeader title="Login" description="Your account details. To change the company name or email, message us." />
+      <AdminPageHeader
+        title="Login"
+        description="Your account details. To change the company name or email, message us."
+      />
       <Suspense fallback={<FormSkeleton sections={1} />}>
         <Account />
       </Suspense>
@@ -23,7 +26,13 @@ export default function DealerAccountPage() {
 
 async function Account() {
   const profile = await requireRole("dealer")
-  const { data: dealer } = await (await createClient()).from("dealers").select("company, phone").eq("profile_id", profile.id).maybeSingle()
+  const { data: dealer } = await (
+    await createClient()
+  )
+    .from("dealers")
+    .select("company, phone")
+    .eq("profile_id", profile.id)
+    .maybeSingle()
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
       <PasswordForm />

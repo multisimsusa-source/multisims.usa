@@ -74,13 +74,20 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --shadow-pop: 0 1px 2px rgb(20 20 18 / 0.04), 0 12px 32px -12px rgb(20 20 18 / 0.1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Readability: small text one step larger than Tailwind's defaults (13 and 15px), with
+     roomier line height. Body stays 16px. Every text-xs and text-sm follows. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5;
 }
 
 :root {
   --radius: 0.5rem;
-  /* Control height (inputs, selects, large buttons): 44px everywhere (WCAG target
-     size), 40px inside the admin and agent portals via the density-compact class.
-     Primitives read it as h-(--control-h); screens never set control heights. */
+  /* Control height (inputs, selects, large buttons): 44px everywhere, portals included
+     (WCAG target size, and easier to hit on a long shift). Primitives read it as
+     h-(--control-h); screens never set control heights. */
   --control-h: 2.75rem;
 
   /* From the MSU logo: deep plum primary, copper secondary, lavender-grey ground. */
@@ -96,7 +103,7 @@
   --secondary: oklch(0.962 0.006 300);
   --secondary-foreground: oklch(0.22 0.025 322);
   --muted: oklch(0.962 0.006 300);
-  --muted-foreground: oklch(0.49 0.018 315);
+  --muted-foreground: oklch(0.45 0.018 315);
   --accent: oklch(0.952 0.008 310);
   --accent-foreground: oklch(0.22 0.025 322);
   --destructive: oklch(0.55 0.19 27);
@@ -245,9 +252,10 @@
   }
 }
 
-/* Desk density for the admin and agent portals: 40px controls. Set once on the shell. */
+/* The portal shell's density hook. Controls stay 44px there too; the utility remains so a
+   denser surface can be introduced in one place if a screen ever needs it. */
 @utility density-compact {
-  --control-h: 2.5rem;
+  --control-h: 2.75rem;
 }
 
 /* Type roles. Use these instead of re-composing size, weight and tracking per screen. */

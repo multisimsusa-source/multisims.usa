@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { db } from "./support/db"
-import { DEALER_A, DOMAIN } from "./support/env"
+import { DEALER_A, REMOTE, testEmail } from "./support/env"
 import { DESKTOP, expectNoHorizontalScroll, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
 
 /**
@@ -13,7 +13,7 @@ import { DESKTOP, expectNoHorizontalScroll, guestPage, pageAs, PHONE, signIn } f
 async function ids() {
   const client = db()
   const [{ data: order }, { data: ticket }, { data: dealer }, { data: plan }, { data: batch }] = await Promise.all([
-    client.from("orders").select("id, public_token").eq("customer_email", `e2e-esim@${DOMAIN}`).is("replacement_of", null).single(),
+    client.from("orders").select("id, public_token").eq("customer_email", testEmail("esim")).is("replacement_of", null).single(),
     client.from("tickets").select("id").limit(1).single(),
     client.from("profiles").select("id").eq("email", DEALER_A).single(),
     client.from("plans").select("id, slug").eq("name", "E2E Unlimited").single(),
@@ -70,7 +70,7 @@ for (const scheme of ["light", "dark"] as const) {
           "/admin/dealers",
           `/admin/dealers/${dealer.id}`,
           "/admin/settings",
-          "/admin/design",
+          ...(REMOTE ? [] : ["/admin/design"]),
         ])
       })
 

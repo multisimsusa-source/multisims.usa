@@ -14,7 +14,15 @@ import { cn } from "@/lib/utils"
 const statuses: TicketStatus[] = ["open", "in_progress", "resolved"]
 
 /** The one answer the customer sees on their order page (no chat thread), plus status. */
-export function AnswerForm({ ticketId, status, answer }: { ticketId: string; status: TicketStatus; answer: string | null }) {
+export function AnswerForm({
+  ticketId,
+  status,
+  answer,
+}: {
+  ticketId: string
+  status: TicketStatus
+  answer: string | null
+}) {
   const [value, setValue] = React.useState(answer ?? "")
   const [current, setCurrent] = React.useState<TicketStatus>(status)
   const [pending, start] = React.useTransition()
@@ -43,10 +51,19 @@ export function AnswerForm({ ticketId, status, answer }: { ticketId: string; sta
               key={s}
               className={cn(
                 "flex min-h-10 cursor-pointer items-center justify-center rounded-md border px-2 text-center text-sm font-medium transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-                current === s ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                current === s
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
               )}
             >
-              <input type="radio" name="status" value={s} checked={current === s} onChange={() => setCurrent(s)} className="sr-only" />
+              <input
+                type="radio"
+                name="status"
+                value={s}
+                checked={current === s}
+                onChange={() => setCurrent(s)}
+                className="sr-only"
+              />
               {ticketStatusLabel[s]}
             </label>
           ))}
@@ -54,10 +71,24 @@ export function AnswerForm({ ticketId, status, answer }: { ticketId: string; sta
       </fieldset>
       <Field>
         <FieldLabel htmlFor="answer">Answer to the customer</FieldLabel>
-        <Textarea id="answer" rows={6} value={value} onChange={(e) => setValue(e.currentTarget.value)} placeholder="Restart the phone, then turn data roaming on under Cellular, SIM settings." />
-        <FieldDescription>Shown on their order page and emailed to them when it changes. Plain text.</FieldDescription>
+        <Textarea
+          id="answer"
+          rows={6}
+          value={value}
+          onChange={(e) => setValue(e.currentTarget.value)}
+          placeholder="Restart the phone, then turn data roaming on under Cellular, SIM settings."
+        />
+        <FieldDescription>
+          Shown on their order page and emailed to them when it changes. Plain
+          text.
+        </FieldDescription>
       </Field>
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending || !dirty}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full sm:w-fit"
+        disabled={pending || !dirty}
+      >
         {pending ? "Saving..." : "Save"}
       </Button>
     </form>

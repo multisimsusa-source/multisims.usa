@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TagIcon } from "@phosphor-icons/react/ssr"
 import Link from "next/link"
 import { Suspense } from "react"
 
@@ -17,7 +18,10 @@ export const metadata: Metadata = { title: "New order" }
 export default function NewDealerOrderPage() {
   return (
     <>
-      <AdminPageHeader title="New order" description="Mix any plans in one order, each line with its own quantity. The total is taken from your balance as each SIM is delivered." />
+      <AdminPageHeader
+        title="New order"
+        description="Mix any plans in one order, each line with its own quantity. The total is taken from your balance as each SIM is delivered."
+      />
       <Suspense fallback={<FormSkeleton sections={2} />}>
         <Builder />
       </Suspense>
@@ -28,21 +32,36 @@ export default function NewDealerOrderPage() {
 async function Builder() {
   const profile = await requireRole("dealer")
   const supabase = await createClient()
-  const [catalog, terms, wallet] = await Promise.all([getDealerCatalog(supabase), getOrderingTerms(profile.id), getWallet(supabase, profile.id)])
+  const [catalog, terms, wallet] = await Promise.all([
+    getDealerCatalog(supabase),
+    getOrderingTerms(profile.id),
+    getWallet(supabase, profile.id),
+  ])
 
   if (!catalog.length) {
     return (
       <EmptyState
+        icon={<TagIcon />}
         title="No plans are priced for you yet"
         action={
-          <Link href="/dealer" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          <Link
+            href="/dealer"
+            className={buttonVariants({ variant: "outline", size: "lg" })}
+          >
             Back to overview
           </Link>
         }
       >
-        We are setting up your prices. Contact us and we will let you know when you can order.
+        We are setting up your prices. Contact us and we will let you know when
+        you can order.
       </EmptyState>
     )
   }
-  return <OrderBuilder catalog={catalog} terms={terms} availableCents={wallet.available_cents} />
+  return (
+    <OrderBuilder
+      catalog={catalog}
+      terms={terms}
+      availableCents={wallet.available_cents}
+    />
+  )
 }

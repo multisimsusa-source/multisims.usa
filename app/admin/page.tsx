@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import Link from "next/link"
-import { ArrowRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr"
+import { ArrowRightIcon, CheckCircleIcon, CurrencyDollarIcon, ReceiptIcon, SimCardIcon, TrayIcon, WalletIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
 import { AdminPageHeader } from "@/components/admin/page-header"
@@ -12,7 +12,7 @@ import { DateRangeFilter } from "@/components/patterns/date-range-filter"
 import { Panel } from "@/components/patterns/panel"
 import { StatGrid } from "@/components/patterns/stat-grid"
 import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
-import { byAgent, byCarrier, byDealer, loadReport, resolveRange, salesByDay, salesTotals, waitingNow } from "@/lib/admin/reports"
+import { byAgent, byCarrier, byDealer, loadReport, perDay, previousRange, resolveRange, salesByDay, salesTotals, waitingNow } from "@/lib/admin/reports"
 import { formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -25,7 +25,7 @@ export default function AdminHome({ searchParams }: PageProps<"/admin">) {
         title="Overview"
         description="Sales, orders waiting, and what agents and dealers did. Catalogue changes show on the website straight away."
         actions={
-          <Link href="/admin/reports" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-10")}>
+          <Link href="/admin/reports" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
             Reports
             <ArrowRightIcon data-icon="inline-end" />
           </Link>
@@ -44,13 +44,17 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
   const raw = await searchParams
   const params = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "string")) as Record<string, string>
   const range = resolveRange(params)
-  const [data, carriers, plans] = await Promise.all([loadReport(range), listCarriers(), listPlans()])
+  const before = previousRange(range)
+  const [data, prior, carriers, plans] = await Promise.all([loadReport(range), loadReport(before), listCarriers(), listPlans()])
 
   const sales = salesTotals(data)
+  const priorSales = salesTotals(prior)
   const waiting = waitingNow(data)
   const agents = byAgent(data)
   const dealers = byDealer(data).filter((d) => d.orders || d.fundedCents || d.takenCents)
   const funded = data.ledger.filter((l) => l.kind !== "capture").reduce((n, l) => n + l.amount_cents, 0)
+  const priorFunded = prior.ledger.filter((l) => l.kind !== "capture").reduce((n, l) => n + l.amount_cents, 0)
+  const period = before.label
 
   // Catalogue problems: published plans the website hides, carriers with nothing live.
   const live = plans.filter((p) => !hiddenReason(p))
@@ -77,17 +81,46 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
 
       <StatGrid
         stats={[
-          { label: "Sales", value: formatPrice(sales.total), sub: `Website ${formatPrice(sales.website)}, dealers ${formatPrice(sales.dealer)}` },
-          { label: "Orders paid", value: sales.orders, href: "/admin/orders" },
-          { label: "SIMs delivered", value: data.items.length, sub: "eSIMs delivered, SIM cards posted", href: "/admin/activations" },
+          {
+            label: "Sales",
+            icon: CurrencyDollarIcon,
+            value: formatPrice(sales.total),
+            delta: { now: sales.total, before: priorSales.total, period },
+            sub: `Website ${formatPrice(sales.website)}, dealers ${formatPrice(sales.dealer)}`,
+            trend: perDay(data, "sales"),
+          },
+          {
+            label: "Orders paid",
+            icon: ReceiptIcon,
+            value: sales.orders,
+            delta: { now: sales.orders, before: priorSales.orders, period },
+            trend: perDay(data, "orders"),
+            href: "/admin/orders",
+          },
+          {
+            label: "SIMs delivered",
+            icon: SimCardIcon,
+            value: data.items.length,
+            delta: { now: data.items.length, before: prior.items.length, period },
+            trend: perDay(data, "delivered"),
+            href: "/admin/activations",
+          },
           {
             label: "Waiting now",
+            icon: TrayIcon,
             value: waiting.queued,
-            sub: `${waiting.queuedSims} ${waiting.queuedSims === 1 ? "SIM" : "SIMs"} in the queue`,
+            sub: waiting.queued ? `${waiting.queuedSims} ${waiting.queuedSims === 1 ? "SIM" : "SIMs"} in the queue` : "The queue is clear",
             href: "/agent",
             tone: waiting.queued ? "warning" : "default",
           },
-          { label: "Dealer funds in", value: formatPrice(funded), sub: "Top-ups and funds you added", href: "/admin/dealers" },
+          {
+            label: "Dealer funds in",
+            icon: WalletIcon,
+            value: formatPrice(funded),
+            delta: { now: funded, before: priorFunded, period },
+            sub: "Top-ups and funds you added",
+            href: "/admin/dealers",
+          },
         ]}
       />
 

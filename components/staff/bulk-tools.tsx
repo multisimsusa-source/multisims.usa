@@ -14,7 +14,10 @@ import { cn } from "@/lib/utils"
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp"]
 const MAX_BYTES = 2 * 1024 * 1024
-const naturally = new Intl.Collator("en", { numeric: true, sensitivity: "base" })
+const naturally = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+})
 
 type BulkItem = { id: string; seq: number; hasQr: boolean }
 
@@ -22,24 +25,43 @@ type BulkItem = { id: string; seq: number; hasQr: boolean }
  * Big orders on the fulfilment screen: drop all the QR images at once (matched to SIMs in
  * file name order), and paste every phone number and ICCID in one go.
  */
-export function BulkTools({ orderId, items, qr }: { orderId: string; items: BulkItem[]; qr: boolean }) {
+export function BulkTools({
+  orderId,
+  items,
+  qr,
+}: {
+  orderId: string
+  items: BulkItem[]
+  qr: boolean
+}) {
   return (
-    <section aria-labelledby="bulk-title" className="divide-y rounded-xl border bg-background">
+    <section
+      aria-labelledby="bulk-title"
+      className="divide-y rounded-xl border bg-background"
+    >
       <div className="p-4 sm:p-5">
         <h2 id="bulk-title" className="type-card-title">
           Bulk tools
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          For {items.length} SIMs. Fill them all at once here, or one by one below.
+          For {items.length} SIMs. Fill them all at once here, or one by one
+          below.
         </p>
       </div>
-      {qr ? <BulkQr items={items.filter((i) => !i.hasQr)} total={items.length} /> : null}
+      {qr ? (
+        <BulkQr items={items.filter((i) => !i.hasQr)} total={items.length} />
+      ) : null}
       <BulkDetails orderId={orderId} count={items.length} />
     </section>
   )
 }
 
-type Upload = { file: File; item: BulkItem; state: "waiting" | "done" | "failed"; error?: string }
+type Upload = {
+  file: File
+  item: BulkItem
+  state: "waiting" | "done" | "failed"
+  error?: string
+}
 
 function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
   const router = useRouter()
@@ -50,16 +72,31 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
   const inputId = React.useId()
 
   if (!items.length && !uploads.length) {
-    return <p className="p-4 text-sm text-muted-foreground sm:p-5">Every SIM has its QR code.</p>
+    return (
+      <p className="p-4 text-sm text-muted-foreground sm:p-5">
+        Every SIM has its QR code.
+      </p>
+    )
   }
 
   const choose = (list: FileList | null) => {
     if (!list?.length) return
     const files = [...list].sort((a, b) => naturally.compare(a.name, b.name))
-    const bad = files.filter((f) => !ACCEPT.includes(f.type) || f.size > MAX_BYTES)
+    const bad = files.filter(
+      (f) => !ACCEPT.includes(f.type) || f.size > MAX_BYTES
+    )
     const good = files.filter((f) => !bad.includes(f))
-    setSkipped([...bad.map((f) => `${f.name} (not a PNG, JPG or WebP under 2 MB)`), ...good.slice(items.length).map((f) => `${f.name} (more images than SIMs)`)])
-    setUploads(good.slice(0, items.length).map((file, i) => ({ file, item: items[i], state: "waiting" })))
+    setSkipped([
+      ...bad.map((f) => `${f.name} (not a PNG, JPG or WebP under 2 MB)`),
+      ...good
+        .slice(items.length)
+        .map((f) => `${f.name} (more images than SIMs)`),
+    ])
+    setUploads(
+      good
+        .slice(0, items.length)
+        .map((file, i) => ({ file, item: items[i], state: "waiting" }))
+    )
   }
 
   const run = async (only?: Upload[]) => {
@@ -69,7 +106,17 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
       const fd = new FormData()
       fd.set("qr", u.file)
       const result = await saveItemQr(u.item.id, fd)
-      setUploads((all) => all.map((x) => (x.item.id === u.item.id ? { ...x, state: result.ok ? "done" : "failed", error: result.ok ? undefined : result.error } : x)))
+      setUploads((all) =>
+        all.map((x) =>
+          x.item.id === u.item.id
+            ? {
+                ...x,
+                state: result.ok ? "done" : "failed",
+                error: result.ok ? undefined : result.error,
+              }
+            : x
+        )
+      )
     }
     setRunning(false)
     router.refresh()
@@ -84,7 +131,8 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
       <div>
         <p className="text-sm font-medium">QR codes</p>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {items.length} of {total} SIMs still need one. Images are matched in file name order: the first file to the first SIM without a QR.
+          {items.length} of {total} SIMs still need one. Images are matched in
+          file name order: the first file to the first SIM without a QR.
         </p>
       </div>
 
@@ -108,7 +156,9 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
         >
           <UploadSimpleIcon className="size-5 text-muted-foreground" />
           <span className="font-medium">Drop all the QR images here</span>
-          <span className="text-muted-foreground">or pick them from your files</span>
+          <span className="text-muted-foreground">
+            or pick them from your files
+          </span>
           <input
             id={inputId}
             type="file"
@@ -126,16 +176,35 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
           <ol className="max-h-72 divide-y overflow-y-auto rounded-lg border text-sm">
             {uploads.map((u) => (
               <li key={u.item.id} className="flex items-center gap-3 px-3 py-2">
-                <span className="w-14 shrink-0 font-medium tabular">SIM {u.item.seq}</span>
-                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{u.file.name}</span>
-                <span className={cn("shrink-0 text-xs", u.state === "done" && "text-success-ink", u.state === "failed" && "text-danger-ink")}>
-                  {u.state === "done" ? "Saved" : u.state === "failed" ? (u.error ?? "Failed") : running ? "Waiting" : "Ready"}
+                <span className="tabular w-14 shrink-0 font-medium">
+                  SIM {u.item.seq}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+                  {u.file.name}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-xs",
+                    u.state === "done" && "text-success-ink",
+                    u.state === "failed" && "text-danger-ink"
+                  )}
+                >
+                  {u.state === "done"
+                    ? "Saved"
+                    : u.state === "failed"
+                      ? (u.error ?? "Failed")
+                      : running
+                        ? "Waiting"
+                        : "Ready"}
                 </span>
               </li>
             ))}
           </ol>
           {skipped.length ? (
-            <Notice tone="warning" title={`${skipped.length} ${skipped.length === 1 ? "file" : "files"} left out`}>
+            <Notice
+              tone="warning"
+              title={`${skipped.length} ${skipped.length === 1 ? "file" : "files"} left out`}
+            >
               {skipped.slice(0, 5).join(", ")}
               {skipped.length > 5 ? ` and ${skipped.length - 5} more` : ""}
             </Notice>
@@ -143,7 +212,11 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
           <p aria-live="polite" className="text-sm text-muted-foreground">
             {running || finished ? (
               <>
-                Uploaded <span className="font-mono text-foreground tabular">{done}</span> of <span className="font-mono tabular">{uploads.length}</span>
+                Uploaded{" "}
+                <span className="tabular font-mono text-foreground">
+                  {done}
+                </span>{" "}
+                of <span className="tabular font-mono">{uploads.length}</span>
                 {failed.length ? `, ${failed.length} failed` : ""}
               </>
             ) : (
@@ -152,12 +225,24 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
           </p>
           <div className="flex flex-wrap gap-2">
             {!finished ? (
-              <Button type="button" size="lg" disabled={running} onClick={() => run()}>
-                {running ? "Uploading..." : `Upload ${uploads.length} QR ${uploads.length === 1 ? "code" : "codes"}`}
+              <Button
+                type="button"
+                size="lg"
+                disabled={running}
+                onClick={() => run()}
+              >
+                {running
+                  ? "Uploading..."
+                  : `Upload ${uploads.length} QR ${uploads.length === 1 ? "code" : "codes"}`}
               </Button>
             ) : null}
             {finished && failed.length ? (
-              <Button type="button" size="lg" disabled={running} onClick={() => run(failed)}>
+              <Button
+                type="button"
+                size="lg"
+                disabled={running}
+                onClick={() => run(failed)}
+              >
                 Try the {failed.length} failed again
               </Button>
             ) : null}
@@ -200,9 +285,17 @@ function BulkDetails({ orderId, count }: { orderId: string; count: number }) {
     >
       <Field>
         <FieldLabel htmlFor={id}>Phone numbers and ICCIDs</FieldLabel>
-        <Textarea id={id} rows={5} value={text} onChange={(e) => setText(e.currentTarget.value)} className="font-mono text-sm" spellCheck={false} />
+        <Textarea
+          id={id}
+          rows={5}
+          value={text}
+          onChange={(e) => setText(e.currentTarget.value)}
+          className="font-mono text-sm"
+          spellCheck={false}
+        />
         <FieldDescription>
-          One line per SIM, in SIM order: phone number and ICCID, separated by a comma or tab. Pasting two columns from a spreadsheet works.{" "}
+          One line per SIM, in SIM order: phone number and ICCID, separated by a
+          comma or tab. Pasting two columns from a spreadsheet works.{" "}
           {lines ? (
             <span className={cn("tabular", lines > count && "text-danger-ink")}>
               {lines} of {count} lines.
@@ -210,7 +303,13 @@ function BulkDetails({ orderId, count }: { orderId: string; count: number }) {
           ) : null}
         </FieldDescription>
       </Field>
-      <Button type="submit" size="lg" variant="outline" className="w-full sm:w-fit" disabled={pending || !lines || lines > count}>
+      <Button
+        type="submit"
+        size="lg"
+        variant="outline"
+        className="w-full sm:w-fit"
+        disabled={pending || !lines || lines > count}
+      >
         {pending ? "Saving..." : "Save details"}
       </Button>
     </form>

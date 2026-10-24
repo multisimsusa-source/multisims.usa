@@ -29,7 +29,11 @@ async function Overview() {
   const profile = await requireRole("dealer")
   const supabase = await createClient()
   const [{ data: dealer }, wallet] = await Promise.all([
-    supabase.from("dealers").select("company").eq("profile_id", profile.id).maybeSingle(),
+    supabase
+      .from("dealers")
+      .select("company")
+      .eq("profile_id", profile.id)
+      .maybeSingle(),
     getWallet(supabase, profile.id),
   ])
 
@@ -49,8 +53,14 @@ async function Overview() {
         <WalletSummary wallet={wallet} />
         {wallet.available_cents <= 0 ? (
           <Notice tone="info" title="Add funds to order">
-            Top up in crypto from <Link href="/dealer/wallet" className="font-medium underline underline-offset-3">Wallet</Link>, or ask us to add funds
-            for a payment you made to us directly.
+            Top up in crypto from{" "}
+            <Link
+              href="/dealer/wallet"
+              className="font-medium underline underline-offset-3"
+            >
+              Wallet
+            </Link>
+            , or ask us to add funds for a payment you made to us directly.
           </Notice>
         ) : null}
       </div>
@@ -60,7 +70,10 @@ async function Overview() {
           <h2 id="recent-title" className="type-section-title">
             Recent orders
           </h2>
-          <Link href="/dealer/orders" className="text-sm font-medium text-brand hover:underline">
+          <Link
+            href="/dealer/orders"
+            className="text-sm font-medium text-brand hover:underline"
+          >
             All orders
           </Link>
         </div>
@@ -80,7 +93,10 @@ async function Recent({ dealerId }: { dealerId: string }) {
         icon={<ReceiptIcon />}
         title="No orders yet"
         action={
-          <Link href="/dealer/new" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          <Link
+            href="/dealer/new"
+            className={buttonVariants({ variant: "outline", size: "lg" })}
+          >
             Place your first order
           </Link>
         }

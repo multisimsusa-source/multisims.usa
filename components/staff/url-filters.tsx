@@ -5,7 +5,13 @@ import { usePathname, useRouter } from "next/navigation"
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react"
 
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 const ALL = "all"
@@ -50,7 +56,9 @@ export function UrlFilters({
         next.set(k, v.trim())
       }
       const qs = next.toString()
-      startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
+      startTransition(() =>
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      )
     },
     [params, pathname, router]
   )
@@ -67,7 +75,10 @@ export function UrlFilters({
       className={cn(
         "mb-4 grid gap-2",
         selects.length === 1 && "sm:grid-cols-[1fr_auto]",
-        selects.length >= 2 && selects.length <= 3 && !hideSearch && "sm:grid-cols-2 lg:grid-cols-[1fr_repeat(var(--n),auto)]",
+        selects.length >= 2 &&
+          selects.length <= 3 &&
+          !hideSearch &&
+          "sm:grid-cols-2 lg:grid-cols-[1fr_repeat(var(--n),auto)]",
         hideSearch && !many && "sm:flex sm:flex-wrap",
         // Many filters: the search gets its own row and the selects share the next.
         many && "sm:grid-cols-2 lg:grid-cols-[repeat(var(--n),minmax(0,1fr))]"
@@ -75,8 +86,17 @@ export function UrlFilters({
       style={{ "--n": selects.length } as React.CSSProperties}
       aria-busy={pending}
     >
-      <div className={cn("relative", many ? "col-span-full" : "sm:max-lg:col-span-2", hideSearch && "hidden")}>
-        <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div
+        className={cn(
+          "relative",
+          many ? "col-span-full" : "sm:max-lg:col-span-2",
+          hideSearch && "hidden"
+        )}
+      >
+        <MagnifyingGlassIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        />
         <Input
           type="search"
           value={text}
@@ -97,8 +117,20 @@ export function UrlFilters({
         ) : null}
       </div>
       {selects.map((s) => (
-        <Select key={s.param} items={s.items} value={s.value || ALL} onValueChange={(v) => apply({ [s.param]: String(v ?? ALL) })}>
-          <SelectTrigger aria-label={s.label} className={cn("w-full bg-background", !many && "lg:w-44", s.className)}>
+        <Select
+          key={s.param}
+          items={s.items}
+          value={s.value || ALL}
+          onValueChange={(v) => apply({ [s.param]: String(v ?? ALL) })}
+        >
+          <SelectTrigger
+            aria-label={s.label}
+            className={cn(
+              "w-full bg-background",
+              !many && "lg:w-44",
+              s.className
+            )}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

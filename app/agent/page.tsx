@@ -1,18 +1,19 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
-import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr"
+import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, HandIcon, TimerIcon, TrayIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
 import { AdminPageHeader } from "@/components/admin/page-header"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { ProductBadge } from "@/components/site/product-mark"
+import { StatGrid } from "@/components/patterns/stat-grid"
 import { Tag } from "@/components/patterns/tag"
 import { Age } from "@/components/staff/age"
 import { ClaimButton } from "@/components/staff/order-actions"
 import { getSessionProfile } from "@/lib/auth"
 import { formatDays } from "@/lib/format"
-import { orderLabel, planStartLabel } from "@/lib/orders"
+import { elapsed, orderLabel, planStartLabel } from "@/lib/orders"
 import { getSettings, listOpenOrders, type QueueOrder } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
@@ -45,8 +46,25 @@ async function Queue() {
   const held = orders.filter((o) => o.status === "awaiting_approval")
   const scheduled = orders.filter((o) => o.status === "shipped").sort((a, b) => (a.activate_on ?? "").localeCompare(b.activate_on ?? ""))
 
+  const oldest = oldestWait(waiting)
+  const sims = waiting.reduce((n, o) => n + o.quantity, 0)
+
   return (
     <div className="flex flex-col gap-8">
+      <StatGrid
+        stats={[
+          { label: "Waiting", icon: TrayIcon, value: waiting.length, sub: waiting.length ? `${sims} ${sims === 1 ? "SIM" : "SIMs"} to fill` : "Nothing to claim", tone: waiting.length ? "warning" : "default" },
+          { label: "Yours", icon: HandIcon, value: mine.length, sub: mine.length ? "Claimed by you, not done" : "Claim one from Waiting" },
+          {
+            label: "Oldest wait",
+            icon: TimerIcon,
+            value: oldest ? elapsed(oldest.since) : "None",
+            sub: oldest ? (oldest.minutes >= warn ? `Past the ${warn}-minute alert` : `Alert at ${warn} minutes`) : "The queue is clear",
+            tone: oldest && oldest.minutes >= warn ? "warning" : "default",
+          },
+          { label: "Needs the owner", icon: WarningCircleIcon, value: flagged.length + held.length, sub: flagged.length + held.length ? "Flagged or awaiting approval" : "Nothing flagged" },
+        ]}
+      />
       {mine.length ? (
         <Group title="Yours" count={mine.length}>
           {mine.map((o) => (
@@ -57,7 +75,7 @@ async function Queue() {
 
       <Group title="Waiting" count={waiting.length}>
         {waiting.length ? (
-          waiting.map((o) => <Row key={o.id} order={o} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={<ClaimButton orderId={o.id} className="h-10 w-full sm:w-24" />} />)
+          waiting.map((o) => <Row key={o.id} order={o} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={<ClaimButton orderId={o.id} className="w-full sm:w-28" />} />)
         ) : (
           <li className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
             <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-success-ink" />
@@ -190,7 +208,7 @@ function OpenLink({ id, label, primary, admin }: { id: string; label: string; pr
   return (
     <Link
       href={admin ? `/admin/orders/${id}` : `/agent/orders/${id}`}
-      className={cn(buttonVariants({ variant: primary ? "default" : "outline", size: "lg" }), "h-10 w-full bg-background sm:w-auto", primary && "bg-primary")}
+      className={cn(buttonVariants({ variant: primary ? "default" : "outline", size: "lg" }), "w-full bg-background sm:w-auto", primary && "bg-primary")}
     >
       {label}
       <ArrowRightIcon data-icon="inline-end" />
@@ -201,4 +219,12 @@ function OpenLink({ id, label, primary, admin }: { id: string; label: string; pr
 /** Today in the US, where lines are activated (YYYY-MM-DD). */
 function usToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+}
+
+/** The longest-waiting order in the queue: when it entered, and for how many minutes. */
+function oldestWait(orders: QueueOrder[]) {
+  const times = orders.map((o) => o.activation_requested_at ?? o.paid_at).filter((t): t is string => Boolean(t))
+  if (!times.length) return null
+  const since = times.reduce((a, b) => (a < b ? a : b))
+  return { since, minutes: Math.floor((Date.now() - new Date(since).getTime()) / 60_000) }
 }

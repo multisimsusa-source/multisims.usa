@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { db } from "./support/db"
-import { DEALER_A, DEALER_B, PASSWORD } from "./support/env"
-import { BASE_URL } from "./support/env"
-import { choose, confirm, DESKTOP, expectNoHorizontalScroll, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
+import { BASE_URL, DEALER_A, DEALER_B, PASSWORD, REMOTE } from "./support/env"
+import { choose, confirm, DESKTOP, expectNoHorizontalScroll, expectToast, guestPage, pageAs, payInSandbox, PHONE, signIn } from "./support/helpers"
 
 /**
  * Milestone 3 demo checklist: two dealers, one funded by hand and one by a crypto top-up,
@@ -88,10 +87,29 @@ test.describe.serial("Dealers", () => {
   })
 
   test("a confirmed crypto top-up credits the other dealer once", async ({ browser }) => {
-    // NOWPayments is switched off in tests: record the confirmed invoice and run the
-    // same database step the webhook runs, twice, as a retried webhook would.
     const client = db()
     const id = await dealerId(DEALER_B)
+
+    if (REMOTE) {
+      // The real flow: the dealer starts a top-up, pays the provider's (sandbox) invoice,
+      // and the provider's webhook credits the wallet once.
+      const dealer = await signIn(browser, DEALER_B)
+      await dealer.goto("/dealer/wallet")
+      await dealer.getByLabel("Amount (USD)").fill("250")
+      await dealer.getByRole("button", { name: "Continue to payment" }).click()
+      await dealer.waitForURL((url) => url.hostname.includes("nowpayments"), { timeout: 60_000 })
+      await payInSandbox({ dealerId: id })
+      await expect
+        .poll(async () => (await client.from("wallet_ledger").select("kind").eq("dealer_id", id).eq("kind", "topup")).data?.length, { timeout: 180_000, intervals: [2_000, 5_000] })
+        .toBe(1)
+      await dealer.goto("/dealer/wallet")
+      await expect(dealer.getByText("Crypto top-up").first()).toBeVisible()
+      await expect(dealer.getByText("$250.00").first()).toBeVisible()
+      return
+    }
+
+    // Locally there is no payment provider: record the confirmed invoice and run the same
+    // database step the webhook runs, twice, as a retried webhook would.
     const { data: payment } = await client
       .from("payments")
       .insert({ kind: "wallet_topup", dealer_id: id, provider: "nowpayments", price_cents: 25000, status: "paid", pay_currency: "usdttrc20" })
@@ -120,7 +138,11 @@ test.describe.serial("Dealers", () => {
     await choose(dealer, plans.nth(0), /E2E Mobile E2E Unlimited \(eSIM\)/)
     await choose(dealer, days.nth(0), /^7 days/)
     await dealer.getByLabel("Quantity").nth(0).fill("3")
-    await dealer.getByRole("switch").nth(0).click()
+    // Calling is offered to dealers only when it has a wholesale price.
+    const { data: addon } = await db().from("addons").select("wholesale_price_cents, active").eq("code", "intl_calling").single()
+    const calling = addon?.active && addon.wholesale_price_cents !== null ? addon.wholesale_price_cents : null
+    if (calling !== null) await dealer.getByRole("switch").nth(0).click()
+    else await expect(dealer.getByRole("switch")).toHaveCount(0)
 
     // 500 SIMs is more than the balance: a warning, and Place order stays off.
     await dealer.getByLabel("Quantity").nth(0).fill("500")
@@ -145,10 +167,10 @@ test.describe.serial("Dealers", () => {
     await dealer.waitForURL(/\/dealer\/orders\/[0-9a-f-]{36}/)
     await expect(dealer.getByText("PO E2E-1")).toBeVisible()
 
-    // eSIM line: 3 x (9.00 + 4.00 calling) = 39.00. Card line: 2 x (12.00 + 4.00 card) + shipping.
+    // eSIM line: 3 x (9.00 special price + calling). Card line: 2 x (12.00 + SIM card) + shipping once.
     const { data: batch } = await db().from("order_batches").select("id, total_cents").eq("reference", "PO E2E-1").single()
     const { data: settings } = await db().from("settings").select("shipping_fee_cents, dealer_sim_card_price_cents").single()
-    expect(batch!.total_cents).toBe(3900 + 2 * (1200 + settings!.dealer_sim_card_price_cents) + settings!.shipping_fee_cents)
+    expect(batch!.total_cents).toBe(3 * (900 + (calling ?? 0)) + 2 * (1200 + settings!.dealer_sim_card_price_cents) + settings!.shipping_fee_cents)
 
     // The whole order is held: available drops, balance does not.
     await dealer.goto("/dealer/wallet")

@@ -261,3 +261,27 @@ export function waitingNow(data: ReportData) {
     attention: data.open.filter((o) => o.status === "needs_attention").length,
   }
 }
+
+/** The period of the same length just before this one, for comparisons. */
+export function previousRange(range: Range): Range {
+  const days = rangeDays(range).length
+  const to = addDays(range.from, -1)
+  return { from: addDays(to, -(days - 1)), to, label: `previous ${days === 1 ? "day" : `${days} days`}` }
+}
+
+/** Per-day counts or sums across the range (oldest first), for KPI trends. */
+export function perDay(data: ReportData, metric: "sales" | "orders" | "delivered") {
+  const days = new Map(rangeDays(data.range).map((d) => [d, 0]))
+  if (metric === "delivered") {
+    for (const i of data.items) {
+      const d = usDate(new Date(i.fulfilled_at))
+      if (days.has(d)) days.set(d, days.get(d)! + 1)
+    }
+  } else {
+    for (const o of data.orders) {
+      const d = usDate(new Date(o.paid_at))
+      if (days.has(d)) days.set(d, days.get(d)! + (metric === "sales" ? o.total_cents : 1))
+    }
+  }
+  return [...days.values()]
+}

@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
-import { assertLocal, DOMAIN, localSupabase, OWNER, AGENT, PASSWORD } from "./env"
+import { assertLocal, localSupabase, OWNER, AGENT, PASSWORD, REMOTE, TEST_EMAIL_PATTERN } from "./env"
 
 /** Service-role client for the local stack: test setup, checks and cleanup only. */
 export function db(): SupabaseClient {
@@ -23,18 +23,26 @@ export async function seedTestUsers() {
   }
 }
 
-/** Login and form counters, so a test run never trips the rate limits. Local stack only. */
+/**
+ * Login and form counters, so a test run never trips the rate limits. Locally all of them;
+ * on a real project only this machine's own counters (keys end with its public address).
+ */
 export async function resetRateLimits() {
-  await db().from("rate_limits").delete().neq("key", "")
+  if (!REMOTE) {
+    await db().from("rate_limits").delete().neq("key", "")
+    return
+  }
+  const ip = (await (await fetch("https://api.ipify.org")).text()).trim()
+  if (/^[0-9a-f.:]+$/i.test(ip)) await db().from("rate_limits").delete().like("key", `%:${ip}`)
 }
 
 /**
- * Removes every trace of a test run: test logins (@multisims.test), their dealers and
- * wallets, test orders and their files, E2E carriers, plans and discount codes.
+ * Removes every trace of a test run: test logins (the test addresses only), their dealers
+ * and wallets, test orders and their files, E2E carriers, plans and discount codes.
  */
 export async function cleanupTestData() {
   const client = db()
-  const { data: profiles } = await client.from("profiles").select("id").like("email", `%@${DOMAIN}`)
+  const { data: profiles } = await client.from("profiles").select("id").like("email", TEST_EMAIL_PATTERN)
   const userIds = (profiles ?? []).map((p) => p.id as string)
   const { data: dealers } = userIds.length ? await client.from("dealers").select("profile_id").in("profile_id", userIds) : { data: [] }
   const dealerIds = (dealers ?? []).map((d) => d.profile_id as string)
@@ -42,7 +50,7 @@ export async function cleanupTestData() {
   const carrierIds = (carriers ?? []).map((c) => c.id as string)
 
   // Orders made by the tests: test customers, test dealers, or on test carriers.
-  const filters = [`customer_email.like.%@${DOMAIN}`]
+  const filters = [`customer_email.like.${TEST_EMAIL_PATTERN}`]
   if (dealerIds.length) filters.push(`dealer_id.in.(${dealerIds.join(",")})`)
   if (carrierIds.length) filters.push(`carrier_id.in.(${carrierIds.join(",")})`)
   const { data: orders } = await client.from("orders").select("id").or(filters.join(","))

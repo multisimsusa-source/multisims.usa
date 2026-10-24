@@ -53,7 +53,7 @@ export async function listOrders(filters: OrderFilters) {
   const supabase = await createClient()
   let query = supabase
     .from("orders")
-    .select(`${QUEUE_SELECT}, customer_name, customer_email, total_cents, refunded_at, fulfilled_at`, { count: "exact" })
+    .select(`${QUEUE_SELECT}, customer_name, customer_email, total_cents, refunded_at, fulfilled_at, public_token, channel`, { count: "exact" })
     .order("created_at", { ascending: false })
 
   const status = filters.status ?? "all"
@@ -82,7 +82,7 @@ export async function listOrders(filters: OrderFilters) {
   const from = (page - 1) * ORDERS_PAGE_SIZE
   const { data, count, error } = await query.range(from, from + ORDERS_PAGE_SIZE - 1)
   if (error) throw error
-  type Row = QueueOrder & Pick<Order, "customer_name" | "customer_email" | "total_cents" | "refunded_at" | "fulfilled_at">
+  type Row = QueueOrder & Pick<Order, "customer_name" | "customer_email" | "total_cents" | "refunded_at" | "fulfilled_at" | "public_token" | "channel">
   return { rows: data as unknown as Row[], total: count ?? 0, page }
 }
 

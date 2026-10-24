@@ -3,7 +3,12 @@
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -43,8 +48,10 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
                 aria-pressed={on}
                 onClick={() => setAmount(value)}
                 className={cn(
-                  "flex min-h-11 items-center justify-center rounded-md border px-2 font-mono text-sm font-medium tabular transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                  on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                  "tabular flex min-h-11 items-center justify-center rounded-md border px-2 font-mono text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 )}
               >
                 {formatPrice(cents).replace(".00", "")}
@@ -62,15 +69,23 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
           value={amount}
           onChange={(e) => setAmount(e.currentTarget.value)}
           aria-invalid={Boolean(error) || undefined}
-          className="font-mono tabular"
+          className="tabular font-mono"
         />
         {error ? (
           <FieldError>{error}</FieldError>
         ) : (
-          <FieldDescription>From {formatPrice(minimumCents)}. You pay in USDT (TRC-20) or Bitcoin on our payment partner&apos;s page.</FieldDescription>
+          <FieldDescription>
+            From {formatPrice(minimumCents)}. You pay in USDT (TRC-20) or
+            Bitcoin on our payment partner&apos;s page.
+          </FieldDescription>
         )}
       </Field>
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending || !amount.trim()}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full sm:w-fit"
+        disabled={pending || !amount.trim()}
+      >
         {pending ? "Opening payment page..." : "Continue to payment"}
       </Button>
     </form>

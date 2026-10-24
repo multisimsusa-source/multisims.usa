@@ -14,7 +14,7 @@ export function Tag({ tone = "neutral", className, children }: { tone?: Tone; cl
   return (
     <span
       className={cn(
-        "inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[11px] font-medium tracking-[0.04em] whitespace-nowrap uppercase",
+        "inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium tracking-[0.03em] whitespace-nowrap uppercase [&_svg]:size-3.5",
         tones[tone],
         className
       )}

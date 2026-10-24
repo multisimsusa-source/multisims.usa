@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { MagnifyingGlassIcon, SimCardIcon } from "@phosphor-icons/react/ssr"
 import { Suspense } from "react"
 import Link from "next/link"
 
@@ -68,19 +69,19 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-4">Phone number</TableHead>
+                <TableHead>Phone number</TableHead>
                 <TableHead>ICCID</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Agent</TableHead>
-                <TableHead className="pr-4 text-right">Delivered</TableHead>
+                <TableHead className=" text-right">Delivered</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="pl-4 font-mono tabular">
+                  <TableCell className=" font-mono tabular">
                     {r.phone_number ?? <span className="text-muted-foreground">Not recorded</span>}
                     {r.status === "replaced" ? <Tag tone="neutral" className="ml-2">Replaced</Tag> : null}
                   </TableCell>
@@ -102,14 +103,14 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
                     <span className="block truncate text-xs text-muted-foreground">{r.order.customer_email}</span>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.agent?.full_name || r.agent?.email || ""}</TableCell>
-                  <TableCell className="pr-4 text-right text-sm whitespace-nowrap text-muted-foreground">{formatDateTime(r.fulfilled_at)}</TableCell>
+                  <TableCell className=" text-right text-sm whitespace-nowrap text-muted-foreground">{formatDateTime(r.fulfilled_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : (
-        <EmptyState title={q ? "No activation matches that search" : "No SIMs delivered yet"}>
+        <EmptyState icon={q ? <MagnifyingGlassIcon /> : <SimCardIcon />} title={q ? "No activation matches that search" : "No SIMs delivered yet"}>
           {q ? "Search by phone number, ICCID, order number or customer email." : "Every SIM an agent delivers or ships is listed here."}
         </EmptyState>
       )}

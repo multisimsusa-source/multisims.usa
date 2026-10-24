@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import { expect, test } from "@playwright/test"
 
 import { db } from "./support/db"
-import { BASE_URL, DEALER_A, DOMAIN, localSupabase, PASSWORD } from "./support/env"
+import { BASE_URL, DEALER_A, localSupabase, PASSWORD, REMOTE, testEmail } from "./support/env"
 import { choose, expectToast, guestPage, pageAs, signIn } from "./support/helpers"
 
 /**
@@ -64,7 +64,7 @@ test.describe.serial("Owner tools and access", () => {
 
     const csv = await owner.request.get(`${BASE_URL}/admin/customers/export`)
     expect(csv.status()).toBe(200)
-    expect(await csv.text()).toContain(`e2e-esim@${DOMAIN}`)
+    expect(await csv.text()).toContain(testEmail("esim"))
   })
 
   test("owner changes a setting and it sticks", async ({ browser }) => {
@@ -81,10 +81,12 @@ test.describe.serial("Owner tools and access", () => {
   })
 
   test("contact form sends a message", async ({ browser }) => {
+    // On a real site the message would go to the business inbox.
+    test.skip(REMOTE, "Not sent on a real site: it would land in the business inbox")
     const page = await guestPage(browser)
     await page.goto("/contact")
     await page.getByLabel("Name").fill("E2E Visitor")
-    await page.getByLabel("Email").fill(`e2e-visitor@${DOMAIN}`)
+    await page.getByLabel("Email").fill(testEmail("visitor"))
     await page.getByLabel("Message").fill("Do your eSIMs work on an iPhone 13 bought in the UK?")
     await page.getByRole("button", { name: "Send message" }).click()
     await expect(page.getByRole("heading", { name: "Message sent" })).toBeVisible()

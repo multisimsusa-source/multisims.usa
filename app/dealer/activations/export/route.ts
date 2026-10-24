@@ -9,10 +9,30 @@ import { createClient } from "@/lib/supabase/server"
 /** Every line the dealer has received, for their own records. */
 export async function GET() {
   const profile = await getSessionProfile()
-  if (profile?.role !== "dealer") return new Response("Not allowed", { status: 403 })
-  const rows = await listDealerActivations(await createClient(), profile.id, "", 50_000)
+  if (profile?.role !== "dealer")
+    return new Response("Not allowed", { status: 403 })
+  const rows = await listDealerActivations(
+    await createClient(),
+    profile.id,
+    "",
+    50_000
+  )
   const csv = toCsv([
-    ["Order", "Line", "SIM", "Carrier", "Plan", "Type", "Days", "Status", "Phone number", "ICCID", "Tracking", "Delivered", "Your reference"],
+    [
+      "Order",
+      "Line",
+      "SIM",
+      "Carrier",
+      "Plan",
+      "Type",
+      "Days",
+      "Status",
+      "Phone number",
+      "ICCID",
+      "Tracking",
+      "Delivered",
+      "Your reference",
+    ],
     ...rows.map((r) => [
       r.order.batch ? batchLabel(r.order.batch.number) : "",
       orderLabel(r.order),

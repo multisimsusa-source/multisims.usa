@@ -43,7 +43,13 @@ export function ActionButton({
 }
 
 /** Claim and go straight to the fulfilment screen. */
-export function ClaimButton({ orderId, className }: { orderId: string; className?: string }) {
+export function ClaimButton({
+  orderId,
+  className,
+}: {
+  orderId: string
+  className?: string
+}) {
   const router = useRouter()
   return (
     <ActionButton

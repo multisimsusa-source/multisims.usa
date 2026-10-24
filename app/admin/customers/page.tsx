@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
-import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr"
+import { DownloadSimpleIcon, MagnifyingGlassIcon, UsersIcon } from "@phosphor-icons/react/ssr"
 
 import { EmptyState } from "@/components/patterns/empty-state"
 import { buttonVariants } from "@/components/ui/button"
@@ -23,7 +23,7 @@ export default function CustomersPage({ searchParams }: PageProps<"/admin/custom
         title="Customers"
         description="Everyone who ordered on the website, one row per email. The export is for your own records; this site never sends marketing email."
         actions={
-          <Link href="/admin/customers/export" prefetch={false} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-10")}>
+          <Link href="/admin/customers/export" prefetch={false} className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
             <DownloadSimpleIcon data-icon="inline-start" />
             Export CSV
           </Link>
@@ -49,17 +49,17 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/customers">, "se
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-4">Customer</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead className="text-right">Orders</TableHead>
                 <TableHead className="text-right">Spent</TableHead>
-                <TableHead className="pr-4 text-right">Last order</TableHead>
+                <TableHead className=" text-right">Last order</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {customers.map((c) => (
                 <TableRow key={c.email}>
-                  <TableCell className="max-w-64 pl-4">
+                  <TableCell className="max-w-64">
                     <Link href={`/admin/orders?q=${encodeURIComponent(c.email)}`} className="block truncate font-medium hover:underline">
                       {c.name}
                     </Link>
@@ -68,14 +68,14 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/customers">, "se
                   <TableCell className="font-mono text-sm tabular">{c.phone}</TableCell>
                   <TableCell className="text-right font-mono tabular">{c.orders}</TableCell>
                   <TableCell className="text-right font-mono tabular">{formatPrice(c.spent_cents)}</TableCell>
-                  <TableCell className="pr-4 text-right text-sm whitespace-nowrap text-muted-foreground">{formatDateTime(c.last_order_at)}</TableCell>
+                  <TableCell className=" text-right text-sm whitespace-nowrap text-muted-foreground">{formatDateTime(c.last_order_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : (
-        <EmptyState title={q ? "No customer matches that search" : "No customers yet"}>
+        <EmptyState icon={q ? <MagnifyingGlassIcon /> : <UsersIcon />} title={q ? "No customer matches that search" : "No customers yet"}>
           {q ? "Try part of the email or phone number." : "Everyone who orders on the website appears here."}
         </EmptyState>
       )}

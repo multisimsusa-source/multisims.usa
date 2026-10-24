@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr"
+import { ChartBarIcon, DownloadSimpleIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -146,7 +146,7 @@ async function Report({ searchParams }: Pick<PageProps<"/admin/reports">, "searc
               </Table>
             </div>
           ) : (
-            <EmptyState>Nothing in this range{Object.values(filters).some(Boolean) ? " with these filters" : ""}.</EmptyState>
+            <EmptyState icon={<ChartBarIcon />}>Nothing in this range{Object.values(filters).some(Boolean) ? " with these filters" : ""}.</EmptyState>
           )}
         </section>
       ))}

@@ -1,11 +1,15 @@
 import { EmptyState } from "@/components/patterns/empty-state"
+import { WalletIcon } from "@phosphor-icons/react/ssr"
 import { Tag } from "@/components/patterns/tag"
 import { ledgerKind, type LedgerEntry } from "@/lib/dealers"
 import { formatPrice } from "@/lib/format"
 import { formatDateTime, type Tone } from "@/lib/orders"
 import { cn } from "@/lib/utils"
 
-const effectTag: Record<(typeof ledgerKind)[keyof typeof ledgerKind]["effect"], { label: string; tone: Tone }> = {
+const effectTag: Record<
+  (typeof ledgerKind)[keyof typeof ledgerKind]["effect"],
+  { label: string; tone: Tone }
+> = {
   in: { label: "In", tone: "success" },
   out: { label: "Out", tone: "neutral" },
   hold: { label: "Held", tone: "brand" },
@@ -16,8 +20,14 @@ const effectTag: Record<(typeof ledgerKind)[keyof typeof ledgerKind]["effect"], 
  * Every wallet movement, newest first. Each row says in words which way the money moved
  * (In, Out, Held, Returned); colour only supports it.
  */
-export function WalletLedger({ entries, emptyText }: { entries: LedgerEntry[]; emptyText: string }) {
-  if (!entries.length) return <EmptyState>{emptyText}</EmptyState>
+export function WalletLedger({
+  entries,
+  emptyText,
+}: {
+  entries: LedgerEntry[]
+  emptyText: string
+}) {
+  if (!entries.length) return <EmptyState icon={<WalletIcon />}>{emptyText}</EmptyState>
   return (
     <ul className="divide-y overflow-hidden rounded-xl border bg-background">
       {entries.map((e) => {
@@ -37,9 +47,10 @@ export function WalletLedger({ entries, emptyText }: { entries: LedgerEntry[]; e
             </div>
             <p
               className={cn(
-                "shrink-0 pt-0.5 font-mono text-sm tabular",
+                "tabular shrink-0 pt-0.5 font-mono text-sm",
                 kind.effect === "in" && "font-medium text-success-ink",
-                (kind.effect === "hold" || kind.effect === "unhold") && "text-muted-foreground"
+                (kind.effect === "hold" || kind.effect === "unhold") &&
+                  "text-muted-foreground"
               )}
             >
               {kind.effect === "in" ? "+" : ""}

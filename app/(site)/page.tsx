@@ -116,9 +116,9 @@ export default async function HomePage() {
       {/* Hero. Phones: offer, then the photo with the plan picker overlapping it.
           Desktop: one photo stage, offer in white over the dark window frame, picker on the right. */}
       <section className="relative">
-        <Container className="relative pt-8 pb-16 sm:pt-10 lg:pt-6 lg:pb-20">
-          <div className="lg:relative lg:isolate lg:flex lg:min-h-[41rem] lg:items-center lg:overflow-hidden lg:rounded-xl">
-            <div className="max-w-xl lg:p-14 lg:pr-0">
+        <Container className="relative pt-8 pb-16 sm:pt-10 lg:grid lg:pt-6 lg:pb-20">
+          <div className="lg:relative lg:isolate lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-[41rem] lg:items-center lg:overflow-hidden lg:rounded-xl">
+            <div className="max-w-xl lg:max-w-[calc(100%-25rem)] lg:p-12 lg:pr-0 xl:max-w-xl xl:p-14">
               <h1 className="enter text-[2.6rem] leading-[1.05] font-semibold sm:text-6xl lg:text-white">
                 US SIM cards and eSIMs, ready before you land.
               </h1>
@@ -165,14 +165,14 @@ export default async function HomePage() {
                 aria-hidden
                 className="absolute inset-0 hidden scrim-left lg:block"
               />
-              <figcaption className="absolute top-3 right-3 rounded-full bg-scrim/60 px-2.5 py-1 text-xs text-white backdrop-blur-sm lg:top-5 lg:right-5">
+              <figcaption className="absolute top-3 right-3 rounded-full bg-scrim/60 px-2.5 py-1 text-xs text-white backdrop-blur-sm lg:top-auto lg:right-auto lg:bottom-5 lg:left-5">
                 Lower Manhattan from Hoboken
               </figcaption>
             </figure>
           </div>
 
           {featured ? (
-            <div className="enter relative mx-3 -mt-12 rounded-xl border bg-card p-5 shadow-pop [--enter-delay:380ms] sm:mx-auto sm:-mt-20 sm:max-w-md sm:p-6 lg:absolute lg:right-10 lg:bottom-[6.5rem] lg:mx-0 lg:mt-0 lg:w-[21rem] lg:max-w-none">
+            <div className="enter relative mx-3 -mt-12 rounded-xl border bg-card p-5 shadow-pop [--enter-delay:380ms] sm:mx-auto sm:-mt-20 sm:max-w-md sm:p-6 lg:col-start-1 lg:row-start-1 lg:my-10 lg:mr-10 lg:ml-0 lg:w-[22rem] lg:max-w-none lg:self-center lg:justify-self-end">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <CarrierLogo carrier={featured.carrier} size="sm" />

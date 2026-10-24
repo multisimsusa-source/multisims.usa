@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test"
 
 import { db, resetRateLimits } from "./db"
-import { BASE_URL, PASSWORD } from "./env"
+import { BASE_URL, PASSWORD, paymentsSandbox, REMOTE } from "./env"
 import { AUTH } from "./global-setup"
 
 export { AUTH }
@@ -113,4 +113,38 @@ export async function orderFor(email: string) {
 /** Confirms an alert dialog (ConfirmAction) by its confirm button name. */
 export async function confirm(page: Page, name: string | RegExp) {
   await page.getByRole("alertdialog").getByRole("button", { name }).click()
+}
+
+/**
+ * With a payment provider (the deployed site, in the provider's sandbox): the buyer pays the
+ * newest open invoice for an order or a dealer top-up, with the outcome chosen. The provider
+ * then calls the site's webhook as for a real payment. Locally there is no provider and
+ * orders are already in the queue, so this does nothing.
+ */
+export async function payInSandbox(match: { orderId?: string; dealerId?: string }, outcome: "success" | "partially_paid" = "success") {
+  if (!REMOTE) return
+  const client = db()
+  let query = client.from("payments").select("id, provider_invoice_id").not("provider_invoice_id", "is", null).order("created_at", { ascending: false }).limit(1)
+  query = match.orderId ? query.eq("order_id", match.orderId) : query.eq("dealer_id", match.dealerId!)
+  let invoice: string | null = null
+  await expect
+    .poll(async () => {
+      invoice = ((await query.maybeSingle()).data?.provider_invoice_id as string | undefined) ?? null
+      return invoice
+    }, { message: "no invoice was created" })
+    .toBeTruthy()
+  const { key, base } = paymentsSandbox()
+  const res = await fetch(`${base}/invoice-payment`, {
+    method: "POST",
+    headers: { "x-api-key": key, "Content-Type": "application/json" },
+    body: JSON.stringify({ iid: Number(invoice), pay_currency: "usdttrc20", case: outcome }),
+  })
+  if (!res.ok) throw new Error(`Sandbox payment failed: ${res.status} ${await res.text()}`)
+}
+
+/** Waits (up to three minutes: sandbox webhooks can be slow) until the order leaves awaiting payment. */
+export async function expectPaid(orderId: string) {
+  await expect
+    .poll(async () => (await db().from("orders").select("status").eq("id", orderId).single()).data?.status, { timeout: 180_000, intervals: [2_000, 5_000] })
+    .not.toBe("awaiting_payment")
 }

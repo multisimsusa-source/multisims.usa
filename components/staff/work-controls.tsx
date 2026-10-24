@@ -2,19 +2,43 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { ArrowsClockwiseIcon, FlagIcon, PaperPlaneTiltIcon, TruckIcon, UserSwitchIcon } from "@phosphor-icons/react"
+import {
+  ArrowsClockwiseIcon,
+  FlagIcon,
+  PaperPlaneTiltIcon,
+  TruckIcon,
+  UserSwitchIcon,
+} from "@phosphor-icons/react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ConfirmAction } from "@/components/admin/confirm-action"
 import { ActionBar } from "@/components/patterns/action-bar"
 import { ActionButton, ClaimButton } from "@/components/staff/order-actions"
 import { NoteDialog } from "@/components/staff/note-dialog"
-import { completeOrder, flagOrder, issueReplacement, releaseOrder, saveTracking } from "@/app/agent/actions"
-import { approveReplacement, cancelOrder, markOrderPaid, reassignOrder, recordRefund } from "@/app/admin/orders/actions"
+import {
+  completeOrder,
+  flagOrder,
+  issueReplacement,
+  releaseOrder,
+  saveTracking,
+} from "@/app/agent/actions"
+import {
+  approveReplacement,
+  cancelOrder,
+  markOrderPaid,
+  reassignOrder,
+  recordRefund,
+} from "@/app/admin/orders/actions"
 import type { ItemNeed } from "@/lib/staff/item-need"
 import type { OrderStatus } from "@/lib/types"
 
@@ -27,40 +51,64 @@ type WorkProps = {
   missing: number
 }
 
-const completeCopy: Record<ItemNeed, { button: string; title: string; description: string; confirm: string; missing: string }> = {
+const completeCopy: Record<
+  ItemNeed,
+  {
+    button: string
+    title: string
+    description: string
+    confirm: string
+    missing: string
+  }
+> = {
   qr: {
     button: "Mark complete and deliver",
     title: "Deliver to the customer now?",
-    description: "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. This cannot be undone.",
+    description:
+      "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. This cannot be undone.",
     confirm: "Deliver now",
     missing: "a QR code",
   },
   ship: {
     button: "Mark shipped",
     title: "Mark this order shipped?",
-    description: "The tracking number goes to the customer by email and shows on their order page. The order comes back to the queue when it is time to activate. This cannot be undone.",
+    description:
+      "The tracking number goes to the customer by email and shows on their order page. The order comes back to the queue when it is time to activate. This cannot be undone.",
     confirm: "Mark shipped",
     missing: "an ICCID and tracking number",
   },
   activate: {
     button: "Mark active and deliver",
     title: "Are the lines active?",
-    description: "The phone numbers go to the customer by email and show on their order page straight away, and the order shows as Delivered. This cannot be undone.",
+    description:
+      "The phone numbers go to the customer by email and show on their order page straight away, and the order shows as Delivered. This cannot be undone.",
     confirm: "Deliver now",
     missing: "a phone number",
   },
 }
 
 /** Claim, release, flag and complete: the agent's main row of actions. */
-export function WorkControls({ orderId, status, need, canClaim, canWork, missing }: WorkProps) {
+export function WorkControls({
+  orderId,
+  status,
+  need,
+  canClaim,
+  canWork,
+  missing,
+}: WorkProps) {
   const copy = completeCopy[need]
-  if (canClaim) return <ClaimButton orderId={orderId} className="w-full px-8 sm:w-auto" />
+  if (canClaim)
+    return <ClaimButton orderId={orderId} className="w-full px-8 sm:w-auto" />
   if (!canWork) return null
 
   const complete = (fullWidth: boolean) => (
     <ConfirmAction
       trigger={
-        <Button size="lg" className={fullWidth ? "w-full" : "px-6"} disabled={missing > 0}>
+        <Button
+          size="lg"
+          className={fullWidth ? "w-full" : "px-6"}
+          disabled={missing > 0}
+        >
           <PaperPlaneTiltIcon data-icon="inline-start" weight="bold" />
           {copy.button}
         </Button>
@@ -81,7 +129,8 @@ export function WorkControls({ orderId, status, need, canClaim, canWork, missing
           {complete(true)}
           {missing > 0 ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {copy.missing}
+              {missing} SIM{missing === 1 ? "" : "s"} still need
+              {missing === 1 ? "s" : ""} {copy.missing}
             </p>
           ) : null}
         </div>
@@ -105,7 +154,11 @@ export function WorkControls({ orderId, status, need, canClaim, canWork, missing
       ) : null}
       <ConfirmAction
         trigger={
-          <Button variant="ghost" size="lg" className="text-muted-foreground max-sm:flex-1 max-sm:border max-sm:border-border">
+          <Button
+            variant="ghost"
+            size="lg"
+            className="text-muted-foreground max-sm:flex-1 max-sm:border max-sm:border-border"
+          >
             Release
           </Button>
         }
@@ -116,7 +169,8 @@ export function WorkControls({ orderId, status, need, canClaim, canWork, missing
       />
       {missing > 0 ? (
         <p className="w-full text-sm text-muted-foreground max-sm:hidden">
-          {missing} SIM{missing === 1 ? "" : "s"} still need{missing === 1 ? "s" : ""} {copy.missing} before you can complete.
+          {missing} SIM{missing === 1 ? "" : "s"} still need
+          {missing === 1 ? "s" : ""} {copy.missing} before you can complete.
         </p>
       ) : null}
     </div>
@@ -161,16 +215,25 @@ export function TrackingForm({
           disabled={!editable}
           autoComplete="off"
           placeholder="9400 1000 0000 0000 0000 00"
-          className="font-mono tabular"
+          className="tabular font-mono"
         />
       </Field>
       {editable ? (
-        <Button type="submit" size="lg" disabled={pending || value.trim() === (current ?? "")}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending || value.trim() === (current ?? "")}
+        >
           {pending ? "Saving..." : "Save for all SIMs"}
         </Button>
       ) : null}
       {editable && suggested && value !== suggested ? (
-        <Button type="button" variant="outline" size="lg" onClick={() => setValue(suggested)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => setValue(suggested)}
+        >
           Use the batch&apos;s {suggested.slice(-6)}
         </Button>
       ) : null}
@@ -178,7 +241,15 @@ export function TrackingForm({
   )
 }
 
-export function ReplaceButton({ itemId, ticketId, label = "Issue replacement" }: { itemId: string; ticketId?: string | null; label?: string }) {
+export function ReplaceButton({
+  itemId,
+  ticketId,
+  label = "Issue replacement",
+}: {
+  itemId: string
+  ticketId?: string | null
+  label?: string
+}) {
   const router = useRouter()
   return (
     <ConfirmAction
@@ -227,7 +298,12 @@ export function AdminOrderControls({
   return (
     <div className="flex flex-col gap-2">
       {status === "awaiting_approval" ? (
-        <ActionButton action={() => approveReplacement(orderId)} size="lg" className="h-10 w-full" pendingLabel="Approving...">
+        <ActionButton
+          action={() => approveReplacement(orderId)}
+          size="lg"
+          className="w-full"
+          pendingLabel="Approving..."
+        >
           Approve replacement
         </ActionButton>
       ) : null}
@@ -248,7 +324,11 @@ export function AdminOrderControls({
 
       {flagged && claimedBy ? (
         <NoteDialog
-          trigger={<Button size="lg" className="w-full">Send back to the agent</Button>}
+          trigger={
+            <Button size="lg" className="w-full">
+              Send back to the agent
+            </Button>
+          }
           title="Send back with an instruction"
           description="The order returns to the same agent with your note on their screen. The customer still sees Processing."
           label="Instruction"
@@ -276,7 +356,10 @@ export function AdminOrderControls({
           <Field>
             <FieldLabel htmlFor="assign-to">Assign to</FieldLabel>
             <Select
-              items={agents.map((a) => ({ value: a.id, label: a.id === meId ? `${a.name} (you)` : a.name }))}
+              items={agents.map((a) => ({
+                value: a.id,
+                label: a.id === meId ? `${a.name} (you)` : a.name,
+              }))}
               value={agent}
               onValueChange={(v) => setAgent(String(v ?? meId))}
             >
@@ -314,7 +397,11 @@ export function AdminOrderControls({
 
       {paid && !refunded && status === "cancelled" ? (
         <NoteDialog
-          trigger={<Button variant="outline" size="lg" className="w-full">Record refund</Button>}
+          trigger={
+            <Button variant="outline" size="lg" className="w-full">
+              Record refund
+            </Button>
+          }
           title="Record a refund"
           description="Send the refund from your own wallet first. This only records it; no money moves from here."
           label="Refund details"

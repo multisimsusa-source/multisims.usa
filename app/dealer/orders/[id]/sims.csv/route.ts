@@ -9,11 +9,16 @@ import { toCsv } from "@/lib/staff/customers"
 import { createClient } from "@/lib/supabase/server"
 
 /** Every SIM in one of the dealer's orders, for their own records or resale system. */
-export async function GET(_request: Request, { params }: RouteContext<"/dealer/orders/[id]/sims.csv">) {
+export async function GET(
+  _request: Request,
+  { params }: RouteContext<"/dealer/orders/[id]/sims.csv">
+) {
   const profile = await getSessionProfile()
-  if (profile?.role !== "dealer") return new Response("Not allowed", { status: 403 })
+  if (profile?.role !== "dealer")
+    return new Response("Not allowed", { status: 403 })
   const { id } = await params
-  if (!z.uuid().safeParse(id).success) return new Response("Not found", { status: 404 })
+  if (!z.uuid().safeParse(id).success)
+    return new Response("Not found", { status: 404 })
 
   const supabase = await createClient()
   const batch = await getBatch(supabase, id)
@@ -23,10 +28,27 @@ export async function GET(_request: Request, { params }: RouteContext<"/dealer/o
     batch.orders.map((o) => o.id)
   )
   const orderById = new Map(batch.orders.map((o) => [o.id, o]))
-  items.sort((a, b) => orderById.get(a.order_id)!.number - orderById.get(b.order_id)!.number || a.seq - b.seq)
+  items.sort(
+    (a, b) =>
+      orderById.get(a.order_id)!.number - orderById.get(b.order_id)!.number ||
+      a.seq - b.seq
+  )
 
   const csv = toCsv([
-    ["Order", "Line", "SIM", "Carrier", "Plan", "Type", "Days", "Status", "Phone number", "ICCID", "Tracking", "Delivered"],
+    [
+      "Order",
+      "Line",
+      "SIM",
+      "Carrier",
+      "Plan",
+      "Type",
+      "Days",
+      "Status",
+      "Phone number",
+      "ICCID",
+      "Tracking",
+      "Delivered",
+    ],
     ...items.map((item) => {
       const o = orderById.get(item.order_id)!
       return [

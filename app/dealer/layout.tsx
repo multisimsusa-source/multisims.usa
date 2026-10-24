@@ -4,11 +4,18 @@ import { PortalShell } from "@/components/staff/portal-shell"
 import { requireRole } from "@/lib/auth"
 
 export const metadata: Metadata = {
-  title: { default: "Dealer portal", template: "%s | Dealer portal | MultiSims USA" },
+  title: {
+    default: "Dealer portal",
+    template: "%s | Dealer portal | MultiSims USA",
+  },
   robots: { index: false, follow: false },
 }
 
-export default function DealerLayout({ children }: { children: React.ReactNode }) {
+export default function DealerLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <PortalShell variant="dealer" gate={DealerGate}>
       {children}

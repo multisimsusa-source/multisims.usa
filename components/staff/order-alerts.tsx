@@ -6,7 +6,11 @@ import { SpeakerHighIcon, SpeakerSlashIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 
 import { Switch } from "@/components/ui/switch"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
 
@@ -22,7 +26,12 @@ type OrderRow = {
   replacement_of: string | null
   phase: "fulfil" | "activate"
 }
-type TicketRow = { id: string; number: number; type_name: string; severity: string }
+type TicketRow = {
+  id: string
+  number: number
+  type_name: string
+  severity: string
+}
 
 /**
  * New-order alerts for agents (and the owner). Supabase Realtime pushes order changes
@@ -37,8 +46,14 @@ type TicketRow = { id: string; number: number; type_name: string; severity: stri
 export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
   const router = useRouter()
   const pathname = usePathname()
-  const sound = React.useSyncExternalStore(subscribeSound, readSound, () => false)
-  const [live, setLive] = React.useState<"connecting" | "live" | "offline">("connecting")
+  const sound = React.useSyncExternalStore(
+    subscribeSound,
+    readSound,
+    () => false
+  )
+  const [live, setLive] = React.useState<"connecting" | "live" | "offline">(
+    "connecting"
+  )
   const audio = React.useRef<AudioContext | null>(null)
   // Keyed by order and phase: a posted SIM card comes back to the queue to be activated.
   const seen = React.useRef(new Set(queuedKeys))
@@ -76,7 +91,11 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
     refreshTimer.current = window.setTimeout(() => {
       const path = pathRef.current
       // Lists only: never re-render a screen where someone is typing into a form.
-      if (/^\/(agent|admin)(\/orders|\/tickets)?\/?$/.test(path) || path === "/admin") router.refresh()
+      if (
+        /^\/(agent|admin)(\/orders|\/tickets)?\/?$/.test(path) ||
+        path === "/admin"
+      )
+        router.refresh()
     }, 400)
   }, [router])
 
@@ -84,27 +103,43 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
     const supabase = createClient()
     const channel = supabase
       .channel("staff-alerts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
-        const row = payload.new as Partial<OrderRow>
-        const key = `${row?.id}:${row?.phase ?? "fulfil"}`
-        if (row?.id && row.status === "queued" && !seen.current.has(key)) {
-          seen.current.add(key)
-          announceOrder(row as OrderRow)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          const row = payload.new as Partial<OrderRow>
+          const key = `${row?.id}:${row?.phase ?? "fulfil"}`
+          if (row?.id && row.status === "queued" && !seen.current.has(key)) {
+            seen.current.add(key)
+            announceOrder(row as OrderRow)
+          }
+          scheduleRefresh()
         }
-        scheduleRefresh()
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tickets" }, (payload) => {
-        const t = payload.new as TicketRow
-        announce({
-          title: `New ticket #${t.number}`,
-          body: `${t.type_name}, ${t.severity} priority`,
-          href: `${pathRef.current.startsWith("/admin") ? "/admin" : "/agent"}/tickets/${t.id}`,
-          tag: `ticket-${t.id}`,
-        })
-        scheduleRefresh()
-      })
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tickets" },
+        (payload) => {
+          const t = payload.new as TicketRow
+          announce({
+            title: `New ticket #${t.number}`,
+            body: `${t.type_name}, ${t.severity} priority`,
+            href: `${pathRef.current.startsWith("/admin") ? "/admin" : "/agent"}/tickets/${t.id}`,
+            tag: `ticket-${t.id}`,
+          })
+          scheduleRefresh()
+        }
+      )
       .subscribe((status) => {
-        setLive(status === "SUBSCRIBED" ? "live" : status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT" ? "offline" : "connecting")
+        setLive(
+          status === "SUBSCRIBED"
+            ? "live"
+            : status === "CLOSED" ||
+                status === "CHANNEL_ERROR" ||
+                status === "TIMED_OUT"
+              ? "offline"
+              : "connecting"
+        )
       })
 
     function announceOrder(order: OrderRow) {
@@ -116,10 +151,28 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
       })
     }
 
-    function announce({ title, body, href, tag }: { title: string; body: string; href: string; tag: string }) {
+    function announce({
+      title,
+      body,
+      href,
+      tag,
+    }: {
+      title: string
+      body: string
+      href: string
+      tag: string
+    }) {
       if (soundRef.current) chime(audio)
-      toast(title, { description: body, duration: 15_000, action: { label: "Open", onClick: () => router.push(href) } })
-      if (document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted") {
+      toast(title, {
+        description: body,
+        duration: 15_000,
+        action: { label: "Open", onClick: () => router.push(href) },
+      })
+      if (
+        document.visibilityState !== "visible" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
         const n = new Notification(title, { body, tag, icon: "/icon" })
         n.onclick = () => {
           window.focus()
@@ -141,11 +194,17 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
     if (on) {
       ensureAudio(audio)
       chime(audio)
-      if ("Notification" in window && Notification.permission === "default") void Notification.requestPermission()
+      if ("Notification" in window && Notification.permission === "default")
+        void Notification.requestPermission()
     }
   }
 
-  const liveLabel = live === "live" ? "Live: new orders appear instantly" : live === "offline" ? "Offline: reload the page" : "Connecting"
+  const liveLabel =
+    live === "live"
+      ? "Live: new orders appear instantly"
+      : live === "offline"
+        ? "Offline: reload the page"
+        : "Connecting"
 
   return (
     <div className="flex items-center gap-1">
@@ -163,17 +222,35 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
             aria-hidden
             className={cn(
               "size-2 rounded-full",
-              live === "live" ? "bg-success-ink" : live === "offline" ? "bg-destructive" : "bg-warning-ink motion-safe:animate-pulse"
+              live === "live"
+                ? "bg-success-ink"
+                : live === "offline"
+                  ? "bg-destructive"
+                  : "bg-warning-ink motion-safe:animate-pulse"
             )}
           />
-          <span className="max-sm:hidden">{live === "live" ? "Live" : live === "offline" ? "Offline" : "Connecting"}</span>
+          <span className="max-sm:hidden">
+            {live === "live"
+              ? "Live"
+              : live === "offline"
+                ? "Offline"
+                : "Connecting"}
+          </span>
         </TooltipTrigger>
         <TooltipContent>{liveLabel}</TooltipContent>
       </Tooltip>
       <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted">
-        {sound ? <SpeakerHighIcon className="size-4" /> : <SpeakerSlashIcon className="size-4 text-muted-foreground" />}
+        {sound ? (
+          <SpeakerHighIcon className="size-4" />
+        ) : (
+          <SpeakerSlashIcon className="size-4 text-muted-foreground" />
+        )}
         <span className="max-sm:sr-only">Enable sound</span>
-        <Switch checked={sound} onCheckedChange={toggle} aria-label="Enable sound for new orders" />
+        <Switch
+          checked={sound}
+          onCheckedChange={toggle}
+          aria-label="Enable sound for new orders"
+        />
       </label>
     </div>
   )

@@ -4,7 +4,15 @@ import * as React from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import type { ActionResult } from "@/lib/admin/result"
@@ -66,17 +74,29 @@ export function NoteDialog({
           {children}
           <Field>
             <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <Textarea id={id} rows={3} value={note} onChange={(e) => setNote(e.currentTarget.value)} placeholder={placeholder} />
+            <Textarea
+              id={id}
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.currentTarget.value)}
+              placeholder={placeholder}
+            />
           </Field>
           <DialogFooter>
-            <Button type="button" variant="ghost" size="lg" onClick={() => setOpen(false)} disabled={pending}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
               size="lg"
               variant={destructive ? "destructive" : "default"}
-             
+
               disabled={pending || (required && note.trim().length < 3)}
             >
               {pending ? "Working..." : confirmLabel}

@@ -26,7 +26,7 @@ export default function AdminPlansPage({ searchParams }: PageProps<"/admin/plans
         title="Plans"
         description="A plan is live when it is published, its carrier is on the website, and at least one day package is on sale."
         actions={
-          <Link href="/admin/plans/new" className={cn(buttonVariants({ size: "lg" }), "h-10")}>
+          <Link href="/admin/plans/new" className={cn(buttonVariants({ size: "lg" }))}>
             <PlusIcon weight="bold" data-icon="inline-start" />
             New plan
           </Link>

@@ -8,7 +8,13 @@ import { useRouter } from "next/navigation"
  * and straight away when the tab comes back into view, so a delivered QR code appears
  * without a manual reload. Customers have no Realtime access by design.
  */
-export function LiveRefresh({ active, intervalMs = 15_000 }: { active: boolean; intervalMs?: number }) {
+export function LiveRefresh({
+  active,
+  intervalMs = 15_000,
+}: {
+  active: boolean
+  intervalMs?: number
+}) {
   const router = useRouter()
 
   React.useEffect(() => {

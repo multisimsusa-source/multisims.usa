@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
+import { notFound } from "next/navigation"
 import { connection } from "next/server"
-import { PaperPlaneTiltIcon, PlusIcon } from "@phosphor-icons/react/ssr"
+import { CurrencyDollarIcon, PaperPlaneTiltIcon, PlusIcon, ReceiptIcon, TrayIcon } from "@phosphor-icons/react/ssr"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +24,8 @@ import { ProductBadge } from "@/components/site/product-mark"
 import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { Stars } from "@/components/patterns/star-rating"
 import { StatGrid } from "@/components/patterns/stat-grid"
+import { CustomerStatusTag, OrderStatusTag, TicketStatusTag } from "@/components/patterns/status-tag"
+import { RowActions } from "@/components/patterns/row-actions"
 import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletMeter } from "@/components/dealer/wallet-meter"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
@@ -113,6 +116,8 @@ const colors: {
  * rulebook; this page is what those rules look like right now, in both themes.
  */
 export default function DesignSystemPage() {
+  // A tool for whoever builds the screens, not for the owner: off in production.
+  if (process.env.NODE_ENV === "production" && process.env.SHOW_DESIGN_SYSTEM !== "1") notFound()
   return (
     <>
       <AdminPageHeader
@@ -184,11 +189,11 @@ export default function DesignSystemPage() {
 
         <Block
           title="Density and controls"
-          note="Inputs, selects and lg buttons take their height from --control-h: 44px on the public site and in dialogs, 40px inside the portals (density-compact on the shell). Never set a control's height by hand."
+          note="Inputs, selects and lg buttons take their height from --control-h: 44px everywhere, the portals included (density-compact on the shell holds the same height). Never set a control's height by hand."
         >
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border bg-card p-5">
-              <p className="mb-4 type-overline">Portal, 40px</p>
+              <p className="mb-4 type-overline">Portal, 44px</p>
               <Controls prefix="compact" />
             </div>
             <div className="rounded-xl border bg-card p-5 [--control-h:2.75rem]">
@@ -223,7 +228,7 @@ export default function DesignSystemPage() {
             <Button size="lg" disabled>
               Disabled
             </Button>
-            <Button>Default, 36px</Button>
+            <Button>Default, 40px</Button>
             <Button size="sm" variant="outline">
               Small
             </Button>
@@ -304,24 +309,67 @@ export default function DesignSystemPage() {
 
         <Block
           title="Stats"
-          note="StatGrid: headline numbers on a hairline grid, mono figures, one line of context, an optional link. Warning ink only when the number needs action."
+          note="StatGrid: an icon chip, the figure large, the change against the previous period of the same length (arrow and words, green or red only when the metric has a good direction), the real daily values as small bars, and an optional Open link. Warning ink only when the number needs action. Deltas and trends come from real data or are left out."
         >
           <StatGrid
             stats={[
               {
                 label: "Sales",
+                icon: CurrencyDollarIcon,
                 value: "$2,316.00",
-                sub: "Website $2,036.00, dealers $280.00",
+                delta: { now: 2316, before: 1960, period: "previous 30 days" },
+                trend: [0, 120, 80, 0, 210, 160, 90, 0, 140, 260, 180, 120, 0, 90],
               },
-              { label: "Orders paid", value: 47, href: "/admin/orders" },
+              {
+                label: "Orders paid",
+                icon: ReceiptIcon,
+                value: 47,
+                delta: { now: 47, before: 52, period: "previous 30 days" },
+                href: "/admin/orders",
+              },
               {
                 label: "Waiting now",
+                icon: TrayIcon,
                 value: 12,
                 sub: "15 SIMs in the queue",
                 tone: "warning",
               },
             ]}
           />
+        </Block>
+
+        <Block
+          title="Status tags and row actions"
+          note="OrderStatusTag, CustomerStatusTag and TicketStatusTag: the word, a tone and an icon for each state, so a column of statuses scans at a glance and never relies on colour. RowActions: the secondary actions of a row behind a 40px more button, above the row's stretched link."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <OrderStatusTag status="queued" />
+            <OrderStatusTag status="claimed" />
+            <OrderStatusTag status="needs_attention" />
+            <OrderStatusTag status="shipped" />
+            <OrderStatusTag status="fulfilled" />
+            <OrderStatusTag status="cancelled" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <CustomerStatusTag status="Processing" />
+            <CustomerStatusTag status="Shipped" />
+            <CustomerStatusTag status="Delivered" />
+            <TicketStatusTag status="open" />
+            <TicketStatusTag status="in_progress" />
+            <TicketStatusTag status="resolved" />
+          </div>
+          <div className="flex items-center justify-between rounded-xl border bg-background py-2 pr-2 pl-5">
+            <span className="text-sm">
+              <span className="tabular font-mono font-medium">MS-1042</span>, 2 x Carrier plan, 7 days
+            </span>
+            <RowActions
+              label="More for MS-1042"
+              actions={[
+                { label: "Open order", href: "/admin/orders" },
+                { label: "Copy order number", copy: "MS-1042" },
+              ]}
+            />
+          </div>
         </Block>
 
         <Block
@@ -364,9 +412,9 @@ export default function DesignSystemPage() {
 
         <Block
           title="Empty states"
-          note="Say why it is empty and what happens next. Filtered-empty and truly-empty use different words."
+          note="Say why it is empty and what happens next. Filtered-empty and truly-empty use different words (and a funnel or search icon). With an icon, EmptyState draws the empty illustration from tokens; EmptyArt draws it alone, as in the notification panel."
         >
-          <EmptyState title="No orders yet">
+          <EmptyState icon={<ReceiptIcon />} title="No orders yet">
             Orders appear here as soon as customers check out.
           </EmptyState>
         </Block>

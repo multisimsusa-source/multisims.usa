@@ -2,7 +2,7 @@
 
 The rulebook for every screen in this codebase: public site, checkout and order pages, admin portal, agent portal, and the dealer portal to come. It is binding. New UI is built from the tokens and components below; anything the system does not cover is added to the system first (see "Growing the system"), never improvised on one screen.
 
-- **Live reference:** `/admin/design` renders every token and shared component in the current theme. If this file and that page disagree, the code is right and this file gets fixed.
+- **Live reference:** `/admin/design` renders every token and shared component in the current theme. It is a developer tool: it is not in the owner's menu and returns 404 in production (set `SHOW_DESIGN_SYSTEM=1` to show it in a production build, as the e2e suite does). If this file and that page disagree, the code is right and this file gets fixed.
 - **Enforcement:** `bun run lint` runs ESLint and `scripts/check-design.mjs`, which fails on hard-coded colours, palette colours, heavy shadows, gradients, Lucide, native selects, dashes, emoji and hand-set control heights.
 - **Precedence when guidance conflicts:** the developer brief and PRODUCT.md (including the client's logo colours), then accessibility (WCAG AA, target sizes), then this file, then the skills (`/minimalist-ui`, `/ui-ux-pro-max`, `/impeccable`).
 
@@ -67,10 +67,11 @@ Use the role classes from `globals.css`; do not re-compose sizes, weights and tr
 | Card title | `type-card-title` (16px, Geist semibold) | Form sections, cards, dialogs |
 | Overline | `type-overline` (12px, uppercase, 0.06em, muted) | Panel labels in side rails |
 | Body | `text-base` (16px), line-height 1.6 | Reading text, capped at 65ch |
-| Small | `text-sm`, `text-muted-foreground` for help text | UI text, descriptions |
+| Small | `text-sm` (15px, line-height 1.5), `text-muted-foreground` for help text | UI text, descriptions, table cells |
+| Caption | `text-xs` (13px) | Tags, table headers, timestamps. Never smaller |
 | Data | `font-mono tabular` | Prices, order numbers, ICCIDs, phone numbers, counts |
 
-Marketing pages (home hero, plan page) may go larger with `font-heading` and tracking `-0.02em`; portals never do. Headings are balanced (`text-wrap: balance`), body is `pretty`.
+`text-sm` and `text-xs` are raised from Tailwind's 14px and 12px in `@theme` for readability; do not use arbitrary sizes below 13px. Portal page titles use `AdminPageHeader` (28px, 32px from `sm`, with a 16px description); KPI figures use `StatGrid` (28px, 30px from `sm`). Marketing pages (home hero, plan page) may go larger with `font-heading` and tracking `-0.02em`; portals never go past the page title. Headings are balanced (`text-wrap: balance`), body is `pretty`.
 
 ### Spacing and layout
 
@@ -92,9 +93,9 @@ Containers: site pages use `Container` (`max-w-6xl`, 16px gutter, 24px from `sm`
 Inputs, selects and `lg` buttons read their height from one variable, `--control-h`:
 
 - **44px** by default: public site, login, dialogs, anything a phone user touches.
-- **40px** inside the admin and agent portals: the shell sets `density-compact`.
+- **44px** inside the admin, agent and dealer portals too: the shell sets `density-compact`, which now holds the same height so portal actions are as easy to hit as public ones.
 
-Never set a control's height by hand (the checker fails on `h-*` on `Input`, `SelectTrigger`, `Textarea` or an `lg`/`xl` Button). If a surface needs another density, add a density utility, not a one-off height. Other sizes: default Button 36px for compact inline actions, `sm` 32px, `xl` 48px for the page's single main action.
+Never set a control's height by hand (the checker fails on `h-*` on `Input`, `SelectTrigger`, `Textarea` or an `lg`/`xl` Button). If a surface needs another density, add a density utility, not a one-off height. Other sizes: default Button 40px for inline actions, `sm` 36px, icon buttons 40px (`icon`), 36px (`icon-sm`), 44px (`icon-lg`), `xl` 48px for the page's single main action.
 
 ### Shape and depth
 
@@ -155,16 +156,19 @@ Every repeated piece of UI lives here. If you are about to write one of these by
 
 | Pattern | Component | Use |
 |---|---|---|
-| Status pill | `Tag` (`tone`: neutral, brand, success, warning, danger) | Order, ticket, item and website states |
+| Status pill | `Tag` (`tone`: neutral, brand, success, warning, danger) | Item, website and other one-off states |
+| Order and ticket status | `OrderStatusTag`, `CustomerStatusTag`, `TicketStatusTag` (`patterns/status-tag.tsx`): the word, its tone and an icon per state | Every list, header and rail that shows an order or ticket status. Never compose these from `Tag` by hand |
 | Inline message | `Notice` (`tone`: info, success, warning, danger; `title`, `icon`) | Form errors, confirmations, owner instructions, warnings. Never a coloured side border |
 | Long form | `FormCard` + `FormSection` (`cols` 1, 2, 3) | Checkout, settings, any form with more than one group |
 | Customer-facing facts | `DetailList` + `DetailRow` | Order details, receipts. One column, no empty cells |
 | Side-rail facts | `Panel` + `KeyValue` | Portal rails: Line to get, Customer, Record |
-| Nothing to show | `EmptyState` | Lists and searches; different words for filtered-empty |
+| Nothing to show | `EmptyState` (with `icon` it draws the empty illustration: the icon in a plum chip in front of two blank hairline cards, a copper dot); `EmptyArt` alone for panels with their own copy | Lists and searches; different words and a funnel or search icon for filtered-empty |
+| Row actions | `RowActions` (`label`, `actions`: links, copy, separators) behind a 40px "more" button at the row end, above the row's stretched link | Secondary actions on table and list rows (open, view as customer, copy number). The row's main action stays visible |
+| Notifications | `NotificationCenter` (`components/admin/`): bell with unread count in the portal bar, `Popover` panel grouped Today and Earlier, kind icons, Mark all as read, live through Realtime | Owner, agents and dealers. Rows come only from database triggers (`notifications` table) |
 | Phone action bar | `ActionBar` (`sticky` or `fixed`) | Keeps a flow's finishing action in reach on phones |
 | Copy a value | `CopyButton` | Phone numbers, ICCIDs, tracking numbers |
 | Count of SIMs | `QuantityStepper` (`editable` for typed counts) | Checkout quantity, dealer order lines |
-| Headline numbers | `StatGrid` (`Stat`: label, mono value, one line of context, optional link, `warning` tone) | Dashboard, reports. An odd last tile spans both columns on phones |
+| Headline numbers | `StatGrid` (`Stat`: label, `icon` chip, large figure, `delta` against the previous period of the same length in arrow plus words, `trend` of the real daily values as small bars, one line of context, optional link with "Open", `warning` tone) | Dashboard, agent queue, dealer wallet, reports. Deltas and trends only from real data. An odd last tile spans both columns on phones |
 | Date range | `DateRangeFilter` (presets plus "Choose dates", in the URL) | Dashboard, reports |
 | Star rating | `StarRatingInput` (radio group, 44px stars, arrow keys) and `Stars` (read-only, "Rated 4 out of 5") | Customer rating card, admin reviews, featured reviews. Copper fill: a graphic, never text |
 | Sale price | `PriceWithSale` (price, then the regular price struck through with "was" for screen readers) | Day tiles, checkout, anywhere a sale price shows |
@@ -194,14 +198,15 @@ Dealer composites live in `components/dealer/` (`WalletSummary`, `WalletMeter`, 
 
 ### Lists and tables
 
-- Portal lists: one bordered container with `divide-y` rows; each row is one click target (stretched link) with its actions above the link layer. Plum is reserved for the row's primary action (Claim); others are outline.
+- Portal lists: one bordered container with `divide-y` rows; each row is one click target (stretched link) with its actions above the link layer. Plum is reserved for the row's primary action (Claim); others are outline; secondary actions go in `RowActions`.
+- Tables: header row on a muted band, 13px semibold uppercase labels; cells 14px vertical padding, 20px at the row ends. Fold secondary facts (the date under the order number) instead of adding columns that overflow at 1280px.
 - Desktop data tables become card lists on phones.
 - Filters live in the URL (`UrlFilters`): search debounced, selects apply on choice, Back undoes them, changing a filter resets the page.
 - Counts read "17 orders" or "8 of 12 plans" when filtered. Dates read "Oct 10, 8:09 PM" in the current year.
 
 ### Status and feedback
 
-- State uses `Tag`; customer-facing order state is only Processing, Delivered, Shipped, Cancelled.
+- Order and ticket state uses the status tags (icon, word, tone); customer-facing order state is only Processing, Delivered, Shipped, Cancelled.
 - Progress the customer waits on uses the three-step tracker (Placed, Processing, Delivered/Shipped).
 - After an action: a toast saying what happened ("Saved", "Claimed. It is yours."). For errors, the toast says what failed and what to do.
 - Irreversible actions confirm in a dialog that states the consequence ("This cannot be undone.").
@@ -213,7 +218,7 @@ Every list has an `EmptyState`, every async region a shaped `Skeleton`, every fo
 
 ### Phones
 
-Design at 375px first. Primary flows keep their finishing action in reach with `ActionBar`. Targets are at least 44px on public pages and 40px in the portals. No horizontal scroll; long values (emails, ICCIDs, tracking) wrap with `break-all`. Touch-only hints replace keyboard hints (`pointer-coarse:`).
+Design at 375px first. Primary flows keep their finishing action in reach with `ActionBar`. Controls are 44px everywhere; icon and inline buttons at least 40px. No horizontal scroll; long values (emails, ICCIDs, tracking) wrap with `break-all`. Touch-only hints replace keyboard hints (`pointer-coarse:`).
 
 ---
 
@@ -227,7 +232,7 @@ Design at 375px first. Primary flows keep their finishing action in reach with `
 
 ## 6. Accessibility floor
 
-WCAG AA contrast in both themes; visible brand focus rings; labels tied to every control; errors announced (`Notice` uses `role="alert"` for danger, `status` otherwise; live regions for totals and counters); 44px targets on public pages, 40px in portals; skip link; one `main` landmark; reduced motion respected; information never by colour alone.
+WCAG AA contrast in both themes; visible brand focus rings; labels tied to every control; errors announced (`Notice` uses `role="alert"` for danger, `status` otherwise; live regions for totals and counters); 44px controls everywhere and 40px minimum for icon and inline buttons; skip link; one `main` landmark; reduced motion respected; information never by colour alone.
 
 ## 7. Rules the checker enforces
 
@@ -263,7 +268,7 @@ Before calling UI work done:
 - [ ] Checked at 375px and desktop, light and dark; no horizontal scroll.
 - [ ] Loading, empty, error, disabled and success states exist.
 - [ ] Copy is plain, has no dashes or emoji, and customer wording never implies manual fulfilment.
-- [ ] Focus visible, labels tied, targets 44px (site) or 40px (portal), contrast AA.
+- [ ] Focus visible, labels tied, controls 44px, icon buttons 40px+, contrast AA.
 - [ ] `bun run lint` (with the design check) and `bun run typecheck` pass; impeccable detector clean.
 - [ ] This file and `/admin/design` updated if the system grew.
 
@@ -293,12 +298,13 @@ The client's MSU logo sets the identity: a deep plum Didone monogram over copper
 
 ### Portals (admin and agent)
 
-- **Shell** (`components/staff/portal-shell.tsx`): sidebar per role, sticky 56px bar with breadcrumbs, Live/Offline dot, "Enable sound" switch, View website, theme; `density-compact`.
+- **Shell** (`components/staff/portal-shell.tsx`): sidebar per role (40px items, semibold active), sticky 64px bar with breadcrumbs, Live/Offline dot, "Enable sound" switch, View website, the notification bell, theme; `density-compact`.
 - **Agent queue:** groups (Yours, Waiting, Needs the owner, With other agents, awaiting approval) with mono counts; rows are click targets with ticking age (amber past the alert window); plum only on Claim.
 - **Fulfilment workspace:** identifier, status, age, actions; `Notice`s for attention, owner instructions, replacements; SIM cards with a QR drop zone (drop, pick or paste; full width on phones) and fields; right rail of `Panel`s; on phones Mark complete in a fixed `ActionBar`.
 - **Orders, tickets, activations, customers:** `UrlFilters`, desktop tables, phone card lists, `EmptyState`.
 - **Ticket page:** customer message and screenshot, `AnswerForm` (segmented status, one answer), order rail and replacement list.
-- **Admin overview:** stat tiles in a hairline grid, "Needs attention" panel, catalogue charts.
+- **Admin overview:** `StatGrid` with icons, change against the previous period and daily trends; "Needs attention" panel; charts.
+- **Agent queue:** a `StatGrid` strip (Waiting, Yours, Oldest wait, Needs the owner) above the groups.
 - **Admin catalogue:** carriers with logo source captions and an "On website" switch; plans table with website status; plan editor with sticky status rail and live card preview; day package rows that keep headings on phones.
 - **Settings and agents:** `FormCard`-style settings with help text; agent rows with SIMs filled, password reset and an on/off switch.
 - **Profile menu:** sidebar footer row with initials tile, opening account details, View website and Sign out.

@@ -13,7 +13,9 @@ export function ActivateCardsButton({ batchId }: { batchId: string }) {
     <div className="rounded-xl border bg-card p-5 sm:p-6">
       <p className="font-semibold">Got the SIM cards?</p>
       <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
-        Press this once the cards are in your hands. The plan days start from activation, so wait until they have arrived. It starts every card in this order.
+        Press this once the cards are in your hands. The plan days start from
+        activation, so wait until they have arrived. It starts every card in
+        this order.
       </p>
       <Button
         size="lg"

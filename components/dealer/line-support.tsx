@@ -23,7 +23,15 @@ export function LineSupport({
   if (open) {
     return (
       <div className="border-t p-4 sm:p-5">
-        <TicketForm bare submit={submit} orderLabel={orderLabel} types={types} items={items} turnstile={false} successHint="The answer shows under Tickets, and we email you when it changes." />
+        <TicketForm
+          bare
+          submit={submit}
+          orderLabel={orderLabel}
+          types={types}
+          items={items}
+          turnstile={false}
+          successHint="The answer shows under Tickets, and we email you when it changes."
+        />
       </div>
     )
   }
