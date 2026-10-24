@@ -42,6 +42,8 @@ export type OrderFilters = {
   q?: string
   type?: "esim" | "physical"
   agent?: string
+  channel?: "website" | "dealer"
+  dealer?: string
   page?: number
 }
 
@@ -59,12 +61,18 @@ export async function listOrders(filters: OrderFilters) {
   else if (status !== "all") query = query.eq("status", status)
   if (filters.type) query = query.eq("product_type", filters.type)
   if (filters.agent) query = query.eq("claimed_by", filters.agent)
+  if (filters.channel) query = query.eq("channel", filters.channel)
+  if (filters.dealer) query = query.eq("dealer_id", filters.dealer)
 
   const q = filters.q?.trim()
   if (q) {
     const number = q.match(/^(?:ms-?)?(\d{4,9})$/i)?.[1]
+    const batch = q.match(/^b-?(\d{4,7})$/i)?.[1]
     if (number) query = query.eq("number", Number(number))
-    else {
+    else if (batch) {
+      const { data: b } = await supabase.from("order_batches").select("id").eq("number", Number(batch)).maybeSingle()
+      query = query.eq("batch_id", b?.id ?? "00000000-0000-0000-0000-000000000000")
+    } else {
       const safe = q.replace(/[%,()*\\]/g, " ").slice(0, 80)
       query = query.or(`customer_email.ilike.%${safe}%,customer_name.ilike.%${safe}%,customer_phone.ilike.%${safe}%`)
     }
@@ -232,7 +240,37 @@ export async function getSettings() {
   const supabase = await createClient()
   const { data } = await supabase
     .from("settings")
-    .select("owner_email, unclaimed_alert_minutes, shipping_fee_cents, replacement_needs_approval, max_replacements_per_order, sim_card_price_cents, network_fee_cents, min_order_cents")
+    .select("owner_email, unclaimed_alert_minutes, shipping_fee_cents, replacement_needs_approval, max_replacements_per_order, sim_card_price_cents, network_fee_cents, min_order_cents, dealer_sim_card_price_cents")
     .maybeSingle()
-  return data ?? { owner_email: null, unclaimed_alert_minutes: 5, shipping_fee_cents: 100, replacement_needs_approval: false, max_replacements_per_order: 2, sim_card_price_cents: 500, network_fee_cents: 300, min_order_cents: 1500 }
+  return data ?? { owner_email: null, unclaimed_alert_minutes: 5, shipping_fee_cents: 100, replacement_needs_approval: false, max_replacements_per_order: 2, sim_card_price_cents: 500, network_fee_cents: 300, min_order_cents: 1500, dealer_sim_card_price_cents: 400 }
+}
+
+/** Where a dealer line sits in its bulk order, for the fulfilment screen. */
+export async function getBatchContext(batchId: string, orderId: string) {
+  const supabase = await createClient()
+  const [{ data: batch }, { data: siblings }] = await Promise.all([
+    supabase.from("order_batches").select("number, dealer:dealers ( company )").eq("id", batchId).maybeSingle(),
+    supabase.from("orders").select("id, number, status, product_type, replacement_of").eq("batch_id", batchId).is("replacement_of", null).order("number"),
+  ])
+  if (!batch) return null
+  const lines = siblings ?? []
+  const physicalIds = lines.filter((o) => o.product_type === "physical" && o.id !== orderId).map((o) => o.id)
+  const { data: tracked } = physicalIds.length
+    ? await supabase.from("order_items").select("tracking_number").in("order_id", physicalIds).not("tracking_number", "is", null).limit(1)
+    : { data: [] as { tracking_number: string }[] }
+  return {
+    label: `B-${batch.number}`,
+    company: (batch.dealer as unknown as { company: string } | null)?.company ?? "a dealer",
+    line: lines.findIndex((o) => o.id === orderId) + 1,
+    lines: lines.length,
+    otherOpen: lines.filter((o) => o.id !== orderId && o.status !== "fulfilled" && o.status !== "cancelled" && o.status !== "shipped").length,
+    tracking: (tracked?.[0]?.tracking_number as string | undefined) ?? null,
+  }
+}
+
+/** Dealers for the owner's order filters. */
+export async function listDealerNames() {
+  const supabase = await createClient()
+  const { data } = await supabase.from("dealers").select("profile_id, company").order("company")
+  return (data ?? []) as { profile_id: string; company: string }[]
 }

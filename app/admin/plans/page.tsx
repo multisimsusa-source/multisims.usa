@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
 import { formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { carrierMix, priceLadder, pricePerDay } from "@/lib/admin/stats"
+import { CarrierMixChart, PriceLadderChart, PricePerDayChart } from "@/components/admin/catalog-charts"
 import { PlanFilters } from "./plan-filters"
 import { PublishSwitch } from "./publish-switch"
 
@@ -45,7 +47,29 @@ export default function AdminPlansPage({ searchParams }: PageProps<"/admin/plans
       >
         <PlanResults searchParams={searchParams} />
       </Suspense>
+      <Suspense fallback={null}>
+        <CatalogInsights />
+      </Suspense>
     </>
+  )
+}
+
+/** How the live catalogue is priced and spread across carriers. */
+async function CatalogInsights() {
+  const [plans, carriers] = await Promise.all([listPlans(), listCarriers()])
+  const ladder = priceLadder(plans)
+  if (!ladder.length) return null
+  return (
+    <section aria-labelledby="insights" className="mt-10">
+      <h2 id="insights" className="type-section-title">
+        Catalogue at a glance
+      </h2>
+      <div className="mt-4 grid gap-4 lg:grid-cols-5">
+        <PriceLadderChart data={ladder} />
+        <PricePerDayChart data={pricePerDay(ladder)} />
+        <CarrierMixChart data={carrierMix(carriers, plans)} />
+      </div>
+    </section>
   )
 }
 

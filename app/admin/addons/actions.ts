@@ -5,6 +5,7 @@ import { z } from "zod"
 import { catalogChanged } from "@/lib/admin/catalog-changed"
 import { parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
+import { parseDestinations } from "@/lib/calling-destinations"
 import { createClient } from "@/lib/supabase/server"
 
 const schema = z.object({
@@ -39,4 +40,26 @@ export async function updateAddon(id: string, formData: FormData): Promise<Actio
 
   catalogChanged()
   return { ok: true, message: "Add-on saved" }
+}
+
+/**
+ * Replaces the international calling destinations with a pasted list: the carrier's rate
+ * table copied from its PDF, or CSV lines of "Destination,Minutes" (a number or Unlimited).
+ */
+export async function replaceDestinations(addonId: string, text: string): Promise<ActionResult> {
+  await requireRole("admin")
+  const destinations = parseDestinations(text)
+  if (destinations.length < 1) return { ok: false, error: "No destinations found. Use one line per destination: name, then minutes or Unlimited." }
+  if (destinations.length > 2000) return { ok: false, error: "That is more than 2,000 lines. Check the list." }
+
+  const supabase = await createClient()
+  const { error: deleteError } = await supabase.from("addon_destinations").delete().eq("addon_id", addonId)
+  if (deleteError) return { ok: false, error: "Could not replace the list. Try again." }
+  const rows = destinations.map((d, i) => ({ addon_id: addonId, name: d.name, minutes_cap: d.minutes_cap, display_order: i }))
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await supabase.from("addon_destinations").insert(rows.slice(i, i + 500))
+    if (error) return { ok: false, error: "Part of the list did not save. Paste it again." }
+  }
+  catalogChanged()
+  return { ok: true, message: `Saved ${destinations.length} destinations` }
 }

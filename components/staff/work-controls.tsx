@@ -124,7 +124,18 @@ export function WorkControls({ orderId, status, need, canClaim, canWork, missing
 }
 
 /** Physical SIMs: one tracking number for the whole parcel. */
-export function TrackingForm({ orderId, current, editable }: { orderId: string; current: string | null; editable: boolean }) {
+export function TrackingForm({
+  orderId,
+  current,
+  editable,
+  suggested,
+}: {
+  orderId: string
+  current: string | null
+  editable: boolean
+  /** Dealer batches ship in one parcel: the tracking number another line already has. */
+  suggested?: string | null
+}) {
   const [value, setValue] = React.useState(current ?? "")
   const [pending, start] = React.useTransition()
   return (
@@ -156,6 +167,11 @@ export function TrackingForm({ orderId, current, editable }: { orderId: string; 
       {editable ? (
         <Button type="submit" size="lg" disabled={pending || value.trim() === (current ?? "")}>
           {pending ? "Saving..." : "Save for all SIMs"}
+        </Button>
+      ) : null}
+      {editable && suggested && value !== suggested ? (
+        <Button type="button" variant="outline" size="lg" onClick={() => setValue(suggested)}>
+          Use the batch&apos;s {suggested.slice(-6)}
         </Button>
       ) : null}
     </form>

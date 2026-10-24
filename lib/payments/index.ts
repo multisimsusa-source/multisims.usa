@@ -2,7 +2,7 @@ import "server-only"
 
 import { after } from "next/server"
 
-import { notifyOrderPaid, notifyPaymentIssue } from "@/lib/notify"
+import { notifyDealerFunds, notifyOrderPaid, notifyPaymentIssue, notifyTopupIssue } from "@/lib/notify"
 import { orderLabel } from "@/lib/orders"
 import { roundUpToDollar } from "@/lib/pricing"
 import { absoluteUrl } from "@/lib/site"
@@ -101,6 +101,58 @@ export async function invoiceUrlForOrder(provider: PaymentProvider, order: Order
   }
 }
 
+/** Smallest and largest top-up a dealer can start. The provider minimum applies on top. */
+export const TOPUP_MIN_CENTS = 2000
+export const TOPUP_MAX_CENTS = 5_000_000
+
+/**
+ * A hosted payment page for a dealer wallet top-up. The balance rises only when the
+ * provider's webhook confirms the payment (applyPaymentEvent).
+ */
+export async function invoiceUrlForTopUp(provider: PaymentProvider, dealerId: string, amountCents: number): Promise<string> {
+  const db = createServiceClient()
+  const { data: row, error } = await db
+    .from("payments")
+    .insert({ kind: "wallet_topup", dealer_id: dealerId, provider: provider.id, price_cents: amountCents })
+    .select("id")
+    .single()
+  if (error || !row) throw new Error(`Could not record the top-up: ${error?.message}`)
+
+  try {
+    const wallet = absoluteUrl("/dealer/wallet")
+    const invoice = await provider.createInvoice({
+      paymentId: row.id,
+      amountCents,
+      description: "MultiSims USA dealer balance top-up",
+      successUrl: `${wallet}?topup=sent`,
+      cancelUrl: wallet,
+      webhookUrl: absoluteUrl(`/api/payments/${provider.id}`),
+    })
+    await db.from("payments").update({ provider_invoice_id: invoice.providerInvoiceId, invoice_url: invoice.url }).eq("id", row.id)
+    return invoice.url
+  } catch (err) {
+    await db.from("payments").delete().eq("id", row.id)
+    throw err
+  }
+}
+
+/** A top-up moved on: credit the wallet once when paid; tell the owner when it is short or long. */
+async function applyTopUpEvent(payment: Payment, event: PaymentEvent) {
+  const db = createServiceClient()
+  if (event.status === "paid") {
+    const { data, error } = await db.rpc("credit_wallet_topup", { p_payment_id: payment.id })
+    if (error) throw new Error(`Could not credit top-up ${payment.id}: ${error.message}`)
+    const credited = data as { id: number } | null
+    if (credited?.id && payment.dealer_id) {
+      const dealerId = payment.dealer_id
+      after(() => notifyDealerFunds(dealerId, payment.price_cents, "topup", null, `topup-${payment.id}`))
+    }
+    if (event.overpaid) after(() => notifyTopupIssue(payment, "overpaid", event))
+    return
+  }
+  if (event.status === "partially_paid") after(() => notifyTopupIssue(payment, "underpaid", event))
+}
+
 /**
  * Records a confirmed payment event and moves the order on. Safe to run twice and in
  * any order: a payment never moves backwards, and the paid email is sent once.
@@ -146,7 +198,9 @@ export async function applyPaymentEvent(provider: PaymentProvider, event: Paymen
     .in("status", statusesBelow(event.status))
     .select("id")
   if (error) throw new Error(`Could not update payment ${payment.id}: ${error.message}`)
-  if (!updated?.length || !payment.order_id) return
+  if (!updated?.length) return
+  if (payment.kind === "wallet_topup") return applyTopUpEvent(payment, event)
+  if (!payment.order_id) return
 
   const orderId = payment.order_id
   if (event.status === "paid") {

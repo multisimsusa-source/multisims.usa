@@ -4,12 +4,11 @@ import * as React from "react"
 import Link from "next/link"
 import {
   LockSimpleIcon,
-  MinusIcon,
   PhoneIcon,
-  PlusIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react"
 
+import { QuantityStepper } from "@/components/patterns/quantity-stepper"
 import { ActionBar } from "@/components/patterns/action-bar"
 import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { Notice } from "@/components/patterns/notice"
@@ -31,12 +30,14 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { ProductBadge } from "@/components/site/product-mark"
 import { formatDays, formatPrice } from "@/lib/format"
-import { minimumOrderMessage, orderTotal } from "@/lib/pricing"
+import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
 import { MAX_QUANTITY } from "@/lib/orders"
 import type { ProductType } from "@/lib/types"
 import { usStates } from "@/lib/us-states"
-import { placeOrder, type CheckoutField, type CheckoutState } from "./actions"
+import { PriceWithSale } from "@/components/patterns/price-with-sale"
+import { CallingDestinations } from "@/components/site/calling-destinations"
+import { checkDiscountCode, placeOrder, type CheckoutField, type CheckoutState } from "./actions"
 
 type Props = {
   plan: {
@@ -51,8 +52,12 @@ type Props = {
   facts: string
   days: number
   unitCents: number
+  /** The regular price when the package is on sale (unitCents is then the sale price). */
+  regularCents?: number | null
   addon: { name: string; description: string; price_cents: number } | null
   initialIntl: boolean
+  /** Show "See where you can call" under the calling switch. */
+  callingList?: boolean
   /** From Settings, plus the minimum order actually in force. */
   fees: { shippingCents: number; simCardCents: number; networkFeeCents: number; minimumCents: number }
   /** A payment provider is set up: the buyer pays on its page after placing the order. */
@@ -70,8 +75,10 @@ export function CheckoutForm({
   facts,
   days,
   unitCents,
+  regularCents,
   addon,
   initialIntl,
+  callingList,
   fees,
   takesPayment,
 }: Props) {
@@ -94,15 +101,16 @@ export function CheckoutForm({
   const [planStart, setPlanStart] = React.useState<"on_receipt" | "on_date">(values.plan_start === "on_date" ? "on_date" : "on_receipt")
   const [today] = React.useState(usToday)
 
+  const [discount, setDiscount] = React.useState<(DiscountRule & { code: string }) | null>(null)
+
   const addonCents = intl && addon ? addon.price_cents : 0
+  const priceInput = { unitCents, addonCents, quantity, physical, simCardCents: fees.simCardCents }
+  const discountCents = discount ? discountFor(discount, discountableCents(priceInput)) : 0
   const total = orderTotal({
-    unitCents,
-    addonCents,
-    quantity,
-    physical,
-    simCardCents: fees.simCardCents,
+    ...priceInput,
     shippingCents: fees.shippingCents,
     networkFeeCents: fees.networkFeeCents,
+    discountCents,
   })
   const belowMinimum = total < fees.minimumCents
   const unit = physical ? "SIM card" : "eSIM"
@@ -205,40 +213,11 @@ export function CheckoutForm({
               <p id="qty-label" className="text-sm font-medium">
                 {unit}s
               </p>
-              <p className="tabular font-mono text-xs text-muted-foreground">
-                {formatPrice(unitCents)} each
+              <p className="text-xs text-muted-foreground">
+                <PriceWithSale cents={unitCents} regularCents={regularCents} /> each
               </p>
             </div>
-            <div
-              role="group"
-              aria-labelledby="qty-label"
-              className="flex items-center rounded-md border bg-background"
-            >
-              <button
-                type="button"
-                aria-label="One fewer"
-                disabled={quantity <= 1}
-                onClick={() => setQuantity((q) => clamp(q - 1))}
-                className="flex size-11 items-center justify-center rounded-l-md transition-colors hover:bg-muted disabled:opacity-35"
-              >
-                <MinusIcon className="size-4" />
-              </button>
-              <output
-                aria-live="polite"
-                className="tabular w-9 text-center font-mono"
-              >
-                {quantity}
-              </output>
-              <button
-                type="button"
-                aria-label="One more"
-                disabled={quantity >= MAX_QUANTITY}
-                onClick={() => setQuantity((q) => clamp(q + 1))}
-                className="flex size-11 items-center justify-center rounded-r-md transition-colors hover:bg-muted disabled:opacity-35"
-              >
-                <PlusIcon className="size-4" />
-              </button>
-            </div>
+            <QuantityStepper value={quantity} onChange={setQuantity} max={MAX_QUANTITY} labelledBy="qty-label" />
           </div>
 
           {addon ? (
@@ -260,6 +239,11 @@ export function CheckoutForm({
               </span>
               <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
             </label>
+          ) : null}
+          {addon && callingList ? (
+            <div className="-mt-2 px-5 pb-2">
+              <CallingDestinations />
+            </div>
           ) : null}
 
           <dl className="space-y-2 border-t px-5 py-4 text-sm">
@@ -288,6 +272,13 @@ export function CheckoutForm({
             {fees.networkFeeCents > 0 ? (
               <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} />
             ) : null}
+            {discount ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
+            <DiscountCode
+              planSlug={plan.slug}
+              applied={discount}
+              initial={values.discount_code ?? ""}
+              onChange={setDiscount}
+            />
             <div className="flex items-baseline justify-between gap-4 pt-2">
               <dt className="font-medium">Total</dt>
               <dd
@@ -664,6 +655,91 @@ function NextSteps({
         ))}
       </ol>
     </section>
+  )
+}
+
+/**
+ * "Have a discount code?" in the order summary. The code is checked on the server for the
+ * preview and again when the order is placed; it never comes off shipping or the network fee.
+ */
+function DiscountCode({
+  planSlug,
+  applied,
+  initial,
+  onChange,
+}: {
+  planSlug: string
+  applied: (DiscountRule & { code: string }) | null
+  initial: string
+  onChange: (d: (DiscountRule & { code: string }) | null) => void
+}) {
+  const [open, setOpen] = React.useState(Boolean(initial))
+  const [text, setText] = React.useState(initial)
+  const [error, setError] = React.useState<string | null>(null)
+  const [pending, start] = React.useTransition()
+  const id = React.useId()
+
+  if (applied) {
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <input type="hidden" name="discount_code" value={applied.code} />
+        <span className="text-xs text-muted-foreground">Never on shipping or the network fee.</span>
+        <button
+          type="button"
+          onClick={() => {
+            onChange(null)
+            setText("")
+          }}
+          className="inline-flex min-h-11 items-center text-sm text-brand underline-offset-4 hover:underline"
+        >
+          Remove code
+        </button>
+      </div>
+    )
+  }
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center text-sm text-brand underline-offset-4 hover:underline">
+        Have a discount code?
+      </button>
+    )
+  }
+
+  const apply = () =>
+    start(async () => {
+      setError(null)
+      const result = await checkDiscountCode(text, planSlug)
+      if (!result.ok) return setError(result.error)
+      onChange({ code: result.code, kind: result.kind, value: result.value })
+    })
+
+  return (
+    <Field data-invalid={Boolean(error) || undefined} className="pt-1">
+      <FieldLabel htmlFor={id}>Discount code</FieldLabel>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          value={text}
+          onChange={(e) => setText(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            // Enter applies the code instead of placing the order.
+            if (e.key === "Enter") {
+              e.preventDefault()
+              if (text.trim()) apply()
+            }
+          }}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          aria-invalid={Boolean(error) || undefined}
+          className="font-mono uppercase"
+        />
+        <Button type="button" variant="outline" size="lg" disabled={pending || !text.trim()} onClick={apply}>
+          {pending ? "Checking..." : "Apply"}
+        </Button>
+      </div>
+      {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
   )
 }
 

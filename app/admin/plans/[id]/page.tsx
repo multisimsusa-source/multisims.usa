@@ -56,8 +56,13 @@ async function PlanEditor({ params }: Pick<PageProps<"/admin/plans/[id]">, "para
     ? {
         ...plan,
         carrier: plan.carrier,
-        packages: onSale.map(({ id, days, price_cents }) => ({ id, days, price_cents })),
-        from_price_cents: Math.min(...onSale.map((p) => p.price_cents)),
+        packages: onSale.map(({ id, days, price_cents, sale_price_cents }) =>
+          sale_price_cents !== null && sale_price_cents < price_cents
+            ? { id, days, price_cents: sale_price_cents, regular_price_cents: price_cents }
+            : { id, days, price_cents, regular_price_cents: null }
+        ),
+        from_price_cents: Math.min(...onSale.map((p) => p.sale_price_cents ?? p.price_cents)),
+        on_sale: onSale.some((p) => p.sale_price_cents !== null),
       }
     : null
 

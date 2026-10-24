@@ -7,6 +7,7 @@ import { Tag } from "@/components/patterns/tag"
 import { KeyValue, Panel } from "@/components/patterns/panel"
 import { Notice } from "@/components/patterns/notice"
 import { Age } from "@/components/staff/age"
+import { BulkTools } from "@/components/staff/bulk-tools"
 import { ItemForm } from "@/components/staff/item-form"
 import { itemReady, type ItemNeed } from "@/lib/staff/item-need"
 import { AdminOrderControls, ReplaceButton, TrackingForm, WorkControls } from "@/components/staff/work-controls"
@@ -24,7 +25,7 @@ import {
   ticketStatusLabel,
   ticketStatusTone,
 } from "@/lib/orders"
-import { getWorkOrder, listStaff } from "@/lib/staff/queries"
+import { getBatchContext, getWorkOrder, listStaff } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
 /**
@@ -36,6 +37,7 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
   const [data, staff] = await Promise.all([getWorkOrder(id), isAdmin ? listStaff() : Promise.resolve([])])
   if (!data) notFound()
   const { order, items, original, replacements, tickets, messages, payments, allowance } = data
+  const batch = order.batch_id ? await getBatchContext(order.batch_id, order.id) : null
 
   const esim = order.product_type === "esim"
   const holder = order.claimed_by === viewer.id || isAdmin
@@ -111,9 +113,22 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
         </Notice>
       ) : null}
 
+      {batch ? (
+        <Notice tone="info" title={`Dealer order, ${batch.label} from ${batch.company}`}>
+          Line {batch.line} of {batch.lines} in this bulk order.
+          {batch.otherOpen ? ` ${batch.otherOpen} other ${batch.otherOpen === 1 ? "line is" : "lines are"} still being filled.` : ""}
+          {!esim && !activation ? " All SIM cards in the batch go in one parcel with one tracking number." : ""}
+        </Notice>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <section aria-label={`${unit}s`} className="flex min-w-0 flex-col gap-4">
-          {!esim ? <TrackingForm orderId={order.id} current={tracking} editable={canWork && !activation} /> : null}
+          {!esim ? (
+            <TrackingForm orderId={order.id} current={tracking} editable={canWork && !activation} suggested={tracking ? null : (batch?.tracking ?? null)} />
+          ) : null}
+          {canWork && working.length >= 2 ? (
+            <BulkTools orderId={order.id} qr={esim} items={working.map((i) => ({ id: i.id, seq: i.seq, hasQr: Boolean(i.qr_path) }))} />
+          ) : null}
           {items.map((item) => (
             <div key={item.id}>
               <ItemForm
@@ -165,7 +180,7 @@ export async function OrderWorkspace({ id, viewer }: { id: string; viewer: Profi
             {order.addon_name ? <KeyValue label="Add-on" value={`${order.addon_name}: switch it on`} strong /> : null}
           </Panel>
 
-          <Panel title="Customer">
+          <Panel title={order.channel === "dealer" ? "Dealer" : "Customer"}>
             <p className="font-medium">{order.customer_name}</p>
             <a href={`mailto:${order.customer_email}`} className="flex min-h-9 items-center gap-2 text-sm break-all text-brand hover:underline">
               <EnvelopeSimpleIcon className="size-4 shrink-0" />

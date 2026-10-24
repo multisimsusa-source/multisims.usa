@@ -197,10 +197,63 @@ Deadlines: Milestone 2 on 16 or 17 Oct 2026, Milestone 3 about a week later.
 
 Migrations: `20261014000001_order_shipped_status.sql`, `20261014000002_pricing_activation_expiry.sql`.
 
-## Milestone 3: Dealers, reviews, launch (outline)
+## Milestone 3: Dealers, reviews, launch (final)
 
-1. **Dealer portal**: admin-created logins, wholesale prices + per-dealer overrides, mixed bulk orders, multi-file QR upload for agents, order and activation history, tickets.
-2. **Wallet**: `wallet_ledger` only (balance derived), manual Add Funds, crypto top-up via the same provider, reserve on order, capture per fulfilled item, release on cancel, credit limit default 0.
-3. **Reviews**: post-delivery rating; admin features; featured shown labelled, no computed average.
-4. **Dashboard and reports**: sales, activations, waiting orders, agent and dealer activity; filters by date, carrier, dealer, agent.
-5. **Launch**: QA every role on desktop and phone, client Vercel, GoDaddy DNS, Resend domain, Search Console + Bing with sitemap, short admin guide. Recharge Requests waits for Saad's answer.
+Target 28 Oct 2026. Scope: brief section 10, the 14 Oct additions (dealer bulk SIM card price, retail sale prices, discount codes) and the international calling destinations list (`docs/MVNO MSU International Calling destination and caps.pdf`). Recharge Requests is not built (no specification yet).
+
+Demo checklist (from the brief):
+- [ ] Two dealers created; one tops up in crypto, the other gets funds added by hand.
+- [ ] A mixed bulk order placed as a dealer and followed to delivery.
+- [ ] A physical bulk order with its tracking number.
+- [ ] A customer rates an order, admin features it, it shows on the site.
+- [ ] A report pulled.
+- [ ] Whole site once more on a phone.
+
+### Decisions
+1. **Bulk order = batch of ordinary orders.** `order_batches` (dealer, `B-1001`+, address, totals). Each line becomes one existing-shape order (`channel='dealer'`, `batch_id`, `dealer_id`, `payment_status='wallet'`), so the queue, workspace, replacements and tickets work unchanged. A physical batch has one address and one tracking number (workspace: "Use this tracking for every SIM in the batch").
+2. **Wallet is a ledger only.** `wallet_ledger` kinds `topup`, `manual_add`, `adjustment_credit`, `adjustment_debit`, `reserve`, `capture`, `release`, `refund`, each with who and a note. `dealer_wallet()` derives balance, reserved and available (plus credit limit, default 0). `place_dealer_batch()` locks the dealer, re-prices, checks available and reserves. Capture is per item when it is filled (idempotent); `cancel_order` releases the remainder; `record_refund` on a dealer order credits the wallet.
+3. **Dealer price** = `dealer_prices` override, else `day_packages.wholesale_price_cents` (a package with neither is not offered). Add-on wholesale price. SIM card: per-dealer override, else `settings.dealer_sim_card_price_cents`. Defaults: no network fee on wallet orders; shipping once per physical batch.
+4. **Top-up** through NOWPayments: `payments.kind` (`order`, `wallet_topup`) + `dealer_id`, `invoiceUrlForTopUp()`, and `applyPaymentEvent` credits one `topup` on `finished`. Underpaid: no credit, owner emailed. Overpaid: invoice amount credited, owner emailed.
+5. **Discount codes** are website only, never on shipping or the network fee, minimum checked after discount, a use counted in `mark_order_paid`.
+
+### Data
+| Migration | Contents |
+|---|---|
+| dealers | `dealers` (company, phone, credit limit, SIM price override, suspended), `dealer_prices`, `settings.dealer_sim_card_price_cents`, `is_dealer()`, RLS own rows |
+| dealer_orders | `order_batches`, `orders.batch_id/dealer_id`, `wallet_ledger`, `dealer_wallet()`, `place_dealer_batch()`, capture/release/refund hooks, `payments.kind/dealer_id`, dealer read policies incl. own QR files |
+| reviews | `reviews` (order unique, rating 1 to 5, comment up to 500, display name, featured, hidden) |
+| discounts | `day_packages.sale_price_cents`, `discount_codes`, `orders.discount_code_id/discount_cents` |
+| calling_destinations | `addon_destinations` (destination, country, minutes cap, null = unlimited), seeded by `scripts/import-calling-destinations.ts` |
+| reports | admin-only `report_sales`, `report_activations`, `report_tickets_by_carrier`, `report_agents`, `report_dealers` |
+
+### Build order
+1. **Data and dealer accounts:** migrations above; generalise agent create/suspend/reset to take a role; admin Dealers (list, create, dealer page with Account, Wallet with Add funds and Adjustment, Pricing grid, credit limit, SIM price); wholesale and sale price fields in the plan and add-on editors.
+2. **Dealer portal** (`app/dealer`, `PortalShell variant="dealer"`, Available balance in the top bar): Overview, New order (line builder, wallet meter, address only for SIM cards, short-balance notice), Orders (batches), Batch page, Activations (search, CSV), Tickets, Wallet (balances, Top up, ledger), Account. Order creation shared in `lib/orders/create.ts`, dealer prices in `lib/dealer-pricing.ts`.
+3. **Agents, top-up, emails:** bulk QR upload on the fulfilment screen (many files matched in filename order, preview, progress, per-file retry), paste phone numbers and ICCIDs, batch tracking; admin order filters by channel and dealer; dealer welcome, top-up credited, funds added, batch delivered, underpaid top-up alert.
+4. **Reviews, sales, discounts, calling list:** "How was your order?" on the delivered order page and in the delivered email; admin Reviews (feature, hide); "Featured customer reviews" on the home page only when one is featured, no average or count; sale price with struck regular price; admin Discounts and "Have a code?" at checkout; "See where you can call" list under the calling switch, editable under Add-ons.
+5. **Dashboard and reports:** overview becomes a dashboard (range presets, sales website/dealer, SIMs activated, waiting, attention, top-ups, sales per day, activations by carrier, agent and dealer activity); `/admin/reports` filtered by date, carrier, dealer, agent, channel, with tickets and replacements by carrier and CSV export. Catalogue charts move to Plans.
+6. **QA and launch:** committed Playwright suite for the demo checklist at 375 px and desktop (`test:e2e`); impeccable audit and polish; client Vercel production, GoDaddy DNS, M2 deploy steps, `db push`, Search Console and Bing with the sitemap; `docs/ADMIN_GUIDE.md`.
+
+### Status (23 Oct 2026)
+Steps 1 to 5 built and checked in a browser on local Supabase (375 px and desktop). Migrations: `20261022000001_dealers_wallet.sql`, `20261022000002_dealer_replacements.sql`, `20261023000001_reviews_sales_discounts_calling.sql`.
+
+- [x] Dealer accounts, prices, wallet (add funds, corrections), suspend. Wallet rules tested in SQL: hold, overspend refused, capture per SIM, release on cancel, refund, dealer isolation.
+- [x] Dealer portal: overview, mixed bulk order, orders, order page (QR, CSV, cards arrived), activations (search, CSV), tickets, wallet with top-up, login.
+- [x] Agents: bulk QR upload, pasted phone numbers and ICCIDs, batch tracking, dealer context. Mixed order followed to delivery, physical order posted, activated and delivered.
+- [x] Emails: staff alert per batch, dealer line emails, funds added, top-up credited, top-up short or over, rating link in the delivered email, dealer ticket answers link to the portal.
+- [x] Sale prices, discount codes (counted once paid), calling destinations (598 imported from the PDF by `scripts/import-calling-destinations.ts`, locally only), reviews (rate, feature, home section).
+- [x] Dashboard and reports with CSV; admin orders filter by channel, dealer and batch number.
+- [ ] Crypto top-up end to end (needs live NOWPayments keys).
+- [ ] Step 6: committed Playwright suite, launch, admin guide.
+
+Local note: the Supabase CLI here (v2.75) and its auth image disagree on JWT signing, so the admin "create login" API fails locally; logins were seeded in SQL for testing. Update the CLI before running the suite.
+
+### Design system growth
+Added to `/admin/design` and DESIGN.md: `StarRating`, `StatGrid`, `QuantityStepper` (from checkout), `DateRangeFilter`, `WalletMeter`/`WalletSummary`/`WalletLedger`, `PriceWithSale`, `BulkTools`, a shared `TicketForm` (`components/site/`), and a dealer nav variant in `PortalShell`.
+
+### Open points
+- Recharge Requests: no specification, not built.
+- Calling destinations PDF is marked Confidential: confirm the client may publish it, whether caps are per month or per plan period, and which plans it covers (default: every plan with international calling).
+- Defaults to confirm: no network fee on wallet orders, shipping once per physical batch, top-up minimum = provider minimum.
+- Sale "was" prices must be prices genuinely charged before (FTC rule); goes in the admin guide.
+- NOWPayments keys must be set in production before checkout or top-ups are public.

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { CaretRightIcon } from "@phosphor-icons/react"
 
-const ROOTS: Record<string, string> = { admin: "Overview", agent: "Queue" }
+const ROOTS: Record<string, string> = { admin: "Overview", agent: "Queue", dealer: "Overview" }
 
 const LABELS: Record<string, string> = {
   carriers: "Carriers",
@@ -16,12 +16,21 @@ const LABELS: Record<string, string> = {
   activations: "Activations",
   customers: "Customers",
   agents: "Agents",
+  dealers: "Dealers",
+  discounts: "Discounts",
+  reviews: "Reviews",
+  reports: "Reports",
   settings: "Settings",
   design: "Design system",
+  wallet: "Wallet",
+  account: "Login",
 }
 
+/** Labels that differ in the dealer portal. */
+const DEALER_LABELS: Record<string, string> = { new: "New order" }
+
 /** An id segment is labelled by its section: /orders/<id> is "Order", /plans/<id> "Edit plan". */
-const DETAIL: Record<string, string> = { plans: "Edit plan", orders: "Order", tickets: "Ticket" }
+const DETAIL: Record<string, string> = { plans: "Edit plan", orders: "Order", tickets: "Ticket", dealers: "Dealer" }
 
 /** Where you are in the portal. The page title carries the record's own name. */
 export function AdminBreadcrumbs() {
@@ -30,7 +39,7 @@ export function AdminBreadcrumbs() {
     { href: `/${root}`, label: ROOTS[root] ?? "Overview" },
     ...parts.map((part, i) => ({
       href: `/${root}/${parts.slice(0, i + 1).join("/")}`,
-      label: LABELS[part] ?? DETAIL[parts[i - 1] ?? ""] ?? "Details",
+      label: (root === "dealer" ? DEALER_LABELS[part] : undefined) ?? LABELS[part] ?? DETAIL[parts[i - 1] ?? ""] ?? "Details",
     })),
   ]
 

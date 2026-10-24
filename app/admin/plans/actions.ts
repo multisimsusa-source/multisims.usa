@@ -136,11 +136,14 @@ function readPackage(formData: FormData) {
   const days = Number(formData.get("days"))
   const price = parseMoney(formData.get("price"))
   const wholesale = parseMoney(formData.get("wholesale_price"))
+  const sale = parseMoney(formData.get("sale_price"))
   const fieldErrors: Record<string, string> = {}
   if (!Number.isInteger(days) || days < 1 || days > 365) fieldErrors.days = "Enter whole days, 1 to 365"
   if (price === null || Number.isNaN(price)) fieldErrors.price = "Enter a price, for example 24.00"
   if (wholesale !== null && Number.isNaN(wholesale)) fieldErrors.wholesale_price = "Enter a price or leave empty"
-  return { days, price: price ?? 0, wholesale, fieldErrors }
+  if (sale !== null && Number.isNaN(sale)) fieldErrors.sale_price = "Enter a price or leave empty"
+  else if (sale !== null && price !== null && !Number.isNaN(price) && sale >= price) fieldErrors.sale_price = "A sale price must be below the price"
+  return { days, price: price ?? 0, wholesale, sale, fieldErrors }
 }
 
 export async function addDayPackage(planId: string, formData: FormData): Promise<ActionResult> {
@@ -154,6 +157,7 @@ export async function addDayPackage(planId: string, formData: FormData): Promise
     days: pkg.days,
     price_cents: pkg.price,
     wholesale_price_cents: pkg.wholesale,
+    sale_price_cents: pkg.sale,
   })
   if (isUniqueViolation(error)) return { ok: false, error: `This plan already has a ${pkg.days}-day package`, fieldErrors: { days: "Already exists" } }
   if (error) return { ok: false, error: error.message }
@@ -174,6 +178,7 @@ export async function updateDayPackage(id: string, formData: FormData): Promise<
       days: pkg.days,
       price_cents: pkg.price,
       wholesale_price_cents: pkg.wholesale,
+      sale_price_cents: pkg.sale,
       active: formData.get("active") !== "off",
     })
     .eq("id", id)

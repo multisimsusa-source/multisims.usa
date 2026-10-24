@@ -17,6 +17,8 @@ export type DayPackage = {
   plan_id: string
   days: number
   price_cents: number
+  /** On sale when set: charged instead of price_cents, which shows struck through. */
+  sale_price_cents: number | null
   wholesale_price_cents: number | null
   active: boolean
 }
@@ -63,8 +65,11 @@ export type Profile = {
 /** A published plan as the public site sees it. */
 export type CatalogPlan = Plan & {
   carrier: Pick<Carrier, "id" | "name" | "slug" | "logo_path">
-  packages: Pick<DayPackage, "id" | "days" | "price_cents">[]
+  /** price_cents is what the buyer pays (the sale price when on sale). */
+  packages: (Pick<DayPackage, "id" | "days" | "price_cents"> & { regular_price_cents: number | null })[]
   from_price_cents: number
+  /** At least one package is on sale. */
+  on_sale: boolean
 }
 
 export type OrderStatus =
@@ -144,6 +149,13 @@ export type Order = {
   replacement_of: string | null
   replaces_item_id: string | null
   ticket_id: string | null
+  /** Dealer orders: the bulk order this line belongs to, and the dealer. */
+  batch_id: string | null
+  dealer_id: string | null
+  /** Website discount code, as typed when the order was placed, and what it took off. */
+  discount_code_id: string | null
+  discount_code: string | null
+  discount_cents: number
   created_at: string
   updated_at: string
 }
@@ -166,6 +178,9 @@ export type OrderItem = {
 export type Payment = {
   id: string
   order_id: string | null
+  /** An invoice pays for an order, or tops up a dealer's wallet. */
+  kind: "order" | "wallet_topup"
+  dealer_id: string | null
   provider: string
   provider_invoice_id: string | null
   provider_payment_id: string | null
@@ -208,4 +223,6 @@ export type Settings = {
   sim_card_price_cents: number
   network_fee_cents: number
   min_order_cents: number
+  /** Dealer price per physical SIM card, unless the dealer has their own. */
+  dealer_sim_card_price_cents: number
 }

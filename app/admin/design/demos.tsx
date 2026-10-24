@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { FormCard, FormSection } from "@/components/patterns/form-section"
+import { QuantityStepper } from "@/components/patterns/quantity-stepper"
 
 const states = [
   { value: "NY", label: "New York" },
@@ -79,5 +80,24 @@ export function DemoFormSection() {
         </Field>
       </FormSection>
     </FormCard>
+  )
+}
+
+export function DemoQuantityStepper() {
+  const [a, setA] = React.useState(2)
+  const [b, setB] = React.useState(100)
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="flex items-center gap-3">
+        <span id="demo-qty" className="text-sm text-muted-foreground">
+          Checkout (read out)
+        </span>
+        <QuantityStepper value={a} onChange={setA} max={10} labelledBy="demo-qty" />
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">Dealer (typed)</span>
+        <QuantityStepper value={b} onChange={setB} max={500} label="Number of SIMs" editable />
+      </div>
+    </div>
   )
 }

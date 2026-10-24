@@ -14,10 +14,21 @@ import { ThemeToggle } from "@/components/site/theme-toggle"
 import { Wordmark } from "@/components/site/wordmark"
 import { OrderAlerts } from "@/components/staff/order-alerts"
 import { getSessionProfile } from "@/lib/auth"
+import { getWallet } from "@/lib/dealers"
+import { formatPrice } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
-/** The admin and agent portals: sidebar, sticky bar with live order alerts, gated content. */
+const homes: Record<PortalVariant, { href: string; label: string }> = {
+  admin: { href: "/admin", label: "Overview" },
+  agent: { href: "/agent", label: "Queue" },
+  dealer: { href: "/dealer", label: "Overview" },
+}
+
+/**
+ * The admin, agent and dealer portals: sidebar, sticky bar, gated content. Staff get live
+ * order alerts in the bar; dealers get their available balance.
+ */
 export function PortalShell({
   variant,
   gate,
@@ -29,7 +40,7 @@ export function PortalShell({
   children: React.ReactNode
 }) {
   const Gate = gate
-  const home = variant === "admin" ? "/admin" : "/agent"
+  const home = homes[variant].href
   return (
     <SidebarProvider className="density-compact">
       <AdminSidebar
@@ -46,14 +57,12 @@ export function PortalShell({
           <Separator orientation="vertical" className="mx-1 h-5 md:hidden" />
           <Wordmark href={home} className="md:hidden max-[420px]:hidden" />
           <div className="hidden min-w-0 md:block">
-            <Suspense fallback={<span className="text-sm font-medium">{variant === "admin" ? "Overview" : "Queue"}</span>}>
+            <Suspense fallback={<span className="text-sm font-medium">{homes[variant].label}</span>}>
               <AdminBreadcrumbs />
             </Suspense>
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <Suspense fallback={null}>
-              <Alerts />
-            </Suspense>
+            <Suspense fallback={null}>{variant === "dealer" ? <DealerBalance /> : <Alerts />}</Suspense>
             <Link
               href="/"
               target="_blank"
@@ -82,6 +91,22 @@ async function Alerts() {
   const supabase = await createClient()
   const { data } = await supabase.from("orders").select("id, phase").eq("status", "queued").limit(500)
   return <OrderAlerts queuedKeys={(data ?? []).map((o) => `${o.id}:${o.phase}`)} />
+}
+
+/** The dealer's spendable balance, always in view; links to the wallet. */
+async function DealerBalance() {
+  const profile = await getSessionProfile()
+  if (!profile || profile.role !== "dealer") return null
+  const wallet = await getWallet(await createClient(), profile.id)
+  return (
+    <Link
+      href="/dealer/wallet"
+      className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-9 gap-2 text-muted-foreground hover:text-foreground")}
+    >
+      <span className="max-sm:sr-only">Available</span>
+      <span className="font-mono font-medium text-foreground tabular">{formatPrice(wallet.available_cents)}</span>
+    </Link>
+  )
 }
 
 function PortalPageSkeleton() {

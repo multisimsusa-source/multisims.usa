@@ -91,6 +91,13 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           error={errors.min_order}
           help="Checkout refuses smaller orders. When the payment provider's own minimum is higher, that one applies instead."
         />
+        <MoneyField
+          name="dealer_sim_card_price"
+          label="Dealer SIM card price (USD)"
+          cents={settings.dealer_sim_card_price_cents}
+          error={errors.dealer_sim_card_price}
+          help="What dealers pay per physical SIM card on bulk orders. You can set a different price for one dealer on their page."
+        />
         <Field data-invalid={Boolean(errors.max_replacements_per_order) || undefined}>
           <FieldLabel htmlFor="max_replacements_per_order">Replacements per order (most)</FieldLabel>
           <Input

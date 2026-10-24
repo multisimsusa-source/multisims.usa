@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRightIcon, ChatTextIcon, ShareNetworkIcon, WifiHighIcon } from "@phosphor-icons/react/ssr"
 
 import { CarrierLogo } from "@/components/site/carrier-logo"
+import { Tag } from "@/components/patterns/tag"
 import { ProductBadge } from "@/components/site/product-mark"
 import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
@@ -15,7 +16,10 @@ export function PlanCard({ plan }: { plan: CatalogPlan }) {
     <article className="group relative flex flex-col rounded-xl border bg-card p-5 transition-[border-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-[0_2px_10px_rgb(20_20_18/0.04)] sm:p-6">
       <div className="flex min-h-6 items-center justify-between gap-3">
         <CarrierLogo carrier={plan.carrier} size="sm" />
-        <ProductBadge type={plan.product_type} />
+        <span className="flex items-center gap-1.5">
+          {plan.on_sale ? <Tag tone="success">Sale</Tag> : null}
+          <ProductBadge type={plan.product_type} />
+        </span>
       </div>
 
       <h3 className="mt-5 text-xl font-semibold">

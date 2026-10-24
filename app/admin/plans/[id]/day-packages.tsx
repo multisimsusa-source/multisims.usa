@@ -25,20 +25,21 @@ export function DayPackages({ planId, packages }: { planId: string; packages: Da
           Day packages and prices
         </h2>
         <p className="text-sm text-muted-foreground">
-          Each length has its own price. Wholesale prices are stored now for the dealer portal.
+          Each length has its own price. A sale price is charged instead, with the price shown struck through; only use one if you really sold at the price before. Wholesale is what dealers pay unless they have their own price.
         </p>
       </div>
 
       {packages.length ? (
         <div className="divide-y">
-          <div aria-hidden className="grid grid-cols-[4.5rem_1fr_1fr] gap-2 px-4 pt-3 pb-2 text-xs text-muted-foreground sm:grid-cols-[6rem_1fr_1fr_auto] sm:gap-3 sm:px-6">
+          <div aria-hidden className="grid grid-cols-[3.5rem_1fr_1fr_1fr] gap-2 px-4 pt-3 pb-2 text-xs text-muted-foreground sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6">
             <span>Days</span>
-            <span>Price (USD)</span>
-            <span>Wholesale (USD)</span>
-            <span className="hidden w-[9.5rem] text-right sm:block">On sale</span>
+            <span>Price</span>
+            <span>Sale price</span>
+            <span>Wholesale</span>
+            <span className="hidden w-[9.5rem] text-right sm:block">Selling</span>
           </div>
           {packages.map((pkg) => (
-            <PackageRow key={`${pkg.id}-${pkg.days}-${pkg.price_cents}-${pkg.wholesale_price_cents}`} pkg={pkg} />
+            <PackageRow key={`${pkg.id}-${pkg.days}-${pkg.price_cents}-${pkg.sale_price_cents}-${pkg.wholesale_price_cents}`} pkg={pkg} />
           ))}
         </div>
       ) : (
@@ -80,7 +81,7 @@ function PackageRow({ pkg }: { pkg: DayPackage }) {
         formData.set("active", pkg.active ? "on" : "off")
         run(() => updateDayPackage(pkg.id, formData), () => setDirty(false))
       }}
-      className="grid grid-cols-[4.5rem_1fr_1fr] items-center gap-2 px-4 py-3 sm:grid-cols-[6rem_1fr_1fr_auto] sm:gap-3 sm:px-6"
+      className="grid grid-cols-[3.5rem_1fr_1fr_1fr] items-center gap-2 px-4 py-3 sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6"
     >
       <label>
         <span className="sr-only">Days</span>
@@ -91,17 +92,21 @@ function PackageRow({ pkg }: { pkg: DayPackage }) {
         <Input name="price" inputMode="decimal" defaultValue={centsToInput(pkg.price_cents)} className="font-mono tabular" />
       </label>
       <label>
+        <span className="sr-only">Sale price in USD, empty when not on sale</span>
+        <Input name="sale_price" inputMode="decimal" defaultValue={centsToInput(pkg.sale_price_cents)} placeholder="None" className="font-mono tabular" />
+      </label>
+      <label>
         <span className="sr-only">Wholesale price in USD</span>
         <Input name="wholesale_price" inputMode="decimal" defaultValue={centsToInput(pkg.wholesale_price_cents)} placeholder="Not set" className="font-mono tabular" />
       </label>
-      <div className="col-span-3 flex items-center justify-end gap-1 sm:col-span-1 sm:w-[9.5rem]">
+      <div className="col-span-4 flex items-center justify-end gap-1 sm:col-span-1 sm:w-[9.5rem]">
         <span className={pkg.active ? "mr-auto text-xs text-muted-foreground sm:hidden" : "mr-auto text-xs text-warning-ink sm:hidden"}>
-          {pkg.active ? "On sale" : "Not on sale"}
+          {pkg.active ? "Selling" : "Not selling"}
         </span>
         <Switch
           checked={pkg.active}
           disabled={pending}
-          aria-label={pkg.active ? `Hide ${pkg.days}-day package` : `Put ${pkg.days}-day package on sale`}
+          aria-label={pkg.active ? `Stop selling the ${pkg.days}-day package` : `Sell the ${pkg.days}-day package`}
           onCheckedChange={(checked) => run(() => setDayPackageActive(pkg.id, checked))}
           className="mr-1"
         />
@@ -162,7 +167,7 @@ function AddPackage({ planId, used }: { planId: string; used: Set<number> }) {
           ))}
         </div>
       ) : null}
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[6rem_1fr_1fr_auto]">
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[5rem_1fr_1fr_1fr_auto]">
         <label className="col-span-2 sm:col-span-1">
           <span className="mb-1 block text-xs text-muted-foreground">Days</span>
           <Input ref={daysRef} name="days" type="number" min={1} max={365} required className="bg-background font-mono tabular" />
@@ -170,6 +175,10 @@ function AddPackage({ planId, used }: { planId: string; used: Set<number> }) {
         <label>
           <span className="mb-1 block text-xs text-muted-foreground">Price (USD)</span>
           <Input ref={priceRef} name="price" inputMode="decimal" required placeholder="24.00" className="bg-background font-mono tabular" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs text-muted-foreground">Sale price (USD)</span>
+          <Input name="sale_price" inputMode="decimal" placeholder="Optional" className="bg-background font-mono tabular" />
         </label>
         <label>
           <span className="mb-1 block text-xs text-muted-foreground">Wholesale (USD)</span>

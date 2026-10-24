@@ -6,16 +6,22 @@ import { usePathname } from "next/navigation"
 import {
   AddressBookIcon,
   CellTowerIcon,
+  ChartBarIcon,
   GearSixIcon,
   LifebuoyIcon,
   ListChecksIcon,
   MagnifyingGlassIcon,
   PaletteIcon,
+  PercentIcon,
   PlusSquareIcon,
   ReceiptIcon,
   SquaresFourIcon,
+  StarIcon,
+  StorefrontIcon,
   TagIcon,
+  UserCircleIcon,
   UsersThreeIcon,
+  WalletIcon,
   type Icon,
 } from "@phosphor-icons/react"
 
@@ -37,14 +43,19 @@ import { Wordmark } from "@/components/site/wordmark"
 
 type NavItem = { href: string; label: string; Icon: Icon; exact?: boolean }
 type NavGroup = { label?: string; items: NavItem[] }
-export type PortalVariant = "admin" | "agent"
+export type PortalVariant = "admin" | "agent" | "dealer"
 
 const navs: Record<PortalVariant, { home: string; label: string; groups: NavGroup[] }> = {
   admin: {
     home: "/admin",
     label: "MultiSims USA admin",
     groups: [
-      { items: [{ href: "/admin", label: "Overview", Icon: SquaresFourIcon, exact: true }] },
+      {
+        items: [
+          { href: "/admin", label: "Overview", Icon: SquaresFourIcon, exact: true },
+          { href: "/admin/reports", label: "Reports", Icon: ChartBarIcon },
+        ],
+      },
       {
         label: "Orders",
         items: [
@@ -53,6 +64,7 @@ const navs: Record<PortalVariant, { home: string; label: string; groups: NavGrou
           { href: "/admin/tickets", label: "Tickets", Icon: LifebuoyIcon },
           { href: "/admin/activations", label: "Activations", Icon: MagnifyingGlassIcon },
           { href: "/admin/customers", label: "Customers", Icon: AddressBookIcon },
+          { href: "/admin/reviews", label: "Reviews", Icon: StarIcon },
         ],
       },
       {
@@ -61,12 +73,14 @@ const navs: Record<PortalVariant, { home: string; label: string; groups: NavGrou
           { href: "/admin/carriers", label: "Carriers", Icon: CellTowerIcon },
           { href: "/admin/plans", label: "Plans", Icon: TagIcon },
           { href: "/admin/addons", label: "Add-ons", Icon: PlusSquareIcon },
+          { href: "/admin/discounts", label: "Discounts", Icon: PercentIcon },
         ],
       },
       {
         label: "Team",
         items: [
           { href: "/admin/agents", label: "Agents", Icon: UsersThreeIcon },
+          { href: "/admin/dealers", label: "Dealers", Icon: StorefrontIcon },
           { href: "/admin/settings", label: "Settings", Icon: GearSixIcon },
           { href: "/admin/design", label: "Design system", Icon: PaletteIcon },
         ],
@@ -82,6 +96,28 @@ const navs: Record<PortalVariant, { home: string; label: string; groups: NavGrou
           { href: "/agent", label: "Queue", Icon: ListChecksIcon, exact: true },
           { href: "/agent/orders", label: "Orders", Icon: ReceiptIcon },
           { href: "/agent/tickets", label: "Tickets", Icon: LifebuoyIcon },
+        ],
+      },
+    ],
+  },
+  dealer: {
+    home: "/dealer",
+    label: "MultiSims USA dealer portal",
+    groups: [
+      {
+        items: [
+          { href: "/dealer", label: "Overview", Icon: SquaresFourIcon, exact: true },
+          { href: "/dealer/new", label: "New order", Icon: PlusSquareIcon },
+          { href: "/dealer/orders", label: "Orders", Icon: ReceiptIcon },
+          { href: "/dealer/activations", label: "Activations", Icon: MagnifyingGlassIcon },
+          { href: "/dealer/tickets", label: "Tickets", Icon: LifebuoyIcon },
+        ],
+      },
+      {
+        label: "Account",
+        items: [
+          { href: "/dealer/wallet", label: "Wallet", Icon: WalletIcon },
+          { href: "/dealer/account", label: "Login", Icon: UserCircleIcon },
         ],
       },
     ],

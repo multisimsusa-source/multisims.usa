@@ -1,8 +1,15 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
+import { connection } from "next/server"
 import { PaperPlaneTiltIcon, PlusIcon } from "@phosphor-icons/react/ssr"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { AdminPageHeader } from "@/components/admin/page-header"
@@ -13,11 +20,25 @@ import { Notice } from "@/components/patterns/notice"
 import { Reveal } from "@/components/patterns/reveal"
 import { Tag } from "@/components/patterns/tag"
 import { ProductBadge } from "@/components/site/product-mark"
-import { DemoFormSection, DemoSelect, DemoSwitch } from "./demos"
+import { PriceWithSale } from "@/components/patterns/price-with-sale"
+import { Stars } from "@/components/patterns/star-rating"
+import { StatGrid } from "@/components/patterns/stat-grid"
+import { WalletLedger } from "@/components/dealer/wallet-ledger"
+import { WalletMeter } from "@/components/dealer/wallet-meter"
+import { WalletSummary } from "@/components/dealer/wallet-summary"
+import {
+  DemoFormSection,
+  DemoQuantityStepper,
+  DemoSelect,
+  DemoSwitch,
+} from "./demos"
 
 export const metadata: Metadata = { title: "Design system" }
 
-const colors: { group: string; tokens: { name: string; use: string; text?: string }[] }[] = [
+const colors: {
+  group: string
+  tokens: { name: string; use: string; text?: string }[]
+}[] = [
   {
     group: "Surfaces and text",
     tokens: [
@@ -27,26 +48,62 @@ const colors: { group: string; tokens: { name: string; use: string; text?: strin
       { name: "muted", use: "Quiet fills, inactive chips" },
       { name: "border", use: "1px hairlines" },
       { name: "foreground", use: "Body text", text: "background" },
-      { name: "muted-foreground", use: "Secondary text (AA)", text: "background" },
+      {
+        name: "muted-foreground",
+        use: "Secondary text (AA)",
+        text: "background",
+      },
     ],
   },
   {
     group: "Brand",
     tokens: [
-      { name: "brand", use: "Primary actions, selection, links", text: "brand-foreground" },
-      { name: "brand-soft", use: "eSIM badge, info notices", text: "brand-ink" },
-      { name: "copper", use: "Logo tagline, SIM mark. Never an action", text: "copper-foreground" },
-      { name: "copper-ink", use: "Copper text at body size", text: "background" },
-      { name: "plum", use: "Logo plum, constant across themes", text: "background" },
+      {
+        name: "brand",
+        use: "Primary actions, selection, links",
+        text: "brand-foreground",
+      },
+      {
+        name: "brand-soft",
+        use: "eSIM badge, info notices",
+        text: "brand-ink",
+      },
+      {
+        name: "copper",
+        use: "Logo tagline, SIM mark. Never an action",
+        text: "copper-foreground",
+      },
+      {
+        name: "copper-ink",
+        use: "Copper text at body size",
+        text: "background",
+      },
+      {
+        name: "plum",
+        use: "Logo plum, constant across themes",
+        text: "background",
+      },
       { name: "scrim", use: "Under text set on photos", text: "background" },
     ],
   },
   {
     group: "Status (pairs: -soft fill with -ink text)",
     tokens: [
-      { name: "success-soft", use: "Delivered, live, saved", text: "success-ink" },
-      { name: "warning-soft", use: "Waiting too long, needs a step", text: "warning-ink" },
-      { name: "danger-soft", use: "Errors, needs attention", text: "danger-ink" },
+      {
+        name: "success-soft",
+        use: "Delivered, live, saved",
+        text: "success-ink",
+      },
+      {
+        name: "warning-soft",
+        use: "Waiting too long, needs a step",
+        text: "warning-ink",
+      },
+      {
+        name: "danger-soft",
+        use: "Errors, needs attention",
+        text: "danger-ink",
+      },
     ],
   },
 ]
@@ -64,22 +121,35 @@ export default function DesignSystemPage() {
       />
 
       <div className="flex flex-col gap-12">
-        <Block title="Colour" note="All colours are tokens in app/globals.css. Screens never use hex, oklch or Tailwind palette colours (the design checker fails the build).">
+        <Block
+          title="Colour"
+          note="All colours are tokens in app/globals.css. Screens never use hex, oklch or Tailwind palette colours (the design checker fails the build)."
+        >
           {colors.map((g) => (
             <div key={g.group}>
-              <h3 className="type-overline mb-3">{g.group}</h3>
+              <h3 className="mb-3 type-overline">{g.group}</h3>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {g.tokens.map((t) => (
-                  <li key={t.name} className="overflow-hidden rounded-lg border bg-card">
+                  <li
+                    key={t.name}
+                    className="overflow-hidden rounded-lg border bg-card"
+                  >
                     <div
                       className="flex h-16 items-end p-2 font-mono text-xs"
-                      style={{ background: `var(--${t.name})`, color: t.text ? `var(--${t.text})` : "var(--foreground)" }}
+                      style={{
+                        background: `var(--${t.name})`,
+                        color: t.text
+                          ? `var(--${t.text})`
+                          : "var(--foreground)",
+                      }}
                     >
                       Aa
                     </div>
                     <div className="p-2.5">
                       <p className="font-mono text-xs font-medium">{t.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{t.use}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t.use}
+                      </p>
                     </div>
                   </li>
                 ))}
@@ -88,32 +158,52 @@ export default function DesignSystemPage() {
           ))}
         </Block>
 
-        <Block title="Type" note="Funnel Display for headings, Geist for everything else, Geist Mono for numbers you compare (prices, order numbers, ICCIDs). Use the role classes, not ad hoc sizes.">
+        <Block
+          title="Type"
+          note="Funnel Display for headings, Geist for everything else, Geist Mono for numbers you compare (prices, order numbers, ICCIDs). Use the role classes, not ad hoc sizes."
+        >
           <div className="divide-y rounded-xl border bg-card">
             <TypeRow role="type-page-title" sample="Checkout" />
             <TypeRow role="type-section-title" sample="Order details" />
             <TypeRow role="type-card-title" sample="Your US number" />
             <TypeRow role="type-overline" sample="Line to get" />
-            <TypeRow role="text-base" sample="Your QR code arrives by email and on your order page." />
-            <TypeRow role="text-sm text-muted-foreground" sample="Where you will mostly be, for example 10001." />
-            <TypeRow role="font-mono tabular" sample="MS-10421  $42.00  8901260123456789012" />
+            <TypeRow
+              role="text-base"
+              sample="Your QR code arrives by email and on your order page."
+            />
+            <TypeRow
+              role="text-sm text-muted-foreground"
+              sample="Where you will mostly be, for example 10001."
+            />
+            <TypeRow
+              role="font-mono tabular"
+              sample="MS-10421  $42.00  8901260123456789012"
+            />
           </div>
         </Block>
 
-        <Block title="Density and controls" note="Inputs, selects and lg buttons take their height from --control-h: 44px on the public site and in dialogs, 40px inside the portals (density-compact on the shell). Never set a control's height by hand.">
+        <Block
+          title="Density and controls"
+          note="Inputs, selects and lg buttons take their height from --control-h: 44px on the public site and in dialogs, 40px inside the portals (density-compact on the shell). Never set a control's height by hand."
+        >
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border bg-card p-5">
-              <p className="type-overline mb-4">Portal, 40px</p>
+              <p className="mb-4 type-overline">Portal, 40px</p>
               <Controls prefix="compact" />
             </div>
             <div className="rounded-xl border bg-card p-5 [--control-h:2.75rem]">
-              <p className="type-overline mb-4">Public site and dialogs, 44px</p>
+              <p className="mb-4 type-overline">
+                Public site and dialogs, 44px
+              </p>
               <Controls prefix="touch" />
             </div>
           </div>
         </Block>
 
-        <Block title="Buttons" note="One primary (plum) action per area. Outline for secondary, ghost for tertiary, destructive tint for deletes. xl is the page's single main action (Place order, Send request).">
+        <Block
+          title="Buttons"
+          note="One primary (plum) action per area. Outline for secondary, ghost for tertiary, destructive tint for deletes. xl is the page's single main action (Place order, Send request)."
+        >
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-5">
             <Button size="xl">
               <PaperPlaneTiltIcon data-icon="inline-start" weight="bold" />
@@ -140,7 +230,10 @@ export default function DesignSystemPage() {
           </div>
         </Block>
 
-        <Block title="Status" note="Tags are small uppercase pills on a soft tint; the word carries the meaning. Customers only ever see Processing, Delivered, Shipped (and Cancelled).">
+        <Block
+          title="Status"
+          note="Tags are small uppercase pills on a soft tint; the word carries the meaning. Customers only ever see Processing, Delivered, Shipped (and Cancelled)."
+        >
           <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-5">
             <Tag tone="brand">Processing</Tag>
             <Tag tone="success">Delivered</Tag>
@@ -153,7 +246,10 @@ export default function DesignSystemPage() {
           </div>
         </Block>
 
-        <Block title="Notices" note="Inline messages on a soft tint with an icon. Never a coloured side border. Short form errors drop the icon.">
+        <Block
+          title="Notices"
+          note="Inline messages on a soft tint with an icon. Never a coloured side border. Short form errors drop the icon."
+        >
           <div className="grid gap-3 lg:grid-cols-2">
             <Notice tone="info" title="From the owner">
               Deliver the nearest available area code.
@@ -170,11 +266,17 @@ export default function DesignSystemPage() {
           </div>
         </Block>
 
-        <Block title="Forms" note="Long forms are one FormCard split into FormSections by hairlines. Labels above fields, help text below, the error replaces the help text. Examples go in the help text, never as placeholders.">
+        <Block
+          title="Forms"
+          note="Long forms are one FormCard split into FormSections by hairlines. Labels above fields, help text below, the error replaces the help text. Examples go in the help text, never as placeholders."
+        >
           <DemoFormSection />
         </Block>
 
-        <Block title="Facts" note="DetailList for a customer-facing summary (one column, no empty cells). Panel with KeyValue for portal side rails.">
+        <Block
+          title="Facts"
+          note="DetailList for a customer-facing summary (one column, no empty cells). Panel with KeyValue for portal side rails."
+        >
           <div className="grid gap-4 lg:grid-cols-2">
             <DetailList>
               <DetailRow label="Order number" value="MS-10421" mono />
@@ -183,15 +285,90 @@ export default function DesignSystemPage() {
               <DetailRow label="Total" value="$42.00" mono strong />
             </DetailList>
             <Panel title="Line to get">
-              <KeyValue label="Carrier and plan" value="T-Mobile Essentials 20 GB" />
+              <KeyValue
+                label="Carrier and plan"
+                value="T-Mobile Essentials 20 GB"
+              />
               <KeyValue label="ZIP code" value="10001" mono />
               <KeyValue label="Area code" value="212" mono strong />
             </Panel>
           </div>
         </Block>
 
-        <Block title="Empty states" note="Say why it is empty and what happens next. Filtered-empty and truly-empty use different words.">
-          <EmptyState title="No orders yet">Orders appear here as soon as customers check out.</EmptyState>
+        <Block
+          title="Quantity"
+          note="QuantityStepper: 44px one fewer / one more buttons. Read out as a live region at checkout; editable for dealer bulk lines, where hundreds are typed."
+        >
+          <DemoQuantityStepper />
+        </Block>
+
+        <Block
+          title="Stats"
+          note="StatGrid: headline numbers on a hairline grid, mono figures, one line of context, an optional link. Warning ink only when the number needs action."
+        >
+          <StatGrid
+            stats={[
+              {
+                label: "Sales",
+                value: "$2,316.00",
+                sub: "Website $2,036.00, dealers $280.00",
+              },
+              { label: "Orders paid", value: 47, href: "/admin/orders" },
+              {
+                label: "Waiting now",
+                value: 12,
+                sub: "15 SIMs in the queue",
+                tone: "warning",
+              },
+            ]}
+          />
+        </Block>
+
+        <Block
+          title="Ratings and sale prices"
+          note="Stars read-only (screen readers hear the number) and PriceWithSale (the regular price struck through, read as 'was'). The star input is a radio group with 44px targets."
+        >
+          <div className="flex flex-wrap items-center gap-8">
+            <Stars rating={4} />
+            <PriceWithSale
+              cents={3000}
+              regularCents={3800}
+              className="text-xl"
+            />
+          </div>
+        </Block>
+
+        <Block
+          title="Wallet (dealers)"
+          note="WalletSummary: four figures on a hairline grid, available first. WalletMeter: what an order does to the balance, Missing in danger ink when short. WalletLedger: every movement in words (In, Out, Held, Returned); colour only supports them."
+        >
+          <div className="flex flex-col gap-4">
+            <WalletSummary
+              wallet={{
+                available_cents: 42000,
+                balance_cents: 56000,
+                reserved_cents: 14000,
+                credit_limit_cents: 0,
+              }}
+            />
+            <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+              <Suspense fallback={null}>
+                <DemoLedger />
+              </Suspense>
+              <div className="rounded-xl border bg-card p-5">
+                <WalletMeter availableCents={42000} orderCents={50000} />
+              </div>
+            </div>
+          </div>
+        </Block>
+
+        <Block
+          title="Empty states"
+          note="Say why it is empty and what happens next. Filtered-empty and truly-empty use different words."
+        >
+          <EmptyState title="No orders yet">
+            Orders appear here as soon as customers check out.
+          </EmptyState>
         </Block>
 
         <Block
@@ -200,7 +377,10 @@ export default function DesignSystemPage() {
         >
           <Reveal as="ol" className="max-w-md rounded-xl border bg-card p-5">
             {["Choose", "Pay", "Connect"].map((step, i, all) => (
-              <li key={step} className="relative grid grid-cols-[2rem_1fr] items-center gap-x-4 py-3">
+              <li
+                key={step}
+                className="relative grid grid-cols-[2rem_1fr] items-center gap-x-4 py-3"
+              >
                 {i < all.length - 1 ? (
                   <span
                     aria-hidden
@@ -211,7 +391,7 @@ export default function DesignSystemPage() {
                 <span
                   aria-hidden
                   style={{ transitionDelay: `${150 + i * 450}ms` }}
-                  className="reveal-mark relative flex size-8 items-center justify-center rounded-full border bg-background font-mono text-sm text-copper-ink tabular"
+                  className="reveal-mark tabular relative flex size-8 items-center justify-center rounded-full border bg-background font-mono text-sm text-copper-ink"
                 >
                   {i + 1}
                 </span>
@@ -234,7 +414,12 @@ function Controls({ prefix }: { prefix: string }) {
       </Field>
       <Field data-invalid>
         <FieldLabel htmlFor={`${prefix}-zip`}>US ZIP code</FieldLabel>
-        <Input id={`${prefix}-zip`} aria-invalid defaultValue="100" className="font-mono tabular" />
+        <Input
+          id={`${prefix}-zip`}
+          aria-invalid
+          defaultValue="100"
+          className="tabular font-mono"
+        />
         <FieldError>Enter a 5-digit US ZIP code</FieldError>
       </Field>
       <Field>
@@ -244,7 +429,11 @@ function Controls({ prefix }: { prefix: string }) {
       </Field>
       <Field>
         <FieldLabel htmlFor={`${prefix}-message`}>Message</FieldLabel>
-        <Textarea id={`${prefix}-message`} rows={2} defaultValue="I land in two hours." />
+        <Textarea
+          id={`${prefix}-message`}
+          rows={2}
+          defaultValue="I land in two hours."
+        />
       </Field>
       <div className="flex items-center gap-3">
         <Button size="lg">Save</Button>
@@ -257,11 +446,21 @@ function Controls({ prefix }: { prefix: string }) {
   )
 }
 
-function Block({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+function Block({
+  title,
+  note,
+  children,
+}: {
+  title: string
+  note: string
+  children: React.ReactNode
+}) {
   return (
     <section aria-label={title}>
       <h2 className="type-section-title">{title}</h2>
-      <p className="mt-1 mb-5 max-w-[70ch] text-sm text-muted-foreground">{note}</p>
+      <p className="mt-1 mb-5 max-w-[70ch] text-sm text-muted-foreground">
+        {note}
+      </p>
       <div className="flex flex-col gap-6">{children}</div>
     </section>
   )
@@ -270,8 +469,61 @@ function Block({ title, note, children }: { title: string; note: string; childre
 function TypeRow({ role, sample }: { role: string; sample: string }) {
   return (
     <div className="flex flex-col gap-1 p-4 sm:flex-row sm:items-baseline sm:gap-6">
-      <code className="w-56 shrink-0 font-mono text-xs text-muted-foreground">{role}</code>
+      <code className="w-56 shrink-0 font-mono text-xs text-muted-foreground">
+        {role}
+      </code>
       <p className={role}>{sample}</p>
     </div>
+  )
+}
+
+/** The ledger formats dates against today, so it renders at request time. */
+async function DemoLedger() {
+  await connection()
+  return (
+    <WalletLedger
+      emptyText="Nothing yet."
+      entries={[
+        {
+          id: 3,
+          dealer_id: "",
+          kind: "capture",
+          amount_cents: 1600,
+          order_id: null,
+          order_item_id: null,
+          batch_id: null,
+          payment_id: null,
+          created_by: null,
+          note: "MS-10061, SIM 1",
+          created_at: "2026-10-22T21:27:00Z",
+        },
+        {
+          id: 2,
+          dealer_id: "",
+          kind: "reserve",
+          amount_cents: 4800,
+          order_id: null,
+          order_item_id: null,
+          batch_id: null,
+          payment_id: null,
+          created_by: null,
+          note: "Order B-1003, line 1",
+          created_at: "2026-10-22T21:21:00Z",
+        },
+        {
+          id: 1,
+          dealer_id: "",
+          kind: "manual_add",
+          amount_cents: 70000,
+          order_id: null,
+          order_item_id: null,
+          batch_id: null,
+          payment_id: null,
+          created_by: null,
+          note: "Paid on WhatsApp",
+          created_at: "2026-10-22T21:13:00Z",
+        },
+      ]}
+    />
   )
 }

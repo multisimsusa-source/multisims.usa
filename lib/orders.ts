@@ -63,6 +63,14 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
 
 export type Tone = "neutral" | "brand" | "success" | "warning" | "danger"
 
+/** Tone for what the customer (or dealer) sees: in progress is brand, done is success. */
+export const customerStatusTone: Record<CustomerStatus, Tone> = {
+  Processing: "brand",
+  Shipped: "brand",
+  Delivered: "success",
+  Cancelled: "neutral",
+}
+
 /** Internal payment labels for staff screens. */
 export const paymentStatusLabel: Record<PaymentStatus, string> = {
   awaiting: "Not paid",

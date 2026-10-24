@@ -9,7 +9,7 @@ import { Tag } from "@/components/patterns/tag"
 import { UrlFilters } from "@/components/staff/url-filters"
 import { formatDays, formatPrice } from "@/lib/format"
 import { formatDateTime, orderLabel, orderStatusLabel, orderStatusTone } from "@/lib/orders"
-import { listOrders, listStaff, ORDERS_PAGE_SIZE, type OrderFilters } from "@/lib/staff/queries"
+import { listDealerNames, listOrders, listStaff, ORDERS_PAGE_SIZE, type OrderFilters } from "@/lib/staff/queries"
 import type { OrderStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -21,11 +21,14 @@ export async function OrdersList({ searchParams, base, isAdmin }: { searchParams
   const status = STATUSES.includes(params.status as OrderStatus) ? (params.status as OrderFilters["status"]) : "all"
   const type = params.type === "esim" || params.type === "physical" ? params.type : undefined
   const agent = /^[0-9a-f-]{36}$/.test(params.agent ?? "") ? params.agent : undefined
+  const channel = params.channel === "website" || params.channel === "dealer" ? params.channel : undefined
+  const dealer = /^[0-9a-f-]{36}$/.test(params.dealer ?? "") ? params.dealer : undefined
   const page = Math.max(1, Number(params.page) || 1)
 
-  const [{ rows, total }, staff] = await Promise.all([
-    listOrders({ status, q: params.q, type, agent, page }),
+  const [{ rows, total }, staff, dealers] = await Promise.all([
+    listOrders({ status, q: params.q, type, agent, channel, dealer, page }),
     isAdmin ? listStaff() : Promise.resolve([]),
+    isAdmin ? listDealerNames() : Promise.resolve([]),
   ])
   const pages = Math.max(1, Math.ceil(total / ORDERS_PAGE_SIZE))
   const pageHref = (p: number) => {
@@ -40,7 +43,7 @@ export async function OrdersList({ searchParams, base, isAdmin }: { searchParams
     <>
       <UrlFilters
         query={params.q ?? ""}
-        placeholder="Order number, name, email or phone"
+        placeholder="Order or batch number, name, email or phone"
         params={params}
         selects={[
           {
@@ -67,6 +70,26 @@ export async function OrdersList({ searchParams, base, isAdmin }: { searchParams
                   value: agent ?? "all",
                   items: [{ value: "all", label: "Any agent" }, ...staff.map((s) => ({ value: s.id, label: s.full_name || s.email }))],
                 },
+                {
+                  param: "channel",
+                  label: "Filter by channel",
+                  value: channel ?? "all",
+                  items: [
+                    { value: "all", label: "Website and dealers" },
+                    { value: "website", label: "Website" },
+                    { value: "dealer", label: "Dealers" },
+                  ],
+                },
+                ...(dealers.length
+                  ? [
+                      {
+                        param: "dealer",
+                        label: "Filter by dealer",
+                        value: dealer ?? "all",
+                        items: [{ value: "all", label: "Any dealer" }, ...dealers.map((d) => ({ value: d.profile_id, label: d.company }))],
+                      },
+                    ]
+                  : []),
               ]
             : []),
         ]}

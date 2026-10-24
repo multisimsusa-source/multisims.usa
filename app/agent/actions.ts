@@ -121,6 +121,109 @@ export async function saveItem(itemId: string, formData: FormData): Promise<Acti
   return { ok: true, message: qrPath ? "QR code saved" : "Saved" }
 }
 
+/**
+ * Bulk QR upload: one image for one SIM, keeping what the SIM already has (phone number,
+ * ICCID, tracking). The bulk panel calls this once per file and refreshes at the end.
+ */
+export async function saveItemQr(itemId: string, formData: FormData): Promise<ActionResult> {
+  await requireStaff()
+  if (!id.safeParse(itemId).success) return { ok: false, error: "Unknown SIM" }
+  const file = formData.get("qr")
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "No image" }
+  const ext = QR_TYPES[file.type]
+  if (!ext) return { ok: false, error: "Use a PNG, JPG or WebP image" }
+  if (file.size > QR_MAX) return { ok: false, error: "The image is over 2 MB" }
+
+  const supabase = await createClient()
+  const { data: item } = await supabase.from("order_items").select("id, order_id, phone_number, iccid, tracking_number").eq("id", itemId).maybeSingle()
+  if (!item) return { ok: false, error: "Unknown SIM" }
+
+  const qrPath = `${item.order_id}/${item.id}-${randomUUID().slice(0, 8)}.${ext}`
+  const { error: uploadError } = await supabase.storage.from("esim-qr").upload(qrPath, file, { contentType: file.type })
+  if (uploadError) {
+    console.error("[agent] bulk QR upload failed", uploadError)
+    return { ok: false, error: "Did not upload. Try again." }
+  }
+  const { error } = await supabase.rpc("save_order_item", {
+    p_item_id: item.id,
+    p_phone_number: item.phone_number ?? "",
+    p_iccid: item.iccid ?? "",
+    p_qr_path: qrPath,
+    p_tracking_number: item.tracking_number ?? "",
+  })
+  if (error) return fail(error)
+  return { ok: true }
+}
+
+/**
+ * One pasted line: a phone number, an ICCID (18 to 22 digits), or both. Fields may be
+ * split by a comma, semicolon or tab; with none, an all-digit run of 18+ is the ICCID and
+ * the rest is the phone number.
+ */
+function parseDetailsLine(line: string): { phone: string; iccid: string } | null {
+  const parts = /[,;\t]/.test(line) ? line.split(/[,;\t]+/) : line.split(/\s+/)
+  let iccid = ""
+  const phoneParts: string[] = []
+  for (const part of parts.map((p) => p.trim()).filter(Boolean)) {
+    const digits = part.replace(/[\s()+.-]/g, "")
+    if (/^\d{18,22}[Ff]?$/.test(digits) && !iccid) iccid = digits
+    else phoneParts.push(part)
+  }
+  const phone = phoneParts.join(" ").trim()
+  const phoneDigits = phone.replace(/\D/g, "")
+  if (phone && (phoneDigits.length < 10 || phoneDigits.length > 15 || /[^\d\s()+.-]/.test(phone))) return null
+  if (!phone && !iccid) return null
+  return { phone, iccid }
+}
+
+/**
+ * Paste phone numbers and ICCIDs for many SIMs at once: one line per SIM, in SIM order,
+ * each with a phone number, an ICCID, or both (any order, separated by a comma, tab or
+ * space). Lines map to the SIMs still being worked on, first line to the first SIM.
+ */
+export async function saveItemDetailsBulk(orderId: string, text: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!id.safeParse(orderId).success) return { ok: false, error: "Unknown order" }
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  if (!lines.length) return { ok: false, error: "Paste one line per SIM" }
+
+  const parsed: { phone: string; iccid: string }[] = []
+  for (const [i, line] of lines.entries()) {
+    const row = parseDetailsLine(line)
+    if (!row) return { ok: false, error: `Line ${i + 1} is not a phone number and ICCID: ${line.slice(0, 40)}` }
+    parsed.push(row)
+  }
+
+  const supabase = await createClient()
+  const { data: order } = await supabase.from("orders").select("phase").eq("id", orderId).maybeSingle()
+  if (!order) return { ok: false, error: "Unknown order" }
+  const { data: items } = await supabase
+    .from("order_items")
+    .select("id, seq, phone_number, iccid, tracking_number")
+    .eq("order_id", orderId)
+    .eq("status", order.phase === "activate" ? "fulfilled" : "pending")
+    .order("seq")
+  if (!items?.length) return { ok: false, error: "No SIMs are waiting for details" }
+  if (parsed.length > items.length) return { ok: false, error: `You pasted ${parsed.length} lines for ${items.length} SIMs. Remove the extra lines.` }
+
+  for (const [i, row] of parsed.entries()) {
+    const item = items[i]
+    const { error } = await supabase.rpc("save_order_item", {
+      p_item_id: item.id,
+      p_phone_number: row.phone || item.phone_number || "",
+      p_iccid: row.iccid || item.iccid || "",
+      p_qr_path: "",
+      p_tracking_number: item.tracking_number ?? "",
+    })
+    if (error) return fail(error)
+  }
+  refresh()
+  return { ok: true, message: `Saved details for ${parsed.length} SIM${parsed.length === 1 ? "" : "s"}` }
+}
+
 /** Physical orders: one tracking number for every SIM in the parcel. */
 export async function saveTracking(orderId: string, tracking: string): Promise<ActionResult> {
   await requireStaff()

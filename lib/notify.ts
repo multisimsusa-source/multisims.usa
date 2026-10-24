@@ -6,17 +6,22 @@ import {
   orderDeliveredEmail,
   paymentPendingEmail,
   staffCustomerMessageEmail,
+  dealerFundsAddedEmail,
+  dealerLineEmail,
+  staffNewBatchEmail,
   staffNewOrderEmail,
   staffNewTicketEmail,
   staffPaymentIssueEmail,
+  staffTopupIssueEmail,
   ticketAnsweredEmail,
+  type BatchEmailLine,
   type DeliveredItem,
   type PaymentIssue,
 } from "@/lib/emails"
 import type { PaymentEvent } from "@/lib/payments/provider"
 import { absoluteUrl } from "@/lib/site"
 import { createServiceClient } from "@/lib/supabase/service"
-import type { Order, OrderItem, Ticket } from "@/lib/types"
+import type { Order, OrderItem, Payment, Ticket } from "@/lib/types"
 
 /**
  * Who hears about what. Every function is safe to call twice: a row in order_alerts
@@ -114,6 +119,7 @@ export async function notifyOrderDelivered(orderId: string) {
   const order = await loadOrder(orderId)
   const kind = order?.product_type === "physical" && order.status === "fulfilled" && order.phase === "activate" ? "activated" : "delivered"
   if (!order || !(await once(orderId, kind))) return
+  if (order.channel === "dealer") return notifyDealerLine(order, kind)
   const db = createServiceClient()
   const { data: rows } = await db.from("order_items").select("*").eq("order_id", orderId).order("seq")
   const items = (rows ?? []) as OrderItem[]
@@ -164,7 +170,9 @@ export async function notifyNewTicket(order: Order, ticket: Ticket) {
 export async function notifyTicketAnswered(ticket: Ticket) {
   const order = await loadOrder(ticket.order_id)
   if (!order) return
-  const mail = ticketAnsweredEmail(order, ticket, orderPageUrl(order))
+  // Dealers read answers in their portal, not on the customer order page.
+  const url = order.channel === "dealer" ? absoluteUrl(`/dealer/tickets#t-${ticket.number}`) : orderPageUrl(order)
+  const mail = ticketAnsweredEmail(order, ticket, url)
   await sendEmail({ sender: "orders", to: order.customer_email, ...mail })
 }
 
@@ -172,4 +180,61 @@ function extension(type: string) {
   if (type === "image/jpeg") return "jpg"
   if (type === "image/webp") return "webp"
   return "png"
+}
+
+/** A dealer placed a batch: one email to the owner and each agent for the whole batch. */
+export async function notifyNewBatchToStaff(batchId: string) {
+  const db = createServiceClient()
+  const { data: batch } = await db
+    .from("order_batches")
+    .select("id, number, dealer:dealers!inner(company), orders(number, carrier_name, plan_name, product_type, days, quantity, addon_name)")
+    .eq("id", batchId)
+    .single()
+  if (!batch) return
+  const to = await staffRecipients()
+  if (!to.length) return
+  const dealer = batch.dealer as unknown as { company: string }
+  const lines = (batch.orders as BatchEmailLine[]).sort((a, b) => a.number - b.number)
+  const mail = staffNewBatchEmail({ number: batch.number, company: dealer.company }, lines, absoluteUrl("/agent"))
+  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `batch-${batch.id}-${address}` })))
+}
+
+/**
+ * Dealer lines: a short email per line pointing to the order in the portal, never the QR
+ * codes themselves (a line can hold 500 SIMs).
+ */
+async function notifyDealerLine(order: Order, kind: string) {
+  if (!order.batch_id) return
+  const db = createServiceClient()
+  const { data: batch } = await db.from("order_batches").select("id, number").eq("id", order.batch_id).single()
+  if (!batch) return
+  const event = order.product_type === "physical" && kind === "delivered" ? "shipped" : "delivered"
+  const mail = dealerLineEmail(order, batch.number, event, absoluteUrl(`/dealer/orders/${batch.id}`))
+  await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `dealer-${kind}-${order.id}` })
+}
+
+/** Tells a dealer their balance went up. */
+export async function notifyDealerFunds(dealerId: string, amountCents: number, how: "topup" | "owner", note: string | null, key: string) {
+  const db = createServiceClient()
+  const { data: profile } = await db.from("profiles").select("email").eq("id", dealerId).maybeSingle()
+  if (!profile?.email) return
+  const mail = dealerFundsAddedEmail(amountCents, how, note, absoluteUrl("/dealer/wallet"))
+  await sendEmail({ sender: "orders", to: profile.email, ...mail, idempotencyKey: key })
+}
+
+/** A top-up arrived short or long: the owner only. */
+export async function notifyTopupIssue(payment: Pick<Payment, "id" | "dealer_id" | "price_cents">, issue: "underpaid" | "overpaid", event: PaymentEvent) {
+  if (!payment.dealer_id) return
+  const db = createServiceClient()
+  const { data: dealer } = await db.from("dealers").select("company").eq("profile_id", payment.dealer_id).maybeSingle()
+  const to = await staffRecipients({ agents: false })
+  if (!to.length) return
+  const coin = event.payCurrency?.toUpperCase() ?? ""
+  const detail: [string, string][] = [
+    ["Expected", event.payAmount !== null ? `${event.payAmount} ${coin}` : "Unknown"],
+    ["Received", event.actuallyPaid !== null ? `${event.actuallyPaid} ${coin}` : "Unknown"],
+    ["Payment reference", event.providerPaymentId ?? "Unknown"],
+  ]
+  const mail = staffTopupIssueEmail(dealer?.company ?? "A dealer", issue, payment.price_cents, detail, absoluteUrl(`/admin/dealers/${payment.dealer_id}`))
+  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `topup-${issue}-${payment.id}-${address}` })))
 }

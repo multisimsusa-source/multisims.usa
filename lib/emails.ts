@@ -147,6 +147,8 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
           ? "Your eSIMs are ready"
           : "Your eSIM is ready"
         : "Your SIM card has shipped"
+  // Only a delivered website order (not a posted card, not a replacement) is rated.
+  const rateable = order.status === "fulfilled" && order.channel === "website" && !opts.replacement
   const shippedNext =
     order.plan_start === "on_date" && order.activate_on
       ? `Your line starts ${planStartLabel(order).replace(/^On /, "on ")}, and we email you its phone number then.`
@@ -183,6 +185,7 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
         )
         .join("") +
       p(esc(install)) +
+      (rateable ? p(`How was it? <a href="${esc(`${orderUrl}#rate`)}" style="color:${plum};">Rate your order</a>, it takes a few seconds.`) : "") +
       p(`<span style="color:${muted};font-size:13px;">Something not working? Open your order page and use the support form. Never share your QR code: anyone who scans it can install your line.</span>`),
     cta: { label: "Open your order page", url: orderUrl },
   })
@@ -195,6 +198,7 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     ...itemBlocks.flatMap((b) => [b.title, textRows(b.pairs), esim ? "QR code: attached, and on your order page." : "", ""].filter(Boolean)),
     install,
     "",
+    ...(rateable ? [`How was it? Rate your order: ${orderUrl}#rate`, ""] : []),
     `Your order page: ${orderUrl}`,
   ].join("\n")
 
@@ -327,5 +331,99 @@ export function agentWelcomeEmail(name: string, loginUrl: string): Rendered {
         p(`At the start of each shift, switch on <strong>Enable sound</strong> in the portal so new orders ring.`),
       cta: { label: "Sign in", url: loginUrl },
     }),
+  }
+}
+
+export function dealerWelcomeEmail(name: string, company: string, loginUrl: string): Rendered {
+  return {
+    subject: "Your MultiSims USA dealer login",
+    text: `Hi ${name},\n\nA dealer account was opened for ${company}. Sign in at ${loginUrl} with this email address and the password we sent you.\n\nIn the dealer portal you can order eSIMs and SIM cards in bulk at your prices, top up your balance and see every line you have bought.`,
+    html: layout({
+      preheader: "Sign in to the dealer portal.",
+      heading: "Your dealer account is ready",
+      body:
+        p(`Hi ${esc(name)}, a dealer account was opened for <strong>${esc(company)}</strong>. Sign in with this email address and the password we sent you.`) +
+        p(`In the dealer portal you can order eSIMs and SIM cards in bulk at your prices, top up your balance and see every line you have bought.`),
+      cta: { label: "Sign in", url: loginUrl },
+    }),
+  }
+}
+
+// Dealers --------------------------------------------------------------------------------
+
+export type BatchEmailLine = Pick<Order, "number" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity" | "addon_name">
+
+function batchRows(lines: BatchEmailLine[]): [string, string][] {
+  return lines.map((l) => [
+    `${orderLabel(l)} ${l.carrier_name} ${l.plan_name}`,
+    `${l.quantity} x ${productTypeLabel[l.product_type]}, ${formatDays(l.days)}${l.addon_name ? `, ${l.addon_name}` : ""}`,
+  ])
+}
+
+/** A dealer placed a bulk order: one alert for the whole batch, however many lines. */
+export function staffNewBatchEmail(batch: { number: number; company: string }, lines: BatchEmailLine[], workUrl: string): Rendered {
+  const sims = lines.reduce((n, l) => n + l.quantity, 0)
+  const pairs = batchRows(lines)
+  const lead = `${batch.company} placed a bulk order: ${sims} SIMs on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
+  return {
+    subject: `Dealer order B-${batch.number}: ${sims} SIMs from ${batch.company}`,
+    text: `${lead}\n\n${textRows(pairs)}\n\nOpen the queue: ${workUrl}`,
+    html: layout({
+      preheader: `${sims} SIMs from ${batch.company}`,
+      heading: "Dealer order waiting",
+      body: p(esc(lead)) + rows(pairs),
+      cta: { label: "Open the queue", url: workUrl },
+    }),
+  }
+}
+
+/** One line of a dealer's bulk order is ready (eSIMs, activated SIM cards) or posted. */
+export function dealerLineEmail(order: Order, batchNumber: number, event: "delivered" | "shipped", portalUrl: string): Rendered {
+  const what = `${order.quantity} x ${order.carrier_name} ${order.plan_name}, ${formatDays(order.days)}`
+  const heading = event === "shipped" ? "SIM cards shipped" : order.product_type === "esim" ? "eSIMs ready" : "Lines active"
+  const lead =
+    event === "shipped"
+      ? `The SIM cards for ${what} are in the post. The tracking number is on your order page. Press "The cards arrived" there once you have them, and the lines start.`
+      : order.product_type === "esim"
+        ? `The QR codes for ${what} are ready on your order page.`
+        : `The lines for ${what} are active. Their phone numbers are on your order page.`
+  return {
+    subject: `B-${batchNumber}: ${heading.toLowerCase()} (${orderLabel(order)})`,
+    text: `${lead}\n\nOpen your order: ${portalUrl}`,
+    html: layout({
+      preheader: what,
+      heading,
+      body: p(esc(lead)),
+      cta: { label: "Open your order", url: portalUrl },
+    }),
+  }
+}
+
+/** A dealer's balance went up: their crypto top-up confirmed, or the owner added funds. */
+export function dealerFundsAddedEmail(amountCents: number, how: "topup" | "owner", note: string | null, walletUrl: string): Rendered {
+  const heading = how === "topup" ? "Top-up received" : "Funds added"
+  const lead =
+    how === "topup"
+      ? `Your crypto top-up of ${formatPrice(amountCents)} is confirmed and on your balance.`
+      : `${formatPrice(amountCents)} was added to your balance.${note ? ` Note: ${note}` : ""}`
+  return {
+    subject: `${heading}: ${formatPrice(amountCents)}`,
+    text: `${lead}\n\nYour wallet: ${walletUrl}`,
+    html: layout({ preheader: lead, heading, body: p(esc(lead)), cta: { label: "Open your wallet", url: walletUrl } }),
+  }
+}
+
+/** A dealer top-up arrived short or long. The owner decides; short ones are not credited. */
+export function staffTopupIssueEmail(company: string, issue: "underpaid" | "overpaid", invoiceCents: number, detail: [string, string][], adminUrl: string): Rendered {
+  const heading = issue === "underpaid" ? "Top-up underpaid" : "Top-up overpaid"
+  const body =
+    issue === "underpaid"
+      ? `${company} sent less than their ${formatPrice(invoiceCents)} top-up, so nothing was added to their balance. Check what arrived and use Add funds on their page for that amount.`
+      : `${company} sent more than their ${formatPrice(invoiceCents)} top-up. ${formatPrice(invoiceCents)} was added to their balance. Add the difference with Add funds if you want to keep it as credit.`
+  const pairs: [string, string][] = [["Dealer", company], ["Top-up", formatPrice(invoiceCents)], ...detail]
+  return {
+    subject: `${heading}: ${company}`,
+    text: `${body}\n\n${textRows(pairs)}\n\nOpen the dealer: ${adminUrl}`,
+    html: layout({ preheader: body.slice(0, 120), heading, body: p(esc(body)) + rows(pairs), cta: { label: "Open the dealer", url: adminUrl } }),
   }
 }

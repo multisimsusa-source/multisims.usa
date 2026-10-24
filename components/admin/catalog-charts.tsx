@@ -29,7 +29,7 @@ const usd = (n: number) =>
 const usdExact = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
 const dayLabel = (d: number) => (d === 1 ? "1 day" : `${d} days`)
 
-const axisTick = { fill: "var(--muted-foreground)", fontSize: 12 }
+export const axisTick = { fill: "var(--muted-foreground)", fontSize: 12 }
 
 const WIDE = "(min-width: 640px)"
 function useWide() {
@@ -92,7 +92,7 @@ export function ChartCard({
   )
 }
 
-function LegendKey({ kind, color, children }: { kind: "rect" | "line" | "band"; color: string; children: React.ReactNode }) {
+export function LegendKey({ kind, color, children }: { kind: "rect" | "line" | "band"; color: string; children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span
@@ -108,7 +108,7 @@ function LegendKey({ kind, color, children }: { kind: "rect" | "line" | "band"; 
 type TipRow = { key: string; color: string; label: string; value: string }
 
 /** Value leads, label follows, series keyed by a short line in the series colour. */
-function Tip({ title, rows }: { title: string; rows: TipRow[] }) {
+export function Tip({ title, rows }: { title: string; rows: TipRow[] }) {
   return (
     <div className="grid min-w-40 gap-2 rounded-lg bg-popover px-3 py-2.5 text-xs text-popover-foreground shadow-pop ring-1 ring-border">
       <p className="font-medium">{title}</p>
@@ -125,7 +125,7 @@ function Tip({ title, rows }: { title: string; rows: TipRow[] }) {
   )
 }
 
-function DataTable({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
+export function DataTable({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
   return (
     <table className="w-full min-w-72 text-left text-sm">
       <thead>

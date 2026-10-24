@@ -163,9 +163,14 @@ Every repeated piece of UI lives here. If you are about to write one of these by
 | Nothing to show | `EmptyState` | Lists and searches; different words for filtered-empty |
 | Phone action bar | `ActionBar` (`sticky` or `fixed`) | Keeps a flow's finishing action in reach on phones |
 | Copy a value | `CopyButton` | Phone numbers, ICCIDs, tracking numbers |
+| Count of SIMs | `QuantityStepper` (`editable` for typed counts) | Checkout quantity, dealer order lines |
+| Headline numbers | `StatGrid` (`Stat`: label, mono value, one line of context, optional link, `warning` tone) | Dashboard, reports. An odd last tile spans both columns on phones |
+| Date range | `DateRangeFilter` (presets plus "Choose dates", in the URL) | Dashboard, reports |
+| Star rating | `StarRatingInput` (radio group, 44px stars, arrow keys) and `Stars` (read-only, "Rated 4 out of 5") | Customer rating card, admin reviews, featured reviews. Copper fill: a graphic, never text |
+| Sale price | `PriceWithSale` (price, then the regular price struck through with "was" for screen readers) | Day tiles, checkout, anywhere a sale price shows |
 | Scroll reveal | `Reveal` (`as`, `index`) | Marketing sections and card lists on the public site only (see Motion) |
 
-Product and brand composites live in `components/site/` (carrier logo, product badge, plan card, plan configurator, header, footer, wordmark) and portal composites in `components/staff/` and `components/admin/` (portal shell, filters, order workspace, alerts, ticket views, page header).
+Dealer composites live in `components/dealer/` (`WalletSummary`, `WalletMeter`, `WalletLedger`, `BatchList`). Product and brand composites live in `components/site/` (carrier logo, product badge, plan card, plan configurator, header, footer, wordmark) and portal composites in `components/staff/` and `components/admin/` (portal shell, filters, order workspace, alerts, ticket views, page header).
 
 ---
 
@@ -297,6 +302,25 @@ The client's MSU logo sets the identity: a deep plum Didone monogram over copper
 - **Admin catalogue:** carriers with logo source captions and an "On website" switch; plans table with website status; plan editor with sticky status rail and live card preview; day package rows that keep headings on phones.
 - **Settings and agents:** `FormCard`-style settings with help text; agent rows with SIMs filled, password reset and an on/off switch.
 - **Profile menu:** sidebar footer row with initials tile, opening account details, View website and Sign out.
+
+### Milestone 3 additions (website and admin)
+
+- **Sale prices:** catalogue reads return the sale price as `price_cents` and keep `regular_price_cents`; plan cards show a success `Tag` "Sale", day tiles and checkout use `PriceWithSale`, and the plan total says "Sale price. You save $8.00".
+- **Discount code (checkout):** "Have a discount code?" link in the order summary, then an `Input` + outline Apply; an applied code shows as a "Discount (CODE)" line with a negative amount and a Remove link, plus "Never on shipping or the network fee."
+- **Calling destinations:** "See where you can call" link (globe icon) under the calling switch opens a searchable `Dialog`; minutes in mono, Unlimited in success ink. Loaded when opened.
+- **Rating card (order page):** after delivery, `StarRatingInput` + optional comment with the consent line; replaced by a thank-you with `Stars` once sent.
+- **Featured customer reviews (home):** canvas band after "From checkout to signal", only when one is featured; cards with `Stars`, the comment, first name, plan and month. Never an average or a count.
+- **Admin dashboard:** `DateRangeFilter`, `StatGrid` (sales, orders, SIMs delivered, waiting now in warning ink, dealer funds in), the Needs attention panel, sales per day (stacked bars, plum website and copper dealers) and SIMs delivered by carrier, agent and dealer activity tables in `Panel`s. Catalogue charts moved to the Plans page.
+- **Reports:** date range plus `UrlFilters` (four selects, search hidden), `StatGrid`, sales chart, then a table per section (by carrier with tickets and replacements, agents, dealers) with a totals row and a CSV download each.
+- **Discounts, Reviews (admin):** `divide-y` lists with state `Tag`s (Live, Scheduled, Ended, Used up, Off; On website, Hidden), switches for on/off and featured.
+
+### Dealer portal
+
+- **Shell:** `PortalShell variant="dealer"`, `density-compact`; the bar shows **Available** (mono) linking to Wallet instead of order alerts.
+- **New order** (the focal screen): `FormCard` of order lines (Plan `Select` grouped by carrier, Length `Select` with the dealer price, calling `Switch`, editable `QuantityStepper`, remove), Delivery address only when a SIM card line exists, an optional reference; sticky rail with the line totals, shipping once per order, mono total and `WalletMeter`; short balance shows a warning `Notice` and disables Place order; phones keep total and Place order in `ActionBar`.
+- **Order (batch) page:** `B-1001` and status first; one card per line with "3 of 3 live", SIM rows with phone and ICCID (label above value, `CopyButton`) and a QR code link (signed, new tab); rail `Panel`s for Progress, Payment (total, taken, held, returned) and Delivery with USPS tracking; "The cards arrived" card for posted SIM cards; Download CSV.
+- **Wallet:** `WalletSummary`, `WalletLedger` as History, Top up in crypto in the rail (quick amounts as pressed buttons, then the provider page).
+- **Agents on dealer lines:** a "Dealer order" `Notice`, and `BulkTools` (multi-file QR drop matched in file name order with progress and retry; pasted phone numbers and ICCIDs) above the SIM forms when 2 or more SIMs are open.
 
 ### Charts (admin)
 

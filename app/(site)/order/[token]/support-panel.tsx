@@ -4,7 +4,7 @@ import * as React from "react"
 import { LifebuoyIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
-import { TicketForm } from "./ticket-form"
+import { TicketForm } from "@/components/site/ticket-form"
 
 /** The support form stays folded behind one button until the customer needs it. */
 export function SupportPanel(props: React.ComponentProps<typeof TicketForm>) {

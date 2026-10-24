@@ -27,9 +27,10 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
     sim_card_price_cents: parseMoney(formData.get("sim_card_price")),
     network_fee_cents: parseMoney(formData.get("network_fee")),
     min_order_cents: parseMoney(formData.get("min_order")),
+    dealer_sim_card_price_cents: parseMoney(formData.get("dealer_sim_card_price")),
   }
   const fieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error.issues)
-  const fieldFor = { shipping_fee_cents: "shipping_fee", sim_card_price_cents: "sim_card_price", network_fee_cents: "network_fee", min_order_cents: "min_order" } as const
+  const fieldFor = { shipping_fee_cents: "shipping_fee", sim_card_price_cents: "sim_card_price", network_fee_cents: "network_fee", min_order_cents: "min_order", dealer_sim_card_price_cents: "dealer_sim_card_price" } as const
   for (const [key, cents] of Object.entries(money) as [keyof typeof money, number | null][]) {
     if (cents === null || Number.isNaN(cents)) fieldErrors[fieldFor[key]] = "Enter an amount, for example 5.00"
     else if (cents > 100_000) fieldErrors[fieldFor[key]] = "At most $1,000"

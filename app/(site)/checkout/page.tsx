@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Container } from "@/components/site/section"
 import { CarrierLogo } from "@/components/site/carrier-logo"
-import { getIntlCallingAddon, getPlanBySlug } from "@/lib/catalog"
+import { getCallingDestinations, getIntlCallingAddon, getLivePlanBySlug } from "@/lib/catalog"
 import { dataLabel, hotspotLabel } from "@/lib/format"
 import { minimumOrderCents, paymentsEnabled } from "@/lib/payments"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -36,10 +36,11 @@ async function Checkout({
   const slug = typeof params.plan === "string" ? params.plan : ""
   const days = Number(params.days)
 
-  const [plan, addon, fees] = await Promise.all([
-    getPlanBySlug(slug),
+  const [plan, addon, fees, destinations] = await Promise.all([
+    getLivePlanBySlug(slug),
     getIntlCallingAddon(),
     getCheckoutFees(),
+    getCallingDestinations(),
   ])
   const pkg = plan?.packages.find((p) => p.days === days)
 
@@ -87,8 +88,10 @@ async function Checkout({
             .join(", ")}
           days={pkg.days}
           unitCents={pkg.price_cents}
+          regularCents={pkg.regular_price_cents}
           addon={addon}
           initialIntl={params.intl === "1"}
+          callingList={destinations.length > 0}
           fees={fees}
           takesPayment={paymentsEnabled()}
         />

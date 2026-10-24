@@ -27,12 +27,15 @@ export function UrlFilters({
   placeholder,
   selects = [],
   params,
+  hideSearch,
 }: {
   query: string
   placeholder: string
   selects?: FilterSelect[]
   /** Current params, so unrelated ones are kept. */
   params: Record<string, string>
+  /** Selects only, for short lists with nothing to search. */
+  hideSearch?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -58,13 +61,21 @@ export function UrlFilters({
     return () => window.clearTimeout(id)
   }, [text, query, apply])
 
+  const many = selects.length >= 4
   return (
     <div
-      className={cn("mb-4 grid gap-2", selects.length === 1 && "sm:grid-cols-[1fr_auto]", selects.length >= 2 && "sm:grid-cols-2 lg:grid-cols-[1fr_repeat(var(--n),auto)]")}
+      className={cn(
+        "mb-4 grid gap-2",
+        selects.length === 1 && "sm:grid-cols-[1fr_auto]",
+        selects.length >= 2 && selects.length <= 3 && !hideSearch && "sm:grid-cols-2 lg:grid-cols-[1fr_repeat(var(--n),auto)]",
+        hideSearch && !many && "sm:flex sm:flex-wrap",
+        // Many filters: the search gets its own row and the selects share the next.
+        many && "sm:grid-cols-2 lg:grid-cols-[repeat(var(--n),minmax(0,1fr))]"
+      )}
       style={{ "--n": selects.length } as React.CSSProperties}
       aria-busy={pending}
     >
-      <div className="relative sm:max-lg:col-span-2">
+      <div className={cn("relative", many ? "col-span-full" : "sm:max-lg:col-span-2", hideSearch && "hidden")}>
         <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
@@ -87,7 +98,7 @@ export function UrlFilters({
       </div>
       {selects.map((s) => (
         <Select key={s.param} items={s.items} value={s.value || ALL} onValueChange={(v) => apply({ [s.param]: String(v ?? ALL) })}>
-          <SelectTrigger aria-label={s.label} className={cn("w-full bg-background lg:w-44", s.className)}>
+          <SelectTrigger aria-label={s.label} className={cn("w-full bg-background", !many && "lg:w-44", s.className)}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

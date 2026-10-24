@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import { useNow } from "@/hooks/use-now"
-import { sendOrderMessage, type FormState } from "./actions"
+import type { FormState } from "@/lib/form-state"
+import { sendOrderMessage } from "./actions"
 
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 

@@ -12,32 +12,37 @@ import { Textarea } from "@/components/ui/textarea"
 import { severityLabel } from "@/lib/orders"
 import type { TicketSeverity } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { createTicket, type FormState } from "./actions"
+import type { FormState } from "@/lib/form-state"
 
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 const MIN = 50
 const severities: TicketSeverity[] = ["low", "medium", "high", "urgent"]
 
 type Props = {
-  token: string
+  /** The server action that files the ticket, already bound to its order. */
+  submit: (prev: FormState, formData: FormData) => Promise<FormState>
   orderLabel: string
   types: { id: string; name: string }[]
   /** Delivered SIMs the request can be about. Hidden when there is only one. */
   items: { id: string; label: string }[]
+  /** Under the confirmation: where the answer will show. */
+  successHint?: string
+  /** Public pages ask for Turnstile when it is configured; signed-in portals do not. */
+  turnstile?: boolean
+  /** Inside another surface (a dealer's order line): no border or padding of its own. */
+  bare?: boolean
 }
 
-export function TicketForm({ token, orderLabel, types, items }: Props) {
-  const [state, action, pending] = React.useActionState<FormState, FormData>(createTicket.bind(null, token), { status: "idle" })
+export function TicketForm({ submit, orderLabel, types, items, successHint = "We email you when there is an answer, and it shows on this page too.", turnstile = true, bare }: Props) {
+  const [state, action, pending] = React.useActionState<FormState, FormData>(submit, { status: "idle" })
   const [formKey, setFormKey] = React.useState(0)
 
   if (state.status === "success") {
     return (
-      <div role="status" className="rounded-xl border bg-card p-6">
+      <div role="status" className={bare ? "" : "rounded-xl border bg-card p-6"}>
         <CheckCircleIcon weight="fill" className="size-7 text-success-ink" />
         <p className="mt-3 text-lg font-semibold">{state.message ?? "Request sent."}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          We email you when there is an answer, and it shows on this page too.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{successHint}</p>
         <Button type="button" variant="outline" size="lg" className="mt-5 " onClick={() => setFormKey((k) => k + 1)}>
           Raise another request
         </Button>
@@ -45,7 +50,14 @@ export function TicketForm({ token, orderLabel, types, items }: Props) {
     )
   }
 
-  return <TicketFields key={`${formKey}-${JSON.stringify(state.values ?? {})}`} {...{ state, action, pending, orderLabel, types, items }} />
+  return (
+    <TicketFields
+      key={`${formKey}-${JSON.stringify(state.values ?? {})}`}
+      {...{ state, action, pending, orderLabel, types, items }}
+      siteKey={turnstile ? turnstileSiteKey : undefined}
+      bare={bare}
+    />
+  )
 }
 
 function TicketFields({
@@ -55,7 +67,9 @@ function TicketFields({
   orderLabel,
   types,
   items,
-}: Omit<Props, "token"> & { state: FormState; action: (fd: FormData) => void; pending: boolean }) {
+  siteKey,
+  bare,
+}: Pick<Props, "orderLabel" | "types" | "items" | "bare"> & { state: FormState; action: (fd: FormData) => void; pending: boolean; siteKey?: string }) {
   const values = state.values ?? {}
   const errors = state.fieldErrors ?? {}
   const [type, setType] = React.useState(values.type ?? "")
@@ -67,8 +81,8 @@ function TicketFields({
   const invalid = (k: string) => Boolean(errors[k]) || undefined
 
   return (
-    <form action={action} noValidate className="flex flex-col gap-5 rounded-xl border bg-card p-5 sm:p-6">
-      {turnstileSiteKey ? <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer /> : null}
+    <form action={action} noValidate className={cn("flex flex-col gap-5", !bare && "rounded-xl border bg-card p-5 sm:p-6")}>
+      {siteKey ? <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer /> : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field data-invalid={invalid("type")}>
@@ -209,7 +223,7 @@ function TicketFields({
         <input id="ticket-company" name="company" tabIndex={-1} autoComplete="off" />
       </div>
 
-      {turnstileSiteKey ? <div className="cf-turnstile" data-sitekey={turnstileSiteKey} /> : null}
+      {siteKey ? <div className="cf-turnstile" data-sitekey={siteKey} /> : null}
 
       {state.status === "error" && state.message ? (
         <Notice tone="danger" icon={false}>

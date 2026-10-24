@@ -117,13 +117,14 @@ join (values
   on p.carrier_slug = c.slug;
 
 -- Dummy prices: $1 per day + a whole-dollar step that differs per plan.
+-- Dummy wholesale: 50 cents under retail.
 insert into public.day_packages (plan_id, days, price_cents, wholesale_price_cents)
 select p.id, d.days,
        (d.days + (row_number() over (partition by d.days order by p.slug))::int - 1) * 100,
-       null
+       (d.days + (row_number() over (partition by d.days order by p.slug))::int - 1) * 100 - 50
 from public.plans p
 cross join (values (1), (7), (10), (14), (21), (30), (60)) as d(days);
 
-insert into public.addons (code, name, description, price_cents) values
+insert into public.addons (code, name, description, price_cents, wholesale_price_cents) values
   ('intl_calling', 'International calling',
-   'Call numbers outside the US from your US line.', 500);
+   'Call numbers outside the US from your US line.', 500, 400);

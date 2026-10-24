@@ -1,100 +1,97 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
+import { connection } from "next/server"
 import Link from "next/link"
-import { ArrowRightIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr"
+import { ArrowRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-
 import { AdminPageHeader } from "@/components/admin/page-header"
+import { DeliveredByCarrierChart, SalesByDayChart } from "@/components/admin/dashboard-charts"
 import { OverviewSkeleton } from "@/components/admin/skeletons"
-import { hiddenReason, listAddons, listCarriers, listPlans } from "@/lib/admin/queries"
+import { DateRangeFilter } from "@/components/patterns/date-range-filter"
+import { Panel } from "@/components/patterns/panel"
+import { StatGrid } from "@/components/patterns/stat-grid"
+import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
+import { byAgent, byCarrier, byDealer, loadReport, resolveRange, salesByDay, salesTotals, waitingNow } from "@/lib/admin/reports"
 import { formatPrice } from "@/lib/format"
-import { carrierMix, priceLadder, pricePerDay } from "@/lib/admin/stats"
-import { CarrierMixChart, PriceLadderChart, PricePerDayChart } from "@/components/admin/catalog-charts"
+import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Overview" }
 
-export default function AdminHome() {
+export default function AdminHome({ searchParams }: PageProps<"/admin">) {
   return (
     <>
       <AdminPageHeader
         title="Overview"
-        description="Everything you change here shows on the website straight away."
+        description="Sales, orders waiting, and what agents and dealers did. Catalogue changes show on the website straight away."
         actions={
-          <Link href="/admin/plans/new" className={cn(buttonVariants({ size: "lg" }), "h-10")}>
-            <PlusIcon weight="bold" data-icon="inline-start" />
-            New plan
+          <Link href="/admin/reports" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-10")}>
+            Reports
+            <ArrowRightIcon data-icon="inline-end" />
           </Link>
         }
       />
       <Suspense fallback={<OverviewSkeleton />}>
-        <OverviewContent />
+        <Dashboard searchParams={searchParams} />
       </Suspense>
     </>
   )
 }
 
-async function OverviewContent() {
-  const [carriers, plans, addons] = await Promise.all([
-    listCarriers(),
-    listPlans(),
-    listAddons(),
-  ])
-  const live = plans.filter((p) => !hiddenReason(p))
-  const hiddenPublished = plans.filter((p) => p.published && hiddenReason(p))
-  const emptyCarriers = carriers.filter((c) => c.active && !live.some((p) => p.carrier.id === c.id))
-  const attention = [
-    ...hiddenPublished.map((p) => ({
-      key: p.id,
-      href: `/admin/plans/${p.id}`,
-      title: p.name,
-      detail: `${p.carrier.name} plan, published but not visible`,
-      tag: hiddenReason(p) ?? "",
-    })),
-    ...emptyCarriers.map((c) => ({
-      key: c.id,
-      href: `/admin/plans?carrier=${c.id}`,
-      title: c.name,
-      detail: "Shown in the logo strip, but has no live plans",
-      tag: "No live plans",
-    })),
-  ]
-  const packagesOnSale = live.reduce((n, p) => n + p.packages.filter((x) => x.active).length, 0)
-  const intl = addons.find((a) => a.code === "intl_calling")
-  const mix = carrierMix(carriers, plans)
-  const ladder = priceLadder(plans)
-  const perDay = pricePerDay(ladder)
+async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchParams">) {
+  // The date range is worked out from today: render at request time.
+  await connection()
+  const raw = await searchParams
+  const params = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "string")) as Record<string, string>
+  const range = resolveRange(params)
+  const [data, carriers, plans] = await Promise.all([loadReport(range), listCarriers(), listPlans()])
 
-  const stats = [
-    { label: "Carriers shown", value: carriers.filter((c) => c.active).length, of: carriers.length, href: "/admin/carriers" },
-    { label: "Plans live", value: live.length, of: plans.length, href: "/admin/plans" },
-    { label: "Packages on sale", value: packagesOnSale, href: "/admin/plans" },
-    {
-      label: "International calling",
-      value: intl ? (intl.active ? formatPrice(intl.price_cents) : "Off") : "Missing",
-      href: "/admin/addons",
-    },
+  const sales = salesTotals(data)
+  const waiting = waitingNow(data)
+  const agents = byAgent(data)
+  const dealers = byDealer(data).filter((d) => d.orders || d.fundedCents || d.takenCents)
+  const funded = data.ledger.filter((l) => l.kind !== "capture").reduce((n, l) => n + l.amount_cents, 0)
+
+  // Catalogue problems: published plans the website hides, carriers with nothing live.
+  const live = plans.filter((p) => !hiddenReason(p))
+  const attention = [
+    ...(waiting.attention
+      ? [{ key: "orders", href: "/admin/orders?status=needs_attention", title: `${waiting.attention} ${waiting.attention === 1 ? "order needs" : "orders need"} you`, detail: "Flagged by an agent", tag: "Needs attention" }]
+      : []),
+    ...plans
+      .filter((p) => p.published && hiddenReason(p))
+      .map((p) => ({ key: p.id, href: `/admin/plans/${p.id}`, title: p.name, detail: `${p.carrier.name} plan, published but not visible`, tag: hiddenReason(p) ?? "" })),
+    ...carriers
+      .filter((c) => c.active && !live.some((p) => p.carrier.id === c.id))
+      .map((c) => ({ key: c.id, href: `/admin/plans?carrier=${c.id}`, title: c.name, detail: "Shown in the logo strip, but has no live plans", tag: "No live plans" })),
   ]
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
-        {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="group bg-background p-4 transition-colors hover:bg-card sm:p-6">
-            <p className="text-sm text-muted-foreground">{s.label}</p>
-            <p className="mt-2 font-mono text-2xl font-medium tracking-tight tabular-nums sm:text-3xl">
-              {s.value}
-              {"of" in s ? <span className="text-base text-muted-foreground"> / {s.of}</span> : null}
-            </p>
-            <span className="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground group-hover:text-foreground">
-              Manage <ArrowRightIcon className="size-3.5" />
-            </span>
-          </Link>
-        ))}
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <DateRangeFilter params={params} from={range.from} to={range.to} />
+        <p className="text-sm text-muted-foreground tabular">
+          {range.from === range.to ? range.from : `${range.from} to ${range.to}`}, US Eastern
+        </p>
       </div>
 
-      <section aria-labelledby="attention" className="mt-6">
+      <StatGrid
+        stats={[
+          { label: "Sales", value: formatPrice(sales.total), sub: `Website ${formatPrice(sales.website)}, dealers ${formatPrice(sales.dealer)}` },
+          { label: "Orders paid", value: sales.orders, href: "/admin/orders" },
+          { label: "SIMs delivered", value: data.items.length, sub: "eSIMs delivered, SIM cards posted", href: "/admin/activations" },
+          {
+            label: "Waiting now",
+            value: waiting.queued,
+            sub: `${waiting.queuedSims} ${waiting.queuedSims === 1 ? "SIM" : "SIMs"} in the queue`,
+            href: "/agent",
+            tone: waiting.queued ? "warning" : "default",
+          },
+          { label: "Dealer funds in", value: formatPrice(funded), sub: "Top-ups and funds you added", href: "/admin/dealers" },
+        ]}
+      />
+
+      <section aria-labelledby="attention">
         {attention.length ? (
           <div className="overflow-hidden rounded-xl border border-warning-ink/25 bg-background">
             <div className="flex items-center gap-2 border-b bg-warning-soft/60 px-4 py-3 sm:px-5">
@@ -122,27 +119,70 @@ async function OverviewContent() {
         ) : (
           <p className="flex items-center gap-2 rounded-xl border bg-background px-4 py-3 text-sm sm:px-5">
             <CheckCircleIcon weight="fill" aria-hidden className="size-4 text-success-ink" />
-            <span id="attention">Nothing needs attention. Every published plan is visible on the website.</span>
+            <span id="attention">Nothing needs attention. No flagged orders, and every published plan is on the website.</span>
           </p>
         )}
       </section>
 
-      {ladder.length ? (
-        <div className="mt-8 grid gap-4 lg:grid-cols-5">
-          <PriceLadderChart data={ladder} />
-          <PricePerDayChart data={perDay} />
-          <CarrierMixChart data={mix} />
-        </div>
-      ) : (
-        <div className="mt-8 rounded-xl border border-dashed bg-background p-8 text-center text-sm text-muted-foreground">
-          Charts appear once at least one plan is live with day packages.
-        </div>
-      )}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <SalesByDayChart data={salesByDay(data)} className="lg:col-span-3" />
+        <DeliveredByCarrierChart data={byCarrier(data)} className="lg:col-span-2" />
+      </div>
 
-      <section className="mt-8 rounded-xl border border-dashed p-5 text-sm text-muted-foreground sm:p-6">
-        <p className="font-medium text-foreground">Coming next</p>
-        <p className="mt-1">Orders, the agent queue, customer messages and tickets arrive with checkout in the next milestone.</p>
-      </section>
-    </>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Agent activity" action={<Link href={`/admin/reports?${new URLSearchParams(params)}#agents`} className="text-sm text-brand hover:underline">Report</Link>}>
+          {agents.length ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th scope="col" className="pb-2 font-normal">Agent</th>
+                  <th scope="col" className="pb-2 text-right font-normal">SIMs filled</th>
+                  <th scope="col" className="pb-2 text-right font-normal">Holding now</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {agents.map((a) => (
+                  <tr key={a.id}>
+                    <td className="py-2">{a.name}</td>
+                    <td className="py-2 text-right font-mono tabular">{a.filled}</td>
+                    <td className="py-2 text-right font-mono tabular">{a.holding}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No agents yet.</p>
+          )}
+        </Panel>
+        <Panel title="Dealer activity" action={<Link href={`/admin/reports?${new URLSearchParams(params)}#dealers`} className="text-sm text-brand hover:underline">Report</Link>}>
+          {dealers.length ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th scope="col" className="pb-2 font-normal">Dealer</th>
+                  <th scope="col" className="pb-2 text-right font-normal">SIMs ordered</th>
+                  <th scope="col" className="pb-2 text-right font-normal">Taken</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {dealers.map((d) => (
+                  <tr key={d.id}>
+                    <td className="py-2">
+                      <Link href={`/admin/dealers/${d.id}`} className="hover:underline">
+                        {d.company}
+                      </Link>
+                    </td>
+                    <td className="py-2 text-right font-mono tabular">{d.sims}</td>
+                    <td className="py-2 text-right font-mono tabular">{formatPrice(d.takenCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No dealer orders or funds in this range.</p>
+          )}
+        </Panel>
+      </div>
+    </div>
   )
 }

@@ -18,7 +18,7 @@ import { JsonLd } from "@/components/json-ld"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
-import { getIntlCallingAddon, getPlanBySlug, getPublishedPlans } from "@/lib/catalog"
+import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublishedPlans } from "@/lib/catalog"
 import { dataLabel, hotspotLabel, productTypeLabel, slowdownLabel } from "@/lib/format"
 import { absoluteUrl } from "@/lib/site"
 import type { CatalogPlan } from "@/lib/types"
@@ -62,7 +62,7 @@ export default function PlanPage({ params }: PageProps<"/plans/[slug]">) {
 
 async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params">) {
   const { slug } = await params
-  const [plan, addon] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon()])
+  const [plan, addon, destinations] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon(), getCallingDestinations()])
   if (!plan) notFound()
 
   return (
@@ -139,7 +139,7 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
               {plan.carrier.name} {productTypeLabel[plan.product_type]}
             </p>
             <p className="font-heading text-2xl font-semibold tracking-[-0.02em]">{plan.name}</p>
-            <PlanConfigurator plan={plan} addon={addon} className="mt-6" />
+            <PlanConfigurator plan={plan} addon={addon} callingList={destinations.length > 0} className="mt-6" />
           </div>
         </aside>
       </div>

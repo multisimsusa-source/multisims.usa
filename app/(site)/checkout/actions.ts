@@ -7,7 +7,8 @@ import { z } from "zod"
 import { notifyAwaitingPayment, notifyOrderPaid } from "@/lib/notify"
 import { MAX_QUANTITY } from "@/lib/orders"
 import { getPaymentProvider, invoiceUrlForOrder, minimumOrderCents } from "@/lib/payments"
-import { minimumOrderMessage, orderTotal } from "@/lib/pricing"
+import { findDiscountCode } from "@/lib/discounts"
+import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
 import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -91,7 +92,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   const [{ data: plan }, { data: settings }, { data: addon }] = await Promise.all([
     db
       .from("plans")
-      .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, active)")
+      .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
       .eq("slug", slug)
       .maybeSingle(),
     db.from("settings").select("shipping_fee_cents, sim_card_price_cents, network_fee_cents, min_order_cents").maybeSingle(),
@@ -126,15 +127,18 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   const shippingCents = physical ? (settings?.shipping_fee_cents ?? 0) : 0
   const simCardCents = physical ? (settings?.sim_card_price_cents ?? 0) : 0
   const networkFeeCents = settings?.network_fee_cents ?? 0
-  const total = orderTotal({
-    unitCents: pkg.price_cents,
-    addonCents: useAddon?.price_cents ?? 0,
-    quantity: input.quantity,
-    physical,
-    simCardCents,
-    shippingCents,
-    networkFeeCents,
-  })
+  // The sale price, when the package is on sale.
+  const unitCents = pkg.sale_price_cents !== null && pkg.sale_price_cents < pkg.price_cents ? pkg.sale_price_cents : pkg.price_cents
+  const priceInput = { unitCents, addonCents: useAddon?.price_cents ?? 0, quantity: input.quantity, physical, simCardCents }
+
+  let discount: { id: string; code: string; cents: number } | null = null
+  if (values.discount_code?.trim()) {
+    const found = await findDiscountCode(values.discount_code, carrier.id)
+    if (!found.ok) return { status: "error", message: `${found.error}. Remove it or try another code.`, values }
+    discount = { id: found.code.id, code: found.code.code, cents: discountFor(found.code as DiscountRule, discountableCents(priceInput)) }
+  }
+
+  const total = orderTotal({ ...priceInput, shippingCents, networkFeeCents, discountCents: discount?.cents ?? 0 })
 
   // Below the minimum the payment provider refuses the payment, and a payment it refuses
   // usually cannot be refunded: stop here, before any order or invoice exists.
@@ -165,12 +169,15 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       days: pkg.days,
       addon_name: useAddon?.name ?? null,
       quantity: input.quantity,
-      unit_price_cents: pkg.price_cents,
+      unit_price_cents: unitCents,
       addon_price_cents: useAddon?.price_cents ?? 0,
       shipping_cents: shippingCents,
       sim_card_price_cents: simCardCents,
       network_fee_cents: networkFeeCents,
       total_cents: total,
+      discount_code_id: discount?.id ?? null,
+      discount_code: discount?.code ?? null,
+      discount_cents: discount?.cents ?? 0,
       plan_start: shipping ? shipping.plan_start : null,
       activate_on: shipping?.plan_start === "on_date" ? shipping.activate_on : null,
     })
@@ -210,4 +217,17 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     console.error("[checkout] could not open an invoice", err)
   }
   redirect(invoiceUrl ?? `/order/${order.public_token}?pay=error`)
+}
+
+export type DiscountCheck = { ok: true; code: string; kind: "percent" | "fixed"; value: number } | { ok: false; error: string }
+
+/** Checks a code typed at checkout so the total can show it. placeOrder checks it again. */
+export async function checkDiscountCode(code: string, planSlug: string): Promise<DiscountCheck> {
+  if (!(await rateLimit(`discount:${await clientIp()}`, 20, 10 * 60_000)).ok) return { ok: false, error: "Too many tries. Wait a few minutes." }
+  const db = createServiceClient()
+  const { data: plan } = await db.from("plans").select("carrier_id").eq("slug", planSlug.slice(0, 120)).eq("published", true).maybeSingle()
+  if (!plan) return { ok: false, error: "This plan is no longer on sale" }
+  const found = await findDiscountCode(code, plan.carrier_id)
+  if (!found.ok) return found
+  return { ok: true, code: found.code.code, kind: found.code.kind, value: found.code.value }
 }

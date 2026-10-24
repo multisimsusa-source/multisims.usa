@@ -15,6 +15,7 @@ import {
 
 import { buttonVariants } from "@/components/ui/button"
 import { Reveal } from "@/components/patterns/reveal"
+import { Stars } from "@/components/patterns/star-rating"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { FaqList } from "@/components/site/faq-list"
 import { PlanCard } from "@/components/site/plan-card"
@@ -27,6 +28,7 @@ import {
   getPublishedPlans,
 } from "@/lib/catalog"
 import { faqs } from "@/lib/faq"
+import { getFeaturedReviews } from "@/lib/reviews"
 import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import heroPhoto from "@/public/images/new-york-skyline-golden-hour.jpg"
@@ -87,10 +89,11 @@ const trips: {
 ]
 
 export default async function HomePage() {
-  const [plans, carriers, addon] = await Promise.all([
+  const [plans, carriers, addon, reviews] = await Promise.all([
     getPublishedPlans(),
     getActiveCarriers(),
     getIntlCallingAddon(),
+    getFeaturedReviews(),
   ])
 
   const carriersWithPlans = carriers.filter((c) =>
@@ -581,6 +584,39 @@ export default async function HomePage() {
           </Reveal>
         </Container>
       </section>
+
+      {/* Featured customer reviews: real ratings the owner chose, labelled as such. Hidden
+          until one is featured; never an average or a count. */}
+      {reviews.length ? (
+        <section aria-labelledby="reviews" className="border-t bg-canvas">
+          <Container className="py-20 sm:py-24">
+            <Reveal>
+              <h2 id="reviews" className="max-w-md text-3xl font-semibold sm:text-4xl">
+                Featured customer reviews
+              </h2>
+              <p className="mt-3 max-w-[60ch] text-muted-foreground">
+                Customers rate their order after delivery. These are ones we chose to show.
+              </p>
+            </Reveal>
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((r, i) => (
+                <Reveal as="li" index={i} key={r.id} className="flex flex-col rounded-xl border bg-card p-5 sm:p-6">
+                  <Stars rating={r.rating} />
+                  {r.comment ? (
+                    <blockquote className="mt-4 flex-1 text-pretty">{r.comment}</blockquote>
+                  ) : (
+                    <p className="mt-4 flex-1 text-muted-foreground">Rated {r.rating} out of 5.</p>
+                  )}
+                  <p className="mt-5 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{r.display_name}</span>, {r.plan},{" "}
+                    {new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(r.created_at))}
+                  </p>
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
 
       {/* Dealers and wholesalers. */}
       <section aria-labelledby="dealers" className="border-t bg-canvas">

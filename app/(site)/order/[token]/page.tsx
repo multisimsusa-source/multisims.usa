@@ -26,10 +26,11 @@ import {
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Order } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { requestActivation, startPayment } from "./actions"
+import { createTicket, requestActivation, startPayment } from "./actions"
 import { ContactPanel } from "./contact-panel"
 import { LiveRefresh } from "./live-refresh"
 import { ActivateButton, PayButton } from "./pay-button"
+import { ReviewPanel } from "./review-panel"
 import { SupportPanel } from "./support-panel"
 
 export const metadata: Metadata = {
@@ -57,7 +58,7 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
   ])
   if (!data) notFound()
 
-  const { order, items, pendingReplacements, activations, tickets, ticketTypes, lastMessageAt } = data
+  const { order, items, pendingReplacements, activations, tickets, ticketTypes, lastMessageAt, review } = data
   const status = customerOrderStatus(order)
   const esim = order.product_type === "esim"
   const unpaid = order.status === "awaiting_payment"
@@ -146,6 +147,11 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
             <ActivationPanel token={order.public_token} activation={a} single={activations.length === 1} />
           </div>
         ))}
+        {order.status === "fulfilled" && order.channel === "website" ? (
+          <div className="mt-4">
+            <ReviewPanel token={order.public_token} given={review} />
+          </div>
+        ) : null}
         {processing ? (
           <div className="mt-4">
             <ContactPanel token={order.public_token} availableAt={availableAt} alreadySent={Boolean(lastMessageAt)} />
@@ -235,7 +241,7 @@ async function OrderView({ params, searchParams }: PageProps<"/order/[token]">) 
 
           {ticketItems.length > 0 && ticketTypes.length > 0 ? (
             <div className="mt-4">
-              <SupportPanel token={order.public_token} orderLabel={orderLabel(order)} types={ticketTypes} items={ticketItems} />
+              <SupportPanel submit={createTicket.bind(null, order.public_token)} orderLabel={orderLabel(order)} types={ticketTypes} items={ticketItems} />
             </div>
           ) : null}
         </section>
