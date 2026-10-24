@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MultiSims USA Admin Guide</title>
+<style>
+  @page { size: A4; margin: 22mm 20mm 20mm; }
+  :root { --plum: #3d0c35; --copper: #a07440; --ink: #1d1a22; --muted: #5d5866; --line: #e4e1ea; --soft: #f6f4f8; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  .cover { height: 245mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }
+  .logo { font-family: "Bodoni 72", Didot, Georgia, serif; color: var(--plum); font-size: 30pt; letter-spacing: 0.02em; }
+  .logo small { display: block; font-family: "Helvetica Neue", Helvetica, sans-serif; font-size: 7.5pt; letter-spacing: 0.32em; color: var(--copper); margin-top: 2px; }
+  .cover h1 { font-size: 34pt; font-weight: 600; letter-spacing: -0.02em; margin-top: 60mm; }
+  .cover p.lead { font-size: 13pt; color: var(--muted); max-width: 120mm; margin-top: 6mm; }
+  .cover .meta { font-size: 9.5pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 4mm; }
+  h2 { font-size: 17pt; font-weight: 600; color: var(--plum); margin: 0 0 3mm; padding-top: 2mm; }
+  h2 .n { color: var(--copper); font-weight: 500; margin-right: 3mm; }
+  section { margin-bottom: 9mm; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  p, li, .note { orphans: 3; widows: 3; }
+  .note, li { break-inside: avoid; }
+  section.keep { break-inside: avoid; }
+  h3 { font-size: 11.5pt; font-weight: 600; margin: 5mm 0 1.5mm; }
+  p { margin: 0 0 2.5mm; }
+  ol, ul { margin: 0 0 3mm; padding-left: 5.5mm; }
+  li { margin-bottom: 1.2mm; }
+  b { font-weight: 600; }
+  .path { font-weight: 600; color: var(--plum); }
+  .note { background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 3mm 4mm; margin: 3mm 0 4mm; font-size: 10pt; }
+  .note b:first-child { color: var(--plum); }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 10pt; page-break-inside: avoid; }
+  th { text-align: left; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--ink); padding: 1.5mm 2mm 1.5mm 0; }
+  td { border-bottom: 1px solid var(--line); padding: 2mm 2mm 2mm 0; vertical-align: top; }
+  td:first-child { font-weight: 600; white-space: nowrap; padding-right: 5mm; }
+  .toc { columns: 2; column-gap: 10mm; padding-left: 0; list-style: none; counter-reset: t; }
+  .toc li { counter-increment: t; margin-bottom: 2mm; }
+  .toc li::before { content: counter(t) "."; color: var(--copper); display: inline-block; width: 7mm; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">MSU<small>MULTISIMS.USA</small></div>
+  <div>
+    <h1>Admin guide</h1>
+    <p class="lead">How to run the website, the team and your dealers from the admin portal. Keep it next to you for the first few weeks.</p>
+  </div>
+  <div class="meta">MultiSims USA &middot; Version 1 &middot; October 2026</div>
+</div>
+
+<section>
+  <h2>What is in this guide</h2>
+  <ol class="toc">
+    <li>Signing in and finding your way</li>
+    <li>Your day at a glance</li>
+    <li>Carriers and plans</li>
+    <li>Prices, sales and discount codes</li>
+    <li>International calling</li>
+    <li>Orders</li>
+    <li>Tickets and replacements</li>
+    <li>Agents</li>
+    <li>Dealers and their balance</li>
+    <li>Reviews</li>
+    <li>Reports</li>
+    <li>Settings</li>
+    <li>Good to know</li>
+  </ol>
+</section>
+
+<section>
+  <h2><span class="n">1</span>Signing in and finding your way</h2>
+  <p>Go to <span class="path">multisimsusa.com/portal/login</span> and sign in with your email and password. You land on the Overview. Agents and dealers use the same sign in page and each of them only sees their own portal.</p>
+  <p>The menu on the left is grouped the way you work:</p>
+  <table>
+    <tr><th>Group</th><th>What is there</th></tr>
+    <tr><td>Top</td><td>Overview and Reports</td></tr>
+    <tr><td>Orders</td><td>Orders, Agent queue, Tickets, Activations, Customers, Reviews</td></tr>
+    <tr><td>Catalogue</td><td>Carriers, Plans, Add-ons, Discounts</td></tr>
+    <tr><td>Team</td><td>Agents, Dealers, Settings</td></tr>
+  </table>
+  <p>The bar at the top shows the bell (your notifications), a sound switch for new order alerts, a link to the website and the light or dark theme. Your name at the bottom of the menu opens your account and Sign out.</p>
+  <p>Everything works on a phone. On a small screen the menu opens from the button at the top left.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">2</span>Your day at a glance</h2>
+  <h3>Overview</h3>
+  <p>The tiles at the top show sales, orders paid, SIMs delivered, orders waiting right now and dealer funds that came in. Under each figure you see how it compares with the period before. Change the period with the box above the tiles (today, 7 days, 30 days, this month or your own dates).</p>
+  <p><b>Needs attention</b> appears only when something needs you, for example an order an agent flagged or a replacement waiting for your approval. Click it and deal with it first.</p>
+  <h3>Notifications</h3>
+  <p>The bell shows new orders, flagged orders, customer messages, new tickets and dealer top ups as they happen. A number on the bell means unread items. Click one to open it, or use Mark all as read.</p>
+  <h3>Emails</h3>
+  <p>You also get an email when an order sits unclaimed for too long, when a customer sends a message and when a ticket comes in. The address and the waiting time are set in <span class="path">Settings</span>.</p>
+</section>
+
+<section>
+  <h2><span class="n">3</span>Carriers and plans</h2>
+  <h3>Carriers</h3>
+  <p>In <span class="path">Carriers</span> you add a network with its name and logo, and switch <b>On website</b> on or off. Hiding a carrier hides all of its plans at once, which is handy when a network has a problem. Carriers show on the home page in the order of this list.</p>
+  <h3>Adding a plan</h3>
+  <ol>
+    <li>Open <span class="path">Plans</span> and click New plan.</li>
+    <li>Pick the carrier and the product: eSIM or SIM card.</li>
+    <li>Fill in the plan details: name, a short summary, data allowance, hotspot, talk, text, network and speed, any slowdown after a data limit and the countries covered. Leave a field empty if it does not apply.</li>
+    <li>Save. The plan is created as a draft, so nobody sees it yet.</li>
+    <li>Add the day packages (see the next part). <b>Quick fill days</b> adds the usual lengths in one click.</li>
+    <li>Switch <b>Published</b> on and save.</li>
+  </ol>
+  <div class="note"><b>When is a plan on the website?</b> Only when three things are true: the plan is published, its carrier is on the website, and at least one day package is on sale. The plan page tells you which one is missing.</div>
+  <h3>Day packages</h3>
+  <p>Each plan is sold in lengths of days, and each length has its own price. A package row has:</p>
+  <table>
+    <tr><th>Field</th><th>Meaning</th></tr>
+    <tr><td>Length</td><td>Number of days, any number you like</td></tr>
+    <tr><td>Price</td><td>The normal price on the website</td></tr>
+    <tr><td>Sale</td><td>Optional. A lower price for a promotion. Leave empty for no sale</td></tr>
+    <tr><td>Wholesale</td><td>What dealers pay. Leave empty and dealers will not see this length</td></tr>
+    <tr><td>On sale</td><td>Switch off to stop selling one length without deleting it</td></tr>
+  </table>
+  <p>Price changes show on the website within a few seconds.</p>
+  <h3>Pausing or removing a plan</h3>
+  <p>To stop selling a plan for a while, switch <b>Published</b> off and save. It keeps everything and you can put it back any time. <b>Delete plan</b> removes it for good and its page stops working, so only use it for plans you will never sell again.</p>
+</section>
+
+<section>
+  <h2><span class="n">4</span>Prices, sales and discount codes</h2>
+  <h3>Sale prices</h3>
+  <p>Put a price in the Sale field of a package. The website then shows the sale price with the normal price crossed out and a Sale label. Clear the field to end the sale.</p>
+  <div class="note"><b>Please note.</b> Only show a crossed out price that you really charged before. US rules do not allow made up "was" prices.</div>
+  <h3>Discount codes</h3>
+  <p>In <span class="path">Discounts</span> click New discount code and set:</p>
+  <ul>
+    <li>the code customers type, for example SUMMER10</li>
+    <li>a percentage or a fixed amount off</li>
+    <li>optionally one carrier only, start and end dates, and how many times it can be used</li>
+  </ul>
+  <p>Customers enter it at checkout under "Have a discount code?". Codes work on website orders only. They never reduce shipping or the network fee, and the minimum order is checked after the discount. A use is only counted when the order is paid. Switch a code off at any time to stop it.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">5</span>International calling</h2>
+  <p>In <span class="path">Add-ons</span> you set the price of international calling (website and wholesale) and whether it is offered. Customers switch it on when they pick their days.</p>
+  <p>The list of countries and their minute caps comes from the carrier's rate table. Customers see it under "See where you can call" on the plan page and at checkout. When the carrier sends a new table, use <b>Replace list</b> on the same page.</p>
+</section>
+
+<section>
+  <h2><span class="n">6</span>Orders</h2>
+  <p>Agents fill orders from the agent queue. As the owner you mostly watch, and step in when something goes wrong.</p>
+  <h3>What the statuses mean</h3>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td>Awaiting payment</td><td>Customer started checkout but has not paid yet</td></tr>
+    <tr><td>In queue</td><td>Paid and waiting for an agent</td></tr>
+    <tr><td>Claimed</td><td>An agent is working on it</td></tr>
+    <tr><td>Needs attention</td><td>An agent flagged it for you</td></tr>
+    <tr><td>Shipped</td><td>A SIM card was posted, with a tracking number</td></tr>
+    <tr><td>Delivered</td><td>The eSIM or the SIM details were sent to the customer</td></tr>
+    <tr><td>Cancelled</td><td>Stopped, nothing more happens</td></tr>
+  </table>
+  <p>Customers and dealers only ever see Processing, Shipped, Delivered or Cancelled.</p>
+  <h3>What you can do on an order</h3>
+  <p>Open any order from <span class="path">Orders</span>. Depending on its status you can:</p>
+  <ul>
+    <li><b>Reassign</b> it to another agent, or put it back in the queue</li>
+    <li>Fill it yourself, the same way an agent does</li>
+    <li><b>Send back with an instruction</b> when an agent flagged it, for example "Deliver the nearest available area code"</li>
+    <li><b>Mark as paid</b> if a payment arrived but the order did not update</li>
+    <li><b>Cancel order</b>, with a short reason only you see</li>
+    <li><b>Record a refund</b>, with the details of the crypto you sent back</li>
+  </ul>
+  <p>Use the search and filters at the top of the list to find an order by number, name, email or phone.</p>
+  <h3>Activations and customers</h3>
+  <p><span class="path">Activations</span> lists every SIM that was delivered or shipped. Search it by phone number, ICCID, order number or email. <span class="path">Customers</span> lists everyone who ordered on the website and can be downloaded as a file for your records.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">7</span>Tickets and replacements</h2>
+  <p>Customers report a problem from their order page. Dealers do the same from their portal. Each report becomes a ticket in <span class="path">Tickets</span>, the most urgent first.</p>
+  <p>Open a ticket, write one clear answer and set its status. The customer sees the answer on their order page and gets it by email.</p>
+  <p>If a SIM has to be replaced, use <b>Issue replacement</b>. It creates a free new order that goes to the queue. If you switched on "Replacements wait for my approval" in Settings, replacements raised by agents wait for you first.</p>
+  <p>You choose which problem types customers can pick (for example No signal) in <span class="path">Settings</span>.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">8</span>Agents</h2>
+  <ul>
+    <li><b>New agent:</b> in <span class="path">Agents</span>, enter their name, email and a password, then share the login with them.</li>
+    <li><b>Reset password:</b> set a new one from the agent's row.</li>
+    <li><b>Switch off a login</b> when someone leaves. They can no longer sign in, and any orders they had claimed go back to the queue.</li>
+  </ul>
+  <p>Every active agent gets the new order and ticket emails.</p>
+</section>
+
+<section>
+  <h2><span class="n">9</span>Dealers and their balance</h2>
+  <p>Dealers buy in bulk from their own portal. They pay from a balance held with you, never at checkout.</p>
+  <h3>Setting up a dealer</h3>
+  <ol>
+    <li>In <span class="path">Dealers</span> click New dealer. Enter the company, the contact's name, email and a password, then share the login.</li>
+    <li>Open the dealer. Under the prices grid, set any prices that differ from your normal wholesale prices. Leave a box empty to use the normal one. Click Save prices.</li>
+    <li>Set the <b>Dealer SIM card price</b> if this dealer pays a different amount per physical SIM card.</li>
+    <li>Set <b>Credit allowed</b>. This is how far below zero they may order. 0 means they pay first.</li>
+    <li>Add funds so they can start ordering.</li>
+  </ol>
+  <h3>Adding money</h3>
+  <p>There are two ways money comes in:</p>
+  <ul>
+    <li><b>They top up in crypto</b> from their Wallet page. The money is added by itself once the payment is complete. If they pay less than the invoice, nothing is added and you get an email, so you can add the right amount by hand.</li>
+    <li><b>You add funds by hand</b>, for example after a bank transfer or a payment on WhatsApp. On the dealer page use <b>Add funds</b>, enter the amount and a note such as "Paid on WhatsApp for 100 activations".</li>
+  </ul>
+  <p>To fix a mistake use <b>Correction</b>, choose Add to balance or Take from balance and say what was wrong. The dealer sees the note next to the amount. Nothing in the wallet history can be edited or deleted, so every change stays on record.</p>
+  <h3>How their balance moves</h3>
+  <p>When a dealer places an order, the full amount is held. Each SIM is only charged when it is delivered. If you cancel an order, whatever was not delivered goes back to their balance. A refund on a dealer order is paid back into their balance.</p>
+  <h3>Suspending a dealer</h3>
+  <p>Switch the dealer to <b>Suspended</b> to stop new orders and sign ins. Orders already in progress are still filled.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">10</span>Reviews</h2>
+  <p>When an order is delivered, the customer can rate it from their order page or from the delivery email. All ratings arrive in <span class="path">Reviews</span>.</p>
+  <p>Nothing shows on the website until you switch <b>Featured</b> on for a review. Featured reviews appear on the home page with the customer's first name, stars and comment. The site never shows an average or a count. Use <b>Hide</b> for reviews you do not want to keep in the list.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">11</span>Reports</h2>
+  <p><span class="path">Reports</span> shows sales, deliveries, tickets and replacements for any dates. Narrow it by carrier, dealer, agent or channel (website or dealer). Each table has a total row and a <b>CSV</b> button that downloads it for Excel or Google Sheets.</p>
+</section>
+
+<section class="keep">
+  <h2><span class="n">12</span>Settings</h2>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Your alert email</td><td>Where unclaimed order alerts, customer messages and new tickets go</td></tr>
+    <tr><td>Unclaimed alert after</td><td>Minutes an order can wait before you get an email</td></tr>
+    <tr><td>Minimum order</td><td>Smallest website order allowed</td></tr>
+    <tr><td>Shipping fee</td><td>Charged once on an order with SIM cards, however many. eSIMs never pay shipping</td></tr>
+    <tr><td>Network fee</td><td>Charged once on every website order to cover the crypto network cost</td></tr>
+    <tr><td>Dealer SIM card price</td><td>Default price per physical SIM card for dealers</td></tr>
+    <tr><td>Replacement approval</td><td>When on, replacements raised by agents wait for you</td></tr>
+    <tr><td>Replacements per order</td><td>The most free replacements one order can get</td></tr>
+    <tr><td>Issue types</td><td>The problems customers can choose when they report one</td></tr>
+  </table>
+</section>
+
+<section class="keep">
+  <h2><span class="n">13</span>Good to know</h2>
+  <ul>
+    <li>Changes to carriers, plans and prices show on the website straight away. There is nothing to publish separately.</li>
+    <li>The website never says a person fills the orders. Customers see Processing, Shipped and Delivered.</li>
+    <li>Payments are in crypto through NOWPayments. An order only moves to the queue once the payment is confirmed.</li>
+    <li>Customers do not need an account. Each order has its own private link, sent by email, where they see their eSIM, tracking and messages.</li>
+    <li>If something looks wrong, take a screenshot and send it to us on WhatsApp with the order number.</li>
+  </ul>
+</section>
+
+</body>
+</html>
