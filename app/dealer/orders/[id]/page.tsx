@@ -37,6 +37,14 @@ import { createServiceClient } from "@/lib/supabase/service"
 import { cn } from "@/lib/utils"
 import { LineSupport } from "@/components/dealer/line-support"
 import { createDealerTicket } from "../../tickets/actions"
+import { RatingDialog } from "@/components/patterns/rating-form"
+import {
+  DEALER_CONSENT,
+  itemRateable,
+  orderRateable,
+  type GivenReview,
+} from "@/lib/review-rules"
+import { saveDealerReview } from "../actions"
 import { ActivateCardsButton } from "./activate-button"
 
 export const metadata: Metadata = { title: "Order" }
@@ -73,7 +81,7 @@ async function BatchDetail({
   const batch = await getBatch(supabase, id)
   if (!batch) notFound()
 
-  const [items, { data: ledgerRows }, { data: ticketTypes }] =
+  const [items, { data: ledgerRows }, { data: ticketTypes }, { data: reviewRows }] =
     await Promise.all([
       listBatchItems(
         supabase,
@@ -88,7 +96,17 @@ async function BatchDetail({
         .select("id, name")
         .eq("active", true)
         .order("display_order"),
+      supabase
+        .from("reviews")
+        .select("order_id, order_item_id, rating, comment, updated_at")
+        .in(
+          "order_id",
+          batch.orders.map((o) => o.id)
+        ),
     ])
+  const reviews = new Map<string, GivenReview>()
+  for (const r of reviewRows ?? [])
+    reviews.set(r.order_item_id ?? `line:${r.order_id}`, r)
 
   // QR codes are private; signed for an hour, read with the service role once ownership is known.
   const qrPaths = items
@@ -169,6 +187,7 @@ async function BatchDetail({
               items={itemsByOrder.get(order.id) ?? []}
               qrUrl={qrUrl}
               ticketTypes={ticketTypes ?? []}
+              reviews={reviews}
             />
           ))}
 
@@ -187,6 +206,7 @@ async function BatchDetail({
                   items={itemsByOrder.get(order.id) ?? []}
                   qrUrl={qrUrl}
                   replacement
+                  reviews={reviews}
                 />
               ))}
             </section>
@@ -271,12 +291,15 @@ function LineCard({
   qrUrl,
   replacement,
   ticketTypes = [],
+  reviews,
 }: {
   order: BatchOrder
   items: BatchItem[]
   qrUrl: Map<string, string>
   replacement?: boolean
   ticketTypes?: { id: string; name: string }[]
+  /** The dealer's ratings, by SIM id, and by "line:<order id>" for whole lines. */
+  reviews: Map<string, GivenReview>
 }) {
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
@@ -342,6 +365,15 @@ function LineCard({
                 ) : itemStatus !== status ? (
                   <CustomerStatusTag status={itemStatus} />
                 ) : null}
+                {items.length > 1 && itemRateable(order, item) ? (
+                  <RatingDialog
+                    action={saveDealerReview.bind(null, order.id, item.id)}
+                    given={reviews.get(item.id) ?? null}
+                    subject={`SIM ${item.seq} of ${orderLabel(order)}`}
+                    description="How is this SIM working?"
+                    consent={DEALER_CONSENT}
+                  />
+                ) : null}
                 {esim && url && !replaced ? (
                   <a
                     href={url}
@@ -362,6 +394,20 @@ function LineCard({
           )
         })}
       </ul>
+      {orderRateable(order) ? (
+        <div className="flex items-center justify-between gap-3 border-t px-4 py-2 sm:px-5">
+          <p className="text-sm text-muted-foreground">
+            How was this line?
+          </p>
+          <RatingDialog
+            action={saveDealerReview.bind(null, order.id, null)}
+            given={reviews.get(`line:${order.id}`) ?? null}
+            subject={`line ${orderLabel(order)}`}
+            description={`${order.carrier_name} ${order.plan_name}, ${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}. Rate it from 1 to 5 stars.`}
+            consent={DEALER_CONSENT}
+          />
+        </div>
+      ) : null}
       {!replacement && delivered.length && ticketTypes.length ? (
         <LineSupport
           submit={createDealerTicket.bind(null, order.id)}

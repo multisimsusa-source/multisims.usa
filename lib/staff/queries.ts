@@ -99,7 +99,11 @@ export type WorkOrder = {
   messages: { id: string; message: string; created_at: string }[]
   payments: Payment[]
   allowance: ReplacementAllowance
+  /** Ratings of this order and its SIMs. Only the owner can read them (RLS); empty for agents. */
+  reviews: WorkReview[]
 }
+
+export type WorkReview = { id: string; order_item_id: string | null; rating: number; comment: string; featured: boolean; hidden: boolean; created_at: string; updated_at: string | null }
 
 /** Replacements already issued on an order (not counting cancelled ones) against the limit in Settings. */
 export type ReplacementAllowance = { used: number; limit: number }
@@ -147,6 +151,11 @@ export async function getWorkOrder(id: string): Promise<WorkOrder | null> {
       : Promise.resolve(null),
     getReplacementAllowance(supabase, rootId),
   ])
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("id, order_item_id, rating, comment, featured, hidden, created_at, updated_at")
+    .eq("order_id", id)
+    .order("created_at")
 
   const rows = (items ?? []) as OrderItem[]
   const paths = rows.map((i) => i.qr_path).filter((p): p is string => Boolean(p))
@@ -165,6 +174,7 @@ export async function getWorkOrder(id: string): Promise<WorkOrder | null> {
     messages: messages ?? [],
     payments: (payments ?? []) as Payment[],
     allowance,
+    reviews: (reviews ?? []) as WorkReview[],
   }
 }
 

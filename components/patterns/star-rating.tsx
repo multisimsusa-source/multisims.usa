@@ -34,7 +34,7 @@ export function StarRatingInput({
             <label
               key={n}
               onMouseEnter={() => setHover(n)}
-              className="flex size-11 cursor-pointer items-center justify-center rounded-md transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+              className="relative flex size-11 cursor-pointer items-center justify-center rounded-md transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
             >
               <input type="radio" name={name} value={n} checked={value === n} onChange={() => onChange(n)} aria-label={label} className="sr-only" />
               <StarIcon weight={on ? "fill" : "regular"} className={cn("size-7 transition-colors", on ? "text-copper" : "text-muted-foreground")} />

@@ -10,6 +10,7 @@ import { Stars } from "@/components/patterns/star-rating"
 import { Tag } from "@/components/patterns/tag"
 import { UrlFilters } from "@/components/staff/url-filters"
 import { formatDateTime, orderLabel } from "@/lib/orders"
+import type { ProductType } from "@/lib/types"
 import { createClient } from "@/lib/supabase/server"
 import { FeatureSwitch, HideButton } from "./review-controls"
 
@@ -23,17 +24,36 @@ type Row = {
   featured: boolean
   hidden: boolean
   created_at: string
-  order: { id: string; number: number; carrier_name: string; plan_name: string; customer_email: string }
+  updated_at: string | null
+  order_item_id: string | null
+  item: { seq: number } | null
+  order: {
+    id: string
+    number: number
+    carrier_name: string
+    plan_name: string
+    product_type: ProductType
+    channel: "website" | "dealer"
+    replaces_item_id: string | null
+  }
+}
+
+/** What the review is of: the whole order, or one SIM on it. */
+function subjectOf(r: Row) {
+  if (!r.order_item_id) return r.order.channel === "dealer" ? "Whole line" : "Whole order"
+  const unit = r.order.product_type === "esim" ? "eSIM" : "SIM card"
+  return r.order.replaces_item_id ? `Replacement ${unit}` : `${unit} ${r.item?.seq ?? ""}`.trim()
 }
 
 const SHOW = ["all", "featured", "new", "hidden"] as const
+const FROM = ["all", "website", "dealer"] as const
 
 export default function ReviewsPage({ searchParams }: PageProps<"/admin/reviews">) {
   return (
     <>
       <AdminPageHeader
         title="Reviews"
-        description="Customers rate their order after delivery. Switch on Featured for the ones to show on the website, labelled as featured customer reviews. The website never shows an average or a count."
+        description="Customers and dealers rate orders and single SIMs, and may change a rating later. Switch on Featured for the customer reviews to show on the website; a changed review comes off until you feature it again. Dealer ratings are never shown. The website never shows an average or a count."
       />
       <Suspense fallback={<ListSkeleton rows={5} />}>
         <Reviews searchParams={searchParams} />
@@ -47,11 +67,14 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
   const params = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "string")) as Record<string, string>
   const show = SHOW.includes(params.show as (typeof SHOW)[number]) ? (params.show as (typeof SHOW)[number]) : "all"
   const stars = /^[1-5]$/.test(params.stars ?? "") ? Number(params.stars) : null
+  const from = FROM.includes(params.from as (typeof FROM)[number]) ? (params.from as (typeof FROM)[number]) : "all"
 
   const supabase = await createClient()
   let query = supabase
     .from("reviews")
-    .select("id, rating, comment, display_name, featured, hidden, created_at, order:orders!inner ( id, number, carrier_name, plan_name, customer_email )")
+    .select(
+      "id, rating, comment, display_name, featured, hidden, created_at, updated_at, order_item_id, item:order_items ( seq ), order:orders!inner ( id, number, carrier_name, plan_name, product_type, channel, replaces_item_id )"
+    )
     .order("created_at", { ascending: false })
     .limit(300)
   if (show === "featured") query = query.eq("featured", true)
@@ -59,6 +82,7 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
   else if (show === "hidden") query = query.eq("hidden", true)
   else query = query.eq("hidden", false)
   if (stars) query = query.eq("rating", stars)
+  if (from !== "all") query = query.eq("order.channel", from)
   const { data } = await query
   const reviews = (data ?? []) as unknown as Row[]
 
@@ -82,6 +106,16 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
             ],
           },
           {
+            param: "from",
+            label: "From",
+            value: from,
+            items: [
+              { value: "all", label: "Customers and dealers" },
+              { value: "website", label: "Customers" },
+              { value: "dealer", label: "Dealers" },
+            ],
+          },
+          {
             param: "stars",
             label: "Stars",
             value: stars ? String(stars) : "all",
@@ -97,6 +131,8 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
                 <p className="flex flex-wrap items-center gap-2">
                   <Stars rating={r.rating} />
                   <span className="text-sm font-medium">{r.display_name}</span>
+                  {r.order.channel === "dealer" ? <Tag tone="brand">Dealer</Tag> : null}
+                  <span className="text-sm text-muted-foreground">{subjectOf(r)}</span>
                   {r.featured ? <Tag tone="success">On website</Tag> : null}
                   {r.hidden ? <Tag tone="neutral">Hidden</Tag> : null}
                 </p>
@@ -106,18 +142,29 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
                     {orderLabel(r.order)}
                   </Link>{" "}
                   {r.order.carrier_name} {r.order.plan_name}, <span className="tabular">{formatDateTime(r.created_at)}</span>
+                  {r.updated_at ? (
+                    <>
+                      , changed <span className="tabular">{formatDateTime(r.updated_at)}</span>
+                    </>
+                  ) : null}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {r.hidden ? null : <FeatureSwitch id={r.id} featured={r.featured} name={r.display_name} />}
+                {r.hidden ? null : r.order.channel === "dealer" ? (
+                  <span className="text-sm text-muted-foreground">Not for the website</span>
+                ) : (
+                  <FeatureSwitch id={r.id} featured={r.featured} name={r.display_name} />
+                )}
                 <HideButton id={r.id} hidden={r.hidden} />
               </div>
             </li>
           ))}
         </ul>
       ) : (
-        <EmptyState icon={<StarIcon />} title={show === "all" && !stars ? "No reviews yet" : "No reviews match"}>
-          {show === "all" && !stars ? "After an order is delivered, the customer can rate it from their order page and the delivery email." : "Try another filter."}
+        <EmptyState icon={<StarIcon />} title={show === "all" && !stars && from === "all" ? "No reviews yet" : "No reviews match"}>
+          {show === "all" && !stars && from === "all"
+            ? "Customers rate their order and each SIM from their order page once it is delivered (a SIM card: once it arrives). Dealers rate lines and SIMs from their portal."
+            : "Try another filter."}
         </EmptyState>
       )}
     </div>

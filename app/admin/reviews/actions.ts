@@ -12,6 +12,12 @@ export async function setReviewFeatured(id: string, featured: boolean): Promise<
   await requireRole("admin")
   if (!z.uuid().safeParse(id).success) return { ok: false, error: "Unknown review" }
   const supabase = await createClient()
+  if (featured) {
+    const { data: review } = await supabase.from("reviews").select("order:orders!inner ( channel )").eq("id", id).maybeSingle()
+    const channel = (review?.order as unknown as { channel: string } | undefined)?.channel
+    if (!review) return { ok: false, error: "Unknown review" }
+    if (channel !== "website") return { ok: false, error: "Dealer ratings are not shown on the website." }
+  }
   const { error } = await supabase
     .from("reviews")
     .update({ featured, featured_at: featured ? new Date().toISOString() : null, ...(featured ? { hidden: false } : {}) })

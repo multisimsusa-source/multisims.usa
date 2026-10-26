@@ -1,6 +1,7 @@
 import "server-only"
 
 import { createServiceClient } from "@/lib/supabase/service"
+import type { GivenReview } from "@/lib/review-rules"
 import type { Order, OrderItem, Ticket, TicketType } from "@/lib/types"
 
 /** How long a QR link on the order page stays valid. Reloading the page issues a new one. */
@@ -27,8 +28,8 @@ export type CustomerOrder = {
   tickets: Pick<Ticket, "id" | "number" | "type_name" | "severity" | "status" | "answer" | "created_at" | "order_item_id">[]
   ticketTypes: Pick<TicketType, "id" | "name">[]
   lastMessageAt: string | null
-  /** The customer's own rating of this order, once given. */
-  review: { rating: number; comment: string } | null
+  /** The customer's own ratings: of the whole order, and of single SIMs by item id. */
+  reviews: { order: GivenReview | null; items: Record<string, GivenReview> }
 }
 
 export type Activation = {
@@ -65,7 +66,7 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
     .order("created_at")
 
   const orderIds = [order.id, ...(replacementOrders ?? []).map((r) => r.id)]
-  const [{ data: itemRows }, { data: tickets }, { data: types }, { data: lastMessage }, { data: review }] = await Promise.all([
+  const [{ data: itemRows }, { data: tickets }, { data: types }, { data: lastMessage }, { data: reviewRows }] = await Promise.all([
     db.from("order_items").select("*").in("order_id", orderIds).order("seq"),
     db
       .from("tickets")
@@ -74,7 +75,7 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
       .order("created_at", { ascending: false }),
     db.from("ticket_types").select("id, name").eq("active", true).order("display_order"),
     db.from("order_messages").select("created_at").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("reviews").select("rating, comment").eq("order_id", order.id).maybeSingle(),
+    db.from("reviews").select("order_id, order_item_id, rating, comment, updated_at").in("order_id", orderIds),
   ])
 
   const all = (itemRows ?? []) as OrderItem[]
@@ -129,6 +130,9 @@ export async function getCustomerOrder(token: string): Promise<CustomerOrder | n
     tickets: tickets ?? [],
     ticketTypes: types ?? [],
     lastMessageAt: lastMessage?.created_at ?? null,
-    review: review ?? null,
+    reviews: {
+      order: (reviewRows ?? []).find((r) => r.order_id === order.id && !r.order_item_id) ?? null,
+      items: Object.fromEntries((reviewRows ?? []).filter((r) => r.order_item_id).map((r) => [r.order_item_id as string, r])),
+    },
   }
 }

@@ -19,6 +19,8 @@ import { fileTicket, ticketValues } from "@/lib/tickets"
 import { verifyTurnstile } from "@/lib/turnstile"
 import type { Order } from "@/lib/types"
 import type { FormState } from "@/lib/form-state"
+import { itemRateable, orderRateable, reviewSchema } from "@/lib/review-rules"
+import { writeReview } from "@/lib/review-store"
 
 export type { FormState }
 
@@ -216,21 +218,14 @@ export async function createTicket(
   return state
 }
 
-const reviewSchema = z.object({
-  rating: z.coerce
-    .number()
-    .int()
-    .min(1, "Choose 1 to 5 stars")
-    .max(5, "Choose 1 to 5 stars"),
-  comment: z.string().trim().max(500, "Keep it under 500 characters"),
-})
-
 /**
- * The customer rates a delivered website order, once. Stored for the owner, who decides
- * which to feature on the website; nothing is shown publicly until then.
+ * The customer rates their order, or one SIM on it, and may change it later. Stored for
+ * the owner, who decides which to feature on the website; nothing is public until then.
+ * itemId null rates the whole order. A SIM may belong to a replacement of this order.
  */
-export async function submitReview(
+export async function saveReview(
   token: string,
+  itemId: string | null,
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
@@ -238,7 +233,7 @@ export async function submitReview(
     rating: String(formData.get("rating") ?? ""),
     comment: String(formData.get("comment") ?? ""),
   }
-  if (!(await rateLimit(`review:${await clientIp()}`, 10, 60 * 60_000)).ok) {
+  if (!(await rateLimit(`review:${await clientIp()}`, 30, 60 * 60_000)).ok) {
     return {
       status: "error",
       message: "Too many requests. Please try again later.",
@@ -254,37 +249,60 @@ export async function submitReview(
   }
 
   const order = await loadOrder(token)
-  if (!order || order.channel !== "website")
+  if (!order || order.channel !== "website" || order.replacement_of)
     return { status: "error", message: "We could not find this order.", values }
-  if (order.status !== "fulfilled")
+
+  let target: { orderId: string } | null = null
+  if (itemId === null) {
+    if (orderRateable(order)) target = { orderId: order.id }
+  } else if (z.uuid().safeParse(itemId).success) {
+    const db = createServiceClient()
+    const { data: item } = await db
+      .from("order_items")
+      .select("id, status, order_id")
+      .eq("id", itemId)
+      .maybeSingle()
+    const { data: owner } = item
+      ? await db
+          .from("orders")
+          .select("id, status, product_type, phase, activation_requested_at, replacement_of")
+          .eq("id", item.order_id)
+          .maybeSingle()
+      : { data: null }
+    const belongs =
+      owner && (owner.id === order.id || owner.replacement_of === order.id)
+    if (item && owner && belongs && itemRateable(owner, item))
+      target = { orderId: owner.id }
+  }
+  if (!target)
     return {
       status: "error",
-      message: "You can rate your order once it is delivered.",
+      message:
+        order.product_type === "physical"
+          ? "You can rate it once your SIM card has arrived."
+          : "You can rate it once it is delivered.",
       values,
     }
 
   // First name only, as the customer gave it, for the website if the owner features it.
   const firstName =
     order.customer_name.trim().split(/\s+/)[0].slice(0, 40) || "Customer"
-  const { error } = await createServiceClient().from("reviews").insert({
-    order_id: order.id,
+  const result = await writeReview({
+    orderId: target.orderId,
+    itemId,
     rating: parsed.data.rating,
     comment: parsed.data.comment,
-    display_name: firstName,
+    displayName: firstName,
   })
-  if (error?.code === "23505")
-    return {
-      status: "success",
-      message: "You already rated this order. Thank you.",
-    }
-  if (error) {
-    console.error("[review] insert failed", error)
+  if (result === "failed")
     return {
       status: "error",
       message: "We could not save your rating. Please try again.",
       values,
     }
-  }
   refresh()
-  return { status: "success" }
+  return {
+    status: "success",
+    message: result === "created" ? "Thanks for your rating" : "Rating updated",
+  }
 }

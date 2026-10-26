@@ -28,8 +28,10 @@ export async function getFeaturedReviews(limit = 6): Promise<FeaturedReview[]> {
 
   const { data, error } = await createServiceClient()
     .from("reviews")
-    .select("id, rating, comment, display_name, created_at, order:orders!inner ( carrier_name, plan_name )")
+    .select("id, rating, comment, display_name, created_at, order:orders!inner ( carrier_name, plan_name, channel )")
     .eq("featured", true)
+    // Featuring is refused for dealer ratings; this keeps one off the site if it ever slips through.
+    .eq("order.channel", "website")
     .eq("hidden", false)
     .order("featured_at", { ascending: false })
     .limit(limit)

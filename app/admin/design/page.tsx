@@ -29,12 +29,7 @@ import { RowActions } from "@/components/patterns/row-actions"
 import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletMeter } from "@/components/dealer/wallet-meter"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
-import {
-  DemoFormSection,
-  DemoQuantityStepper,
-  DemoSelect,
-  DemoSwitch,
-} from "./demos"
+import { DemoFormSection, DemoQuantityStepper, DemoRating, DemoSelect, DemoSwitch } from "./demos"
 
 export const metadata: Metadata = { title: "Design system" }
 
@@ -384,6 +379,13 @@ export default function DesignSystemPage() {
               className="text-xl"
             />
           </div>
+        </Block>
+
+        <Block
+          title="Rating an order or a SIM"
+          note="RatingForm: stars plus an optional comment, then the saved rating with Change rating, which reopens the form filled in. Inline it is a card (the whole order); RatingDialog puts it behind a small button per SIM or dealer line, reading Rate, or the given stars to change them. A changed review leaves the website until the owner features it again."
+        >
+          <DemoRating />
         </Block>
 
         <Block

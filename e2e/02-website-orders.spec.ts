@@ -247,6 +247,12 @@ test.describe.serial("Website orders", () => {
     await page.reload()
     await expect(page.getByText("Delivered").first()).toBeVisible()
     await expect(page.getByText("+1 646 555 0201")).toBeVisible()
+
+    // Once the line is live, a SIM card order is rated like an eSIM one.
+    await page.getByRole("radio", { name: "4 stars", exact: true }).check({ force: true })
+    await page.getByRole("button", { name: "Send rating" }).click()
+    await expect(page.getByText("Thanks for rating your order")).toBeVisible()
+    await expect.poll(async () => (await db().from("reviews").select("rating").eq("order_id", order.id).maybeSingle()).data?.rating).toBe(4)
   })
 
   test("owner cancels an order and records the refund; the customer sees it", async ({ browser }) => {

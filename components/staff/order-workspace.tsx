@@ -9,6 +9,7 @@ import {
 
 import { ProductBadge } from "@/components/site/product-mark"
 import { Tag } from "@/components/patterns/tag"
+import { Stars } from "@/components/patterns/star-rating"
 import {
   OrderStatusTag,
   TicketStatusTag,
@@ -64,6 +65,7 @@ export async function OrderWorkspace({
     messages,
     payments,
     allowance,
+    reviews,
   } = data
   const batch = order.batch_id
     ? await getBatchContext(order.batch_id, order.id)
@@ -474,6 +476,53 @@ export async function OrderWorkspace({
                     ) : null}
                   </li>
                 ))}
+              </ul>
+            </Panel>
+          ) : null}
+
+          {isAdmin && reviews.length ? (
+            <Panel
+              title="Ratings"
+              action={
+                <Link
+                  href="/admin/reviews"
+                  className="inline-flex min-h-9 items-center text-sm font-medium text-brand hover:underline"
+                >
+                  All reviews
+                </Link>
+              }
+            >
+              <ul className="flex flex-col divide-y">
+                {reviews.map((r) => {
+                  const item = r.order_item_id
+                    ? items.find((i) => i.id === r.order_item_id)
+                    : null
+                  return (
+                    <li key={r.id} className="py-2 text-sm first:pt-0 last:pb-0">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <Stars rating={r.rating} />
+                        <span className="text-muted-foreground">
+                          {item
+                            ? `${unit} ${item.seq}`
+                            : order.channel === "dealer"
+                              ? "Whole line"
+                              : "Whole order"}
+                        </span>
+                        {r.featured ? <Tag tone="success">On website</Tag> : null}
+                        {r.hidden ? <Tag tone="neutral">Hidden</Tag> : null}
+                      </p>
+                      {r.comment ? (
+                        <p className="mt-1 whitespace-pre-line">{r.comment}</p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTime(r.created_at)}
+                        {r.updated_at
+                          ? `, changed ${formatDateTime(r.updated_at)}`
+                          : ""}
+                      </p>
+                    </li>
+                  )
+                })}
               </ul>
             </Panel>
           ) : null}

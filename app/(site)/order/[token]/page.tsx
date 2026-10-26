@@ -34,7 +34,18 @@ import {
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Order } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { createTicket, requestActivation, startPayment } from "./actions"
+import { RatingDialog } from "@/components/patterns/rating-form"
+import {
+  CUSTOMER_CONSENT,
+  itemRateable,
+  orderRateable,
+} from "@/lib/review-rules"
+import {
+  createTicket,
+  requestActivation,
+  saveReview,
+  startPayment,
+} from "./actions"
 import { ContactPanel } from "./contact-panel"
 import { LiveRefresh } from "./live-refresh"
 import { ActivateButton, PayButton } from "./pay-button"
@@ -83,7 +94,7 @@ async function OrderView({
     tickets,
     ticketTypes,
     lastMessageAt,
-    review,
+    reviews,
   } = data
   const status = customerOrderStatus(order)
   const esim = order.product_type === "esim"
@@ -199,9 +210,13 @@ async function OrderView({
             />
           </div>
         ))}
-        {order.status === "fulfilled" && order.channel === "website" ? (
+        {order.channel === "website" && orderRateable(order) ? (
           <div className="mt-4">
-            <ReviewPanel token={order.public_token} given={review} />
+            <ReviewPanel
+              token={order.public_token}
+              given={reviews.order}
+              physical={!esim}
+            />
           </div>
         ) : null}
         {processing ? (
@@ -235,6 +250,24 @@ async function OrderView({
                   esim={esim}
                   title={itemTitle(item, unit, items.length)}
                   status={customerItemStatus(item.owner, item)}
+                  rating={
+                    // One SIM is rated with the order; with several, each can be rated too.
+                    shown.length > 1 &&
+                    order.channel === "website" &&
+                    itemRateable(item.owner, item) ? (
+                      <RatingDialog
+                        action={saveReview.bind(
+                          null,
+                          order.public_token,
+                          item.id
+                        )}
+                        given={reviews.items[item.id] ?? null}
+                        subject={itemTitle(item, unit, items.length)}
+                        description={`How is ${itemTitle(item, unit, items.length)} working for you?`}
+                        consent={CUSTOMER_CONSENT}
+                      />
+                    ) : null
+                  }
                 />
               </li>
             ))}
@@ -527,11 +560,13 @@ function ItemCard({
   esim,
   title,
   status,
+  rating,
 }: {
   item: CustomerItem
   esim: boolean
   title: string
   status: CustomerStatus
+  rating?: React.ReactNode
 }) {
   const replaced = item.status === "replaced"
   return (
@@ -640,6 +675,12 @@ function ItemCard({
           </p>
         </div>
       </div>
+      {rating ? (
+        <div className="flex items-center justify-between gap-3 border-t px-5 py-2">
+          <p className="text-sm text-muted-foreground">How is it working?</p>
+          {rating}
+        </div>
+      ) : null}
     </article>
   )
 }
