@@ -1,5 +1,6 @@
 import "server-only"
 
+import { formatPlanDate, usToday as usTodayIso } from "@/lib/plan-dates"
 import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import { orderLabel, planStartLabel } from "@/lib/orders"
 import { orderLines } from "@/lib/pricing"
@@ -126,13 +127,20 @@ export function paymentPendingEmail(order: Order, orderUrl: string): Rendered {
   }
 }
 
-export type DeliveredItem = Pick<OrderItem, "seq" | "phone_number" | "iccid" | "tracking_number"> & { qrCid?: string }
+export type DeliveredItem = Pick<OrderItem, "seq" | "phone_number" | "iccid" | "tracking_number" | "plan_starts_on" | "plan_ends_on"> & { qrCid?: string }
 
 export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderUrl: string, opts: { replacement?: boolean } = {}): Rendered {
-  const esim = order.product_type === "esim"
+  // A refill or a card's activation adds days to a line: no QR, nothing posted.
+  const refill = order.kind === "refill"
+  const activation = order.kind === "activation"
+  const esim = order.product_type === "esim" && !refill && !activation
   // Physical SIMs get two emails: shipped (tracking), then active (phone number).
-  const active = !esim && order.status === "fulfilled" && order.phase === "activate"
-  const heading = active
+  const active = !esim && order.status === "fulfilled" && (order.phase === "activate" || refill || activation)
+  const heading = refill
+    ? "Your refill is on"
+    : activation
+      ? "Your SIM card is active"
+      : active
     ? opts.replacement
       ? "Your replacement SIM card is active"
       : items.length > 1
@@ -160,11 +168,15 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     if (item.phone_number) pairs.push(["Phone number", item.phone_number])
     if (item.iccid) pairs.push(["ICCID", item.iccid])
     if (item.tracking_number && !active) pairs.push(["Tracking number", item.tracking_number])
+    if (item.plan_starts_on && item.plan_starts_on > usTodayIso()) pairs.push(["Plan starts", formatPlanDate(item.plan_starts_on)])
+    if (item.plan_ends_on) pairs.push(["Active until", formatPlanDate(item.plan_ends_on)])
     const title = items.length > 1 ? `${esim ? "eSIM" : "SIM"} ${item.seq}` : ""
     return { title, pairs, qrCid: item.qrCid }
   })
 
-  const install = esim
+  const install = refill
+    ? "Nothing to do on your phone: the days are added to the same SIM and number. If your plan was still running, the new days start the day after it ends."
+    : esim
     ? "To install: on your phone open Settings, then Cellular (iPhone) or Connections (Android), choose Add eSIM, and scan the QR code. Install it while you have Wi-Fi, and keep the line switched off until you land in the US if your plan starts on first use."
     : active
       ? "Insert the SIM, restart your phone, and turn on the line. Your plan days count from today."
@@ -174,7 +186,7 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     preheader: esim ? "Scan the QR code to install your line." : active ? "Your phone number is inside." : "Your tracking number is inside.",
     heading,
     body:
-      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${esim ? "delivered" : active ? "active" : "on its way"}.`) +
+      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${refill ? "done" : esim ? "delivered" : active ? "active" : "on its way"}.`) +
       itemBlocks
         .map(
           (b) =>
@@ -231,7 +243,15 @@ export function staffNewOrderEmail(order: Order, workUrl: string, { activation =
   const pairs = orderRows(order)
   if (order.area_code) pairs.push(["Area code", order.area_code])
   if (order.zip_code) pairs.push(["ZIP", order.zip_code])
-  const what = activation ? "Activate" : order.replacement_of ? "Replacement" : "New order"
+  const what = activation
+    ? "Activate"
+    : order.kind === "refill"
+      ? "Refill"
+      : order.kind === "activation"
+        ? "Activate SIM"
+        : order.replacement_of
+          ? "Replacement"
+          : "New order"
   const heading = activation ? "SIM arrived, ready to activate" : `${what} waiting`
   const lead = activation ? "The customer has their SIM. Start the line and add its phone number." : `${what} waiting in the queue.`
   return {
@@ -352,7 +372,7 @@ export function dealerWelcomeEmail(name: string, company: string, loginUrl: stri
 
 // Dealers --------------------------------------------------------------------------------
 
-export type BatchEmailLine = Pick<Order, "number" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity" | "addon_name">
+export type BatchEmailLine = Pick<Order, "number" | "kind" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity" | "addon_name">
 
 function batchRows(lines: BatchEmailLine[]): [string, string][] {
   return lines.map((l) => [
@@ -365,13 +385,18 @@ function batchRows(lines: BatchEmailLine[]): [string, string][] {
 export function staffNewBatchEmail(batch: { number: number; company: string }, lines: BatchEmailLine[], workUrl: string): Rendered {
   const sims = lines.reduce((n, l) => n + l.quantity, 0)
   const pairs = batchRows(lines)
-  const lead = `${batch.company} placed a bulk order: ${sims} SIMs on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
+  // A dealer refill adds days to numbers they already have.
+  const refill = lines.length > 0 && lines.every((l) => l.kind === "refill")
+  const unit = refill ? "numbers" : "SIMs"
+  const lead = refill
+    ? `${batch.company} placed a refill: ${sims} ${unit} on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
+    : `${batch.company} placed a bulk order: ${sims} SIMs on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
   return {
-    subject: `Dealer order B-${batch.number}: ${sims} SIMs from ${batch.company}`,
+    subject: `Dealer ${refill ? "refill" : "order"} B-${batch.number}: ${sims} ${unit} from ${batch.company}`,
     text: `${lead}\n\n${textRows(pairs)}\n\nOpen the queue: ${workUrl}`,
     html: layout({
-      preheader: `${sims} SIMs from ${batch.company}`,
-      heading: "Dealer order waiting",
+      preheader: `${sims} ${unit} from ${batch.company}`,
+      heading: refill ? "Dealer refill waiting" : "Dealer order waiting",
       body: p(esc(lead)) + rows(pairs),
       cta: { label: "Open the queue", url: workUrl },
     }),

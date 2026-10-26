@@ -38,6 +38,10 @@ import {
 } from "@/lib/orders"
 import { getBatchContext, getWorkOrder, listStaff } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/server"
+import { getLineTimers } from "@/lib/line-timers"
+import { PlanTimer } from "@/components/patterns/plan-timer"
+import { RefillDates } from "@/components/staff/refill-dates"
 
 /**
  * The fulfilment screen. Agents fill SIMs here; the owner sees the same screen with
@@ -71,13 +75,16 @@ export async function OrderWorkspace({
     ? await getBatchContext(order.batch_id, order.id)
     : null
 
-  const esim = order.product_type === "esim"
+  const refill = order.kind === "refill"
+  // A refill or a card's activation works on a line: no QR, nothing to post.
+  const refillLike = refill || order.kind === "activation"
+  const esim = order.product_type === "esim" && !refillLike
   const holder = order.claimed_by === viewer.id || isAdmin
   const canWork =
     holder && (order.status === "claimed" || order.status === "needs_attention")
   const canClaim = order.status === "queued"
   const activation = order.phase === "activate"
-  const need: ItemNeed = esim ? "qr" : activation ? "activate" : "ship"
+  const need: ItemNeed = refill ? "refill" : order.kind === "activation" ? "activate" : esim ? "qr" : activation ? "activate" : "ship"
   const working = items.filter((i) =>
     activation ? i.status === "fulfilled" : i.status === "pending"
   )
@@ -86,6 +93,16 @@ export async function OrderWorkspace({
   const unit = esim ? "eSIM" : "SIM"
   const tracking = items.find((i) => i.tracking_number)?.tracking_number ?? null
   const canReplace = allowance.used < allowance.limit
+  const supabase = await createClient()
+  // A refill's proposed dates, and every delivered line's timer.
+  const [refillDates, timers] = await Promise.all([
+    refill && order.status !== "fulfilled" && order.status !== "cancelled"
+      ? supabase.rpc("refill_dates_for_order", { p_order_id: order.id }).then(({ data }) =>
+          new Map(((data ?? []) as { item_id: string; current_ends_on: string | null; starts_on: string; ends_on: string }[]).map((r) => [r.item_id, r]))
+        )
+      : Promise.resolve(new Map<string, { item_id: string; current_ends_on: string | null; starts_on: string; ends_on: string }>()),
+    getLineTimers(supabase, items.filter((i) => i.status === "fulfilled")),
+  ])
 
   return (
     <div className={cn("flex flex-col gap-6", canWork && "max-sm:pb-28")}>
@@ -101,6 +118,9 @@ export async function OrderWorkspace({
               Replacement
             </Tag>
           ) : null}
+          {refill ? <Tag tone="brand">Refill</Tag> : null}
+          {order.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
+          {order.kind === "card_only" ? <Tag tone="neutral">SIM cards only</Tag> : null}
           {order.refunded_at ? <Tag tone="neutral">Refunded</Tag> : null}
           {order.paid_at &&
           order.status !== "fulfilled" &&
@@ -211,7 +231,7 @@ export async function OrderWorkspace({
           aria-label={`${unit}s`}
           className="flex min-w-0 flex-col gap-4"
         >
-          {!esim ? (
+          {!esim && !refillLike ? (
             <TrackingForm
               orderId={order.id}
               current={tracking}
@@ -219,7 +239,7 @@ export async function OrderWorkspace({
               suggested={tracking ? null : (batch?.tracking ?? null)}
             />
           ) : null}
-          {canWork && working.length >= 2 ? (
+          {canWork && working.length >= 2 && !refill ? (
             <BulkTools
               orderId={order.id}
               qr={esim}
@@ -236,7 +256,7 @@ export async function OrderWorkspace({
                 // Remount with fresh defaults after each save.
                 key={`${item.status}-${item.qr_path}-${item.phone_number}-${item.iccid}`}
                 item={item}
-                productType={order.product_type}
+                productType={refillLike ? "physical" : order.product_type}
                 need={need}
                 editable={
                   canWork &&
@@ -250,6 +270,23 @@ export async function OrderWorkspace({
                     : unit
                 }
               />
+              {refill && item.status === "pending" && refillDates.get(item.id) ? (
+                <div className="mt-2">
+                  <RefillDates
+                    key={`${item.plan_starts_on}-${item.plan_ends_on}`}
+                    itemId={item.id}
+                    currentEndsOn={refillDates.get(item.id)!.current_ends_on}
+                    startsOn={item.plan_starts_on ?? refillDates.get(item.id)!.starts_on}
+                    endsOn={item.plan_ends_on ?? refillDates.get(item.id)!.ends_on}
+                    saved={Boolean(item.plan_ends_on)}
+                    days={order.days ?? 1}
+                    editable={canWork}
+                  />
+                </div>
+              ) : null}
+              {item.status !== "pending" && timers.get(item.id) ? (
+                <PlanTimer timer={timers.get(item.id)!} className="mt-2 rounded-xl border bg-background px-4 py-3" />
+              ) : null}
               {item.status === "fulfilled" ? (
                 <div className="mt-2 flex justify-end">
                   {canReplace ? (
@@ -294,6 +331,9 @@ export async function OrderWorkspace({
               label="Days"
               value={order.days !== null ? formatDays(order.days) : "No plan, SIM card only"}
             />
+            {refillLike ? (
+              <KeyValue label="Order" value={refill ? "Refill: add days to the number" : "Activate this SIM card"} strong />
+            ) : null}
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
             <KeyValue
               label="ZIP code"

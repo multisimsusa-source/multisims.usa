@@ -309,3 +309,18 @@ export async function issueReplacement(itemId: string, ticketId: string | null):
     message: order.status === "queued" ? `Replacement MS-${order.number} is in the queue` : `Replacement MS-${order.number} is waiting for the owner's approval`,
   }
 }
+
+const planDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date")
+
+/** The dates a refill gives, after the agent checks the carrier portal. */
+export async function saveRefillDates(itemId: string, startsOn: string, endsOn: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!id.safeParse(itemId).success) return { ok: false, error: "Unknown SIM" }
+  if (!planDate.safeParse(startsOn).success || !planDate.safeParse(endsOn).success) return { ok: false, error: "Choose both dates" }
+  if (endsOn < startsOn) return { ok: false, error: "The end date must be on or after the start date" }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("save_plan_dates", { p_item_id: itemId, p_starts_on: startsOn, p_ends_on: endsOn })
+  if (error) return fail(error)
+  refresh()
+  return { ok: true, message: "Dates saved" }
+}

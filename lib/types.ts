@@ -26,6 +26,8 @@ export type DayPackage = {
 export type Plan = {
   id: string
   carrier_id: string
+  /** Offered on the Refill page and to dealers for refills and activating cards. */
+  refillable: boolean
   name: string
   slug: string
   product_type: ProductType
@@ -178,6 +180,11 @@ export type OrderItem = {
   fulfilled_by: string | null
   replaced_at: string | null
   replaced_by_item: string | null
+  /** The plan days this SIM has (US dates, inclusive). Set when it is activated or refilled. */
+  plan_starts_on: string | null
+  plan_ends_on: string | null
+  /** A refill: the SIM of ours it adds days to, when we know it. */
+  refill_of_item: string | null
 }
 
 export type Payment = {

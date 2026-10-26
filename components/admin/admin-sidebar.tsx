@@ -22,6 +22,7 @@ import {
   UsersThreeIcon,
   WalletIcon,
   type Icon,
+  ArrowsClockwiseIcon,
 } from "@phosphor-icons/react"
 
 import {
@@ -106,6 +107,7 @@ const navs: Record<PortalVariant, { home: string; label: string; groups: NavGrou
         items: [
           { href: "/dealer", label: "Overview", Icon: SquaresFourIcon, exact: true },
           { href: "/dealer/new", label: "New order", Icon: PlusSquareIcon },
+          { href: "/dealer/refill", label: "Refill", Icon: ArrowsClockwiseIcon },
           { href: "/dealer/orders", label: "Orders", Icon: ReceiptIcon },
           { href: "/dealer/activations", label: "Activations", Icon: MagnifyingGlassIcon },
           { href: "/dealer/tickets", label: "Tickets", Icon: LifebuoyIcon },

@@ -31,6 +31,7 @@ type Props = {
 }
 
 const needLabel: Record<ItemNeed, string> = {
+  refill: "Refill",
   qr: "Needs QR",
   ship: "Needs ICCID and tracking",
   activate: "Needs phone number",

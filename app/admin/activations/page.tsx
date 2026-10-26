@@ -9,15 +9,17 @@ import { AdminPageHeader } from "@/components/admin/page-header"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Tag } from "@/components/patterns/tag"
+import { PlanEnds } from "@/components/patterns/plan-timer"
 import { UrlFilters } from "@/components/staff/url-filters"
 import { formatDays, orderTitle } from "@/lib/format"
 import { formatDateTime, orderLabel } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
 import type { Order, OrderItem } from "@/lib/types"
+import { phoneKey } from "@/lib/plan-dates"
 
 export const metadata: Metadata = { title: "Activations" }
 
-type Row = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at"> & {
+type Row = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at" | "plan_ends_on"> & {
   order: Pick<Order, "id" | "number" | "customer_name" | "customer_email" | "carrier_name" | "plan_name" | "product_type" | "days" | "replacement_of">
   agent: { full_name: string; email: string } | null
 }
@@ -41,7 +43,7 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
   let query = supabase
     .from("order_items")
     .select(
-      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at,
+      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at, plan_ends_on,
        order:orders!order_items_order_id_fkey!inner ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, days, replacement_of ),
        agent:profiles!order_items_fulfilled_by_fkey ( full_name, email )`
     )
@@ -56,7 +58,15 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
     const safe = q.replace(/[%,()*\\]/g, " ").slice(0, 80)
     if (number && number.length <= 6) query = query.eq("order.number", Number(number))
     else if (q.includes("@")) query = query.ilike("order.customer_email", `%${safe}%`)
-    else query = query.or(`phone_number.ilike.%${safe}%,iccid.ilike.%${safe.replace(/\s/g, "")}%,tracking_number.ilike.%${safe}%`)
+    else query = query.or(
+      [
+        `phone_number.ilike.%${safe}%`,
+        // Any way of writing the number: "646 555 0144" finds "+1 (646) 555-0144".
+        ...(phoneKey(safe) && phoneKey(safe)!.length >= 4 ? [`phone_key.ilike.%${phoneKey(safe)}%`] : []),
+        `iccid.ilike.%${safe.replace(/\s/g, "")}%`,
+        `tracking_number.ilike.%${safe}%`,
+      ].join(",")
+    )
   }
 
   const { data, error } = await query
@@ -75,6 +85,7 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
                 <TableHead>ICCID</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Plan</TableHead>
+                <TableHead>Ends</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Agent</TableHead>
                 <TableHead className=" text-right">Delivered</TableHead>
@@ -99,6 +110,9 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
                       {orderTitle(r.order)} <ProductBadge type={r.order.product_type} />
                     </span>
                     <span className="text-xs text-muted-foreground">{r.order.days !== null ? formatDays(r.order.days) : "SIM card only"}</span>
+                  </TableCell>
+                  <TableCell>
+                    <PlanEnds endsOn={r.plan_ends_on} />
                   </TableCell>
                   <TableCell className="max-w-52">
                     <span className="block truncate">{r.order.customer_name}</span>

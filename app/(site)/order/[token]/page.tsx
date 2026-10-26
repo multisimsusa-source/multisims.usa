@@ -8,7 +8,12 @@ import {
   QrCodeIcon,
 } from "@phosphor-icons/react/ssr"
 
+import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PlanTimer } from "@/components/patterns/plan-timer"
+import { getLineTimers } from "@/lib/line-timers"
+import type { LineTimer } from "@/lib/plan-dates"
 import { CopyButton } from "@/components/patterns/copy-button"
 import { DetailList, DetailRow } from "@/components/patterns/detail-list"
 import { Notice } from "@/components/patterns/notice"
@@ -97,11 +102,15 @@ async function OrderView({
     reviews,
   } = data
   const status = customerOrderStatus(order)
-  const esim = order.product_type === "esim"
+  // A refill or a card's activation adds days to a line; it never ships or has a QR.
+  const refillLike = order.kind === "refill" || order.kind === "activation"
+  const esim = order.product_type === "esim" && !refillLike
   const unpaid = order.status === "awaiting_payment"
   const processing = status === "Processing" && !unpaid
   const activating = activations.some((a) => a.requested)
   const unit = esim ? "eSIM" : "SIM card"
+  // Each delivered line's plan dates, refills of the same number included.
+  const timers = await getLineTimers(createServiceClient(), items)
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
   )
@@ -112,7 +121,7 @@ async function OrderView({
 
   // Live lines first (replacements next to the SIM they replace), replaced ones last.
   const shown = items
-    .filter((i) => i.status !== "pending" && i.status !== "cancelled")
+    .filter((i) => (refillLike || i.status !== "pending") && i.status !== "cancelled")
     .sort(
       (a, b) =>
         Number(a.status === "replaced") - Number(b.status === "replaced") ||
@@ -167,7 +176,11 @@ async function OrderView({
           {orderTitle(order)}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {order.quantity} x {productTypeLabel[order.product_type]}
+          {order.kind === "refill"
+            ? "Refill"
+            : order.kind === "activation"
+              ? "SIM card activation"
+              : `${order.quantity} x ${productTypeLabel[order.product_type]}`}
           {order.days !== null ? `, ${formatDays(order.days)}` : ""}
           {order.addon_name ? `, with ${order.addon_name.toLowerCase()}` : ""}
         </p>
@@ -189,7 +202,15 @@ async function OrderView({
           <div className="rounded-xl border bg-card p-5 sm:p-6">
             <Progress order={order} status={status} />
             <p className="mt-6 max-w-[60ch] text-sm text-muted-foreground">
-              {processing
+              {refillLike
+                ? processing
+                  ? order.kind === "refill"
+                    ? `We are adding the days to your number, and we email ${order.customer_email} once they are on. This page updates on its own.`
+                    : `We are starting the line on your SIM card. Your phone number appears here once it is active, and we email it to ${order.customer_email}. This page updates on its own.`
+                  : order.kind === "refill"
+                    ? "Your refill is on. The new dates are below, and we emailed them to you."
+                    : "Your line is active. Your phone number and plan dates are below, and we emailed them to you."
+                : processing
                 ? esim
                   ? `Your ${order.quantity > 1 ? "QR codes appear" : "QR code appears"} here as soon as ${order.quantity > 1 ? "they are" : "it is"} ready, and we email ${order.quantity > 1 ? "them" : "it"} to ${order.customer_email}. This page updates on its own.`
                   : `Your tracking number appears here as soon as your SIM card ships, and we email it to ${order.customer_email}. This page updates on its own.`
@@ -215,7 +236,7 @@ async function OrderView({
             <ReviewPanel
               token={order.public_token}
               given={reviews.order}
-              physical={!esim}
+              physical={!esim && !refillLike}
             />
           </div>
         ) : null}
@@ -234,7 +255,9 @@ async function OrderView({
         <section aria-labelledby="sims" className="mt-10">
           <h2 id="sims" className="text-xl font-semibold">
             Your{" "}
-            {esim
+            {refillLike
+              ? "number"
+              : esim
               ? shown.length > 1
                 ? "eSIMs"
                 : "eSIM"
@@ -248,8 +271,18 @@ async function OrderView({
                 <ItemCard
                   item={item}
                   esim={esim}
-                  title={itemTitle(item, unit, items.length)}
+                  title={refillLike ? (item.phone_number ?? "Your SIM card") : itemTitle(item, unit, items.length)}
                   status={customerItemStatus(item.owner, item)}
+                  timer={timers.get(item.id) ?? null}
+                  next={
+                    order.channel !== "website" || item.status !== "fulfilled"
+                      ? null
+                      : item.owner.kind === "card_only"
+                        ? { label: "Activate this SIM", href: `/refill?mode=activate&from=${order.public_token}&item=${item.id}` }
+                        : customerItemStatus(item.owner, item) === "Delivered" && item.phone_number
+                          ? { label: "Refill this number", href: `/refill?from=${order.public_token}&item=${item.id}` }
+                          : null
+                  }
                   rating={
                     // One SIM is rated with the order; with several, each can be rated too.
                     shown.length > 1 &&
@@ -397,7 +430,7 @@ async function OrderView({
  * physical orders shipped before the activation step existed, end at Shipped.
  */
 function Progress({ order, status }: { order: Order; status: CustomerStatus }) {
-  const physical = order.product_type === "physical"
+  const physical = order.product_type === "physical" && order.kind !== "refill" && order.kind !== "activation"
   // Ends at Shipped: a SIM card with no plan, and cards posted before the activation step.
   const legacy =
     physical &&
@@ -565,12 +598,17 @@ function ItemCard({
   esim,
   title,
   status,
+  timer,
+  next,
   rating,
 }: {
   item: CustomerItem
   esim: boolean
   title: string
   status: CustomerStatus
+  timer: LineTimer | null
+  /** What the buyer can do next with this SIM: refill the number, or activate the card. */
+  next: { label: string; href: string } | null
   rating?: React.ReactNode
 }) {
   const replaced = item.status === "replaced"
@@ -671,6 +709,12 @@ function ItemCard({
               </div>
             ) : null}
           </dl>
+          {timer && !replaced ? <PlanTimer timer={timer} className="mt-3" /> : null}
+          {next ? (
+            <Link href={next.href} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "mt-4 w-full sm:w-auto")}>
+              {next.label}
+            </Link>
+          ) : null}
           <p className="mt-3 text-xs text-muted-foreground">
             {replaced
               ? "This line was replaced. Use the replacement above."

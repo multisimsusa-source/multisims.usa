@@ -121,13 +121,13 @@ export async function getBatch(db: SupabaseClient, batchId: string): Promise<Bat
   return { ...batch, orders: batch.orders.sort((x, y) => x.number - y.number) }
 }
 
-export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at">
+export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on">
 
 export async function listBatchItems(db: SupabaseClient, orderIds: string[]): Promise<BatchItem[]> {
   if (!orderIds.length) return []
   const { data } = await db
     .from("order_items")
-    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at")
+    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on")
     .in("order_id", orderIds)
     .order("seq")
     .limit(5000)

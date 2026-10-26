@@ -8,7 +8,7 @@ import type { Order, OrderItem, Ticket, TicketType } from "@/lib/types"
 const QR_URL_SECONDS = 60 * 60
 
 /** The order a SIM belongs to (the original, or its replacement order). */
-export type ItemOwner = Pick<Order, "id" | "status" | "phase" | "product_type" | "plan_start" | "activate_on" | "activation_requested_at">
+export type ItemOwner = Pick<Order, "id" | "kind" | "status" | "phase" | "product_type" | "plan_start" | "activate_on" | "activation_requested_at">
 
 export type CustomerItem = OrderItem & {
   owner: ItemOwner
@@ -42,7 +42,7 @@ export type Activation = {
   requested: boolean
 }
 
-const OWNER_SELECT = "id, status, phase, product_type, plan_start, activate_on, activation_requested_at, replaces_item_id"
+const OWNER_SELECT = "id, kind, status, phase, product_type, plan_start, activate_on, activation_requested_at, replaces_item_id"
 
 export function isOrderToken(token: string) {
   return /^[0-9a-f]{48}$/.test(token)

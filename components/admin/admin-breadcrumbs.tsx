@@ -27,7 +27,7 @@ const LABELS: Record<string, string> = {
 }
 
 /** Labels that differ in the dealer portal. */
-const DEALER_LABELS: Record<string, string> = { new: "New order" }
+const DEALER_LABELS: Record<string, string> = { new: "New order", refill: "Refill" }
 
 /** An id segment is labelled by its section: /orders/<id> is "Order", /plans/<id> "Edit plan". */
 const DETAIL: Record<string, string> = { plans: "Edit plan", orders: "Order", tickets: "Ticket", dealers: "Dealer" }

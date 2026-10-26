@@ -15,7 +15,7 @@ export function parseOrderLabel(value: string): number | null {
 
 export type CustomerStatus = "Processing" | "Delivered" | "Shipped" | "Cancelled"
 
-type StatusSource = Pick<Order, "status" | "product_type" | "phase">
+type StatusSource = Pick<Order, "status" | "product_type" | "phase" | "kind">
 
 /**
  * What the customer sees. Only Processing, Shipped and Delivered (plus Cancelled once
@@ -23,11 +23,13 @@ type StatusSource = Pick<Order, "status" | "product_type" | "phase">
  * Processing too; its page asks for the payment.
  *
  * Physical SIMs: Shipped once posted, Delivered once the line is active. Orders shipped
- * before the activation step existed (phase 'fulfil', fulfilled) stay Shipped.
+ * before the activation step existed (phase 'fulfil', fulfilled) stay Shipped. Refills and
+ * activations of a card never ship: Processing, then Delivered.
  */
 export function customerOrderStatus(order: StatusSource): CustomerStatus {
   if (order.status === "cancelled") return "Cancelled"
-  if (order.product_type === "esim") return order.status === "fulfilled" ? "Delivered" : "Processing"
+  if (order.product_type === "esim" || order.kind === "refill" || order.kind === "activation")
+    return order.status === "fulfilled" ? "Delivered" : "Processing"
   if (order.phase === "activate") return order.status === "fulfilled" ? "Delivered" : "Shipped"
   return order.status === "fulfilled" ? "Shipped" : "Processing"
 }

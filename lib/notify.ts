@@ -147,7 +147,15 @@ export async function notifyOrderDelivered(orderId: string) {
         })
       }
     }
-    delivered.push({ seq: item.seq, phone_number: item.phone_number, iccid: item.iccid, tracking_number: item.tracking_number, qrCid })
+    delivered.push({
+      seq: item.seq,
+      phone_number: item.phone_number,
+      iccid: item.iccid,
+      tracking_number: item.tracking_number,
+      plan_starts_on: item.plan_starts_on,
+      plan_ends_on: item.plan_ends_on,
+      qrCid,
+    })
   }
 
   const mail = orderDeliveredEmail(order, delivered, orderPageUrl(pageOrder), { replacement: Boolean(order.replacement_of) })
@@ -187,7 +195,7 @@ export async function notifyNewBatchToStaff(batchId: string) {
   const db = createServiceClient()
   const { data: batch } = await db
     .from("order_batches")
-    .select("id, number, dealer:dealers!inner(company), orders(number, carrier_name, plan_name, product_type, days, quantity, addon_name)")
+    .select("id, number, dealer:dealers!inner(company), orders(number, kind, carrier_name, plan_name, product_type, days, quantity, addon_name)")
     .eq("id", batchId)
     .single()
   if (!batch) return

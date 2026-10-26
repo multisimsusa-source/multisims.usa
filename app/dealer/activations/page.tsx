@@ -12,6 +12,7 @@ import { ListSkeleton } from "@/components/admin/skeletons"
 import { CopyButton } from "@/components/patterns/copy-button"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { Tag } from "@/components/patterns/tag"
+import { PlanEnds } from "@/components/patterns/plan-timer"
 import { CustomerStatusTag } from "@/components/patterns/status-tag"
 import { UrlFilters } from "@/components/staff/url-filters"
 import { requireRole } from "@/lib/auth"
@@ -108,10 +109,14 @@ async function Results({
                     <Value label="Phone" value={r.phone_number} />
                     <Value label="ICCID" value={r.iccid} />
                   </dl>
-                  <div className="flex items-center gap-3 sm:w-48 sm:justify-end">
-                    <span className="tabular text-sm text-muted-foreground">
-                      {formatDateTime(r.fulfilled_at)}
-                    </span>
+                  <div className="flex items-center gap-3 sm:w-64 sm:justify-end">
+                    {replaced ? (
+                      <span className="tabular text-sm text-muted-foreground">
+                        {formatDateTime(r.fulfilled_at)}
+                      </span>
+                    ) : (
+                      <PlanEnds endsOn={r.plan_ends_on} className="sm:text-right" />
+                    )}
                     {replaced ? (
                       <Tag tone="neutral">Replaced</Tag>
                     ) : status ? (

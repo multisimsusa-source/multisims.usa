@@ -8,14 +8,14 @@ import type { Order, OrderItem, OrderStatus, Payment, Ticket, TicketStatus } fro
 export type Person = { id: string; full_name: string; email: string }
 export type QueueOrder = Pick<
   Order,
-  | "id" | "number" | "status" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity"
+  | "id" | "kind" | "number" | "status" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity"
   | "area_code" | "zip_code" | "addon_name" | "paid_at" | "claimed_by" | "claimed_at" | "attention_reason"
   | "replacement_of" | "staff_note" | "created_at"
   | "phase" | "plan_start" | "activate_on" | "activation_requested_at" | "shipped_at"
 > & { claimer: Person | null }
 
 const QUEUE_SELECT = `
-  id, number, status, carrier_name, plan_name, product_type, days, quantity, area_code, zip_code,
+  id, kind, number, status, carrier_name, plan_name, product_type, days, quantity, area_code, zip_code,
   addon_name, paid_at, claimed_by, claimed_at, attention_reason, replacement_of, staff_note, created_at,
   phase, plan_start, activate_on, activation_requested_at, shipped_at,
   claimer:profiles!orders_claimed_by_fkey ( id, full_name, email )

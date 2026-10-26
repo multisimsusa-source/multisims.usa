@@ -24,6 +24,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [unlimited, setUnlimited] = React.useState(plan ? plan.data_gb === null : true)
   const [published, setPublished] = React.useState(plan?.published ?? false)
+  const [refillable, setRefillable] = React.useState(plan?.refillable ?? false)
   const [carrierId, setCarrierId] = React.useState(plan?.carrier_id ?? defaultCarrierId ?? carriers[0]?.id ?? "")
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -31,6 +32,7 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
     const formData = new FormData(event.currentTarget)
     formData.set("data_unlimited", unlimited ? "on" : "off")
     formData.set("published", published ? "on" : "off")
+    formData.set("refillable", refillable ? "on" : "off")
     formData.set("carrier_id", carrierId)
     formData.set("carrier_slug", carriers.find((c) => c.id === carrierId)?.slug ?? "")
     startTransition(async () => {
@@ -189,6 +191,19 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
             {err("slowdown_speed")}
           </Field>
         </div>
+      </Section>
+
+      <Section title="Refill">
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <Switch checked={refillable} onCheckedChange={setRefillable} aria-label="Offer for refills" className="mt-0.5" />
+          <span>
+            <span className="font-medium">Offer for refills</span>
+            <span className="block text-muted-foreground">
+              Shown on the Refill page and to dealers, to add days to a number or activate a SIM card bought on its own.
+              Dealers also need a wholesale or dealer price for each length.
+            </span>
+          </span>
+        </label>
       </Section>
 
       <Section title="Description">

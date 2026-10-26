@@ -79,6 +79,14 @@ const completeCopy: Record<
     confirm: "Mark shipped",
     missing: "an ICCID and tracking number",
   },
+  refill: {
+    button: "Mark refilled and deliver",
+    title: "Is the refill done?",
+    description:
+      "The customer gets the plan dates by email and on their order page, and the order shows as Delivered. Dates you did not change use the proposal. This cannot be undone.",
+    confirm: "Deliver now",
+    missing: "dates",
+  },
   activate: {
     button: "Mark active and deliver",
     title: "Are the lines active?",

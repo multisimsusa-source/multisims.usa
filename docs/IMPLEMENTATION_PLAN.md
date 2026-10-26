@@ -263,22 +263,22 @@ Added to `/admin/design` and DESIGN.md: `StarRating`, `StatGrid`, `QuantityStepp
 Built in three phases, each tested in a real browser and deployed before the next.
 
 ### 1. Refill (replaces "Recharge Requests"; the word Recharge is not used anywhere)
-- [ ] Dealers: Refill section in the portal, line by line like dealer orders (paste many numbers), paid from the wallet: held when requested, taken per number when fulfilled, returned if cancelled.
-- [ ] Website: public `/refill`, open to anyone (also numbers bought elsewhere). Carrier, phone number (required), ICCID (optional, asked for), plan and length from plans marked "Offer for refills" in admin, international calling and discount codes as at checkout, contact details. Total = day package price (+ calling) + network fee, no shipping or SIM card; usual minimum check; crypto checkout.
-- [ ] "Refill this number" on Delivered orders, pre-filled with carrier, number and ICCID.
-- [ ] A refill is an order of kind `refill` in the same agent queue with the same alerts. The agent sees carrier, number, ICCID, plan, days, the number's current end date (if known) and the proposed start and end dates, and can edit them.
-- [ ] Timing: if the current plan is still running, the refill starts the day after it ends; otherwise on the day the agent completes it. End = start + days - 1. Refills link to the existing line by phone number or ICCID.
-- [ ] Customers see only Processing and Delivered; Delivered shows the new end date, also in the email.
+- [x] Dealers: Refill section in the portal, line by line like dealer orders (paste many numbers), paid from the wallet: held when requested, taken per number when fulfilled, returned if cancelled.
+- [x] Website: public `/refill`, open to anyone (also numbers bought elsewhere). Carrier, phone number (required), ICCID (optional, asked for), plan and length from plans marked "Offer for refills" in admin, international calling and discount codes as at checkout, contact details. Total = day package price (+ calling) + network fee, no shipping or SIM card; usual minimum check; crypto checkout.
+- [x] "Refill this number" on Delivered orders, pre-filled with carrier, number and ICCID.
+- [x] A refill is an order of kind `refill` in the same agent queue with the same alerts. The agent sees carrier, number, ICCID, plan, days, the number's current end date (if known) and the proposed start and end dates, and can edit them.
+- [x] Timing: if the current plan is still running, the refill starts the day after it ends; otherwise on the day the agent completes it. End = start + days - 1. Refills link to the existing line by phone number or ICCID.
+- [x] Customers see only Processing and Delivered; Delivered shows the new end date, also in the email.
 
 ### 2. Plan timer
-- [ ] `plan_starts_on` and `plan_ends_on` on every activated line (new eSIMs, SIM cards when activated, refills). Days count from the day the agent completes activation.
-- [ ] Shown to customers and dealers ("Active until 12 Nov 2026, 9 days left", "Next plan starts 13 Nov 2026"), agents, and admin (Activations shows the end date).
+- [x] `plan_starts_on` and `plan_ends_on` on every activated line (new eSIMs, SIM cards when activated, refills). Days count from the day the agent completes activation.
+- [x] Shown to customers and dealers ("Active until 12 Nov 2026, 9 days left", "Next plan starts 13 Nov 2026"), agents, and admin (Activations shows the end date).
 
 ### 3. SIM card on its own (changes the earlier rule that a SIM card always has a plan)
 - [x] SIM cards per carrier (AT&T SIM card, T-Mobile SIM card...): retail price in admin, dealer price per dealer.
 - [x] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee; minimum check applies.
 - [x] SIM cards shown with a price and no duration everywhere (no "1 day").
-- [ ] (phase 3) Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
+- [x] Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
 - [x] Dealers without a SIM card price see "No SIM card prices set for your account yet. Contact us."; bulk quantities are typed in one field; all cards in an order ship together with one tracking number.
 
 ### 4. Dealer portal fixes from Zafir's testing
@@ -288,3 +288,5 @@ Built in three phases, each tested in a real browser and deployed before the nex
 - [x] Crypto top-ups below the payment partner's live minimum are blocked in the form and refused on the server. No network fee on top-ups (undecided).
 
 Phase 2 notes: migration `20261027000001_sim_cards.sql` adds `sim_cards` (per carrier: retail, default dealer price, on sale), `dealer_sim_card_prices`, `orders.kind` (`line`, `card_only`, later `refill`, `activation`) and lets a card-only order have no plan or days. Existing prices were copied in: every carrier with SIM card plans got a card at the old Settings price; per-dealer card prices were copied to every carrier. The old Settings and dealer card price columns are kept but no longer read. Card-only orders end at Shipped and do not appear in Activations. The fake "SIM card, 1 day" plans the owner made earlier should be unpublished now that cards sell on their own.
+
+Phase 3 notes: migration `20261028000001_refill_timer.sql` adds `plans.refillable` (admin switch "Offer for refills": which plans the Refill page, dealer refills and card activations offer), `order_items.plan_starts_on`, `plan_ends_on`, `refill_of_item` and a digits-only `phone_key` (any way of writing a number matches, also in Activations search), and the functions `line_plan_end`, `match_line`, `refill_dates_for_order`, `save_plan_dates` and `place_dealer_refill`. `complete_order` dates every line it activates (eSIM delivered, SIM card activated, activation: today; refill: the agent's dates or the proposal; a replacement keeps the end date of the SIM it replaces). Lines delivered before this were dated from when they went live. Refills and activations need no delivery address. Customers see Processing and Delivered; the timer on the original order page includes later refills of the same number.

@@ -169,6 +169,9 @@ function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; a
           )}
           {order.status === "shipped" ? null : <Age since={since} warnAfterMin={order.status === "queued" ? warn : undefined} className="text-xs" />}
           {activation ? <Tag tone="brand">Activate</Tag> : null}
+          {order.kind === "refill" ? <Tag tone="brand">Refill</Tag> : null}
+          {order.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
+          {order.kind === "card_only" ? <Tag tone="neutral">SIM cards only</Tag> : null}
           {startsToday ? <Tag tone="warning">Starts today</Tag> : null}
           {order.replacement_of ? (
             <Tag tone="warning">

@@ -54,6 +54,7 @@ const planSchema = z.object({
   summary: z.string().trim().max(200, "Keep the summary under 200 characters"),
   description: z.string().trim().max(5000),
   published: z.boolean(),
+  refillable: z.boolean(),
 })
 
 function readPlan(formData: FormData) {
@@ -76,6 +77,7 @@ function readPlan(formData: FormData) {
     summary: get("summary"),
     description: get("description"),
     published: formData.get("published") === "on",
+    refillable: formData.get("refillable") === "on",
   })
 }
 

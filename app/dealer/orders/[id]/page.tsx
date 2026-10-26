@@ -46,6 +46,9 @@ import {
 } from "@/lib/review-rules"
 import { saveDealerReview } from "../actions"
 import { ActivateCardsButton } from "./activate-button"
+import { PlanTimer } from "@/components/patterns/plan-timer"
+import { getLineTimers } from "@/lib/line-timers"
+import type { LineTimer } from "@/lib/plan-dates"
 
 export const metadata: Metadata = { title: "Order" }
 
@@ -122,6 +125,8 @@ async function BatchDetail({
   }
 
   const progress = batchProgress(batch.orders)
+  // Each live SIM's plan dates, refills of the same number included.
+  const timers = await getLineTimers(supabase, items.filter((i) => i.status === "fulfilled"))
   const lines = batch.orders.filter((o) => !o.replacement_of)
   const replacements = batch.orders.filter((o) => o.replacement_of)
   const itemsByOrder = new Map<string, BatchItem[]>()
@@ -188,6 +193,7 @@ async function BatchDetail({
               qrUrl={qrUrl}
               ticketTypes={ticketTypes ?? []}
               reviews={reviews}
+              timers={timers}
             />
           ))}
 
@@ -207,6 +213,7 @@ async function BatchDetail({
                   qrUrl={qrUrl}
                   replacement
                   reviews={reviews}
+                  timers={timers}
                 />
               ))}
             </section>
@@ -301,6 +308,7 @@ function LineCard({
   replacement,
   ticketTypes = [],
   reviews,
+  timers,
 }: {
   order: BatchOrder
   items: BatchItem[]
@@ -309,6 +317,7 @@ function LineCard({
   ticketTypes?: { id: string; name: string }[]
   /** The dealer's ratings, by SIM id, and by "line:<order id>" for whole lines. */
   reviews: Map<string, GivenReview>
+  timers: Map<string, LineTimer>
 }) {
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
@@ -368,6 +377,9 @@ function LineCard({
                   copy={!replaced}
                 />
                 <Value label="ICCID" value={item.iccid} copy={!replaced} />
+                {!replaced && timers.get(item.id) ? (
+                  <PlanTimer timer={timers.get(item.id)!} className="sm:col-span-full" />
+                ) : null}
               </dl>
               <div className="flex shrink-0 items-center gap-2">
                 {/* The line carries the status; a SIM only says so when it differs. */}

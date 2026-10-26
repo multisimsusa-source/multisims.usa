@@ -23,6 +23,7 @@ import { Tag } from "@/components/patterns/tag"
 import { ProductBadge } from "@/components/site/product-mark"
 import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { Stars } from "@/components/patterns/star-rating"
+import { PlanEnds, PlanTimer } from "@/components/patterns/plan-timer"
 import { StatGrid } from "@/components/patterns/stat-grid"
 import { CustomerStatusTag, OrderStatusTag, TicketStatusTag } from "@/components/patterns/status-tag"
 import { RowActions } from "@/components/patterns/row-actions"
@@ -386,6 +387,27 @@ export default function DesignSystemPage() {
           note="RatingForm: stars plus an optional comment, then the saved rating with Change rating, which reopens the form filled in. Inline it is a card (the whole order); RatingDialog puts it behind a small button per SIM or dealer line, reading Rate, or the given stars to change them. A changed review leaves the website until the owner features it again."
         >
           <DemoRating />
+        </Block>
+
+        <Block
+          title="Plan timer"
+          note="PlanTimer: how long a line has, in words first. Active until a date with the days left; Next plan starts when a refill is already bought; Plan ended once it is over. PlanEnds is the compact form for lists (Activations). Dates are US days, inclusive."
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border bg-card p-4">
+              <PlanTimer today="2026-11-04" timer={{ current: { starts_on: "2026-10-14", ends_on: "2026-11-12" }, next: null, ended: null }} />
+            </div>
+            <div className="rounded-xl border bg-card p-4">
+              <PlanTimer
+                today="2026-11-04"
+                timer={{ current: { starts_on: "2026-10-14", ends_on: "2026-11-12" }, next: { starts_on: "2026-11-13", ends_on: "2026-12-12" }, ended: null }}
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-xl border bg-card p-4">
+              <PlanTimer today="2026-11-04" timer={{ current: null, next: null, ended: { starts_on: "2026-09-04", ends_on: "2026-10-03" } }} />
+              <PlanEnds today="2026-11-04" endsOn="2026-11-12" />
+            </div>
+          </div>
         </Block>
 
         <Block

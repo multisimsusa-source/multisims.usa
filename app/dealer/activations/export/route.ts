@@ -31,6 +31,8 @@ export async function GET() {
       "ICCID",
       "Tracking",
       "Delivered",
+      "Plan starts",
+      "Plan ends",
       "Your reference",
     ],
     ...rows.map((r) => [
@@ -46,6 +48,8 @@ export async function GET() {
       r.iccid ?? "",
       r.tracking_number ?? "",
       r.fulfilled_at?.slice(0, 10) ?? "",
+      r.plan_starts_on ?? "",
+      r.plan_ends_on ?? "",
       r.order.batch?.reference ?? "",
     ]),
   ])
