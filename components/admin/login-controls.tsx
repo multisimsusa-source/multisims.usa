@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { CopyButton } from "@/components/patterns/copy-button"
+import { Notice } from "@/components/patterns/notice"
 import type { ActionResult } from "@/lib/admin/result"
 
 /**
@@ -21,6 +23,43 @@ export function suggestPassword() {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
   const bytes = crypto.getRandomValues(new Uint8Array(14))
   return Array.from(bytes, (b) => chars[b % chars.length]).join("")
+}
+
+/**
+ * After a login is created or a password changed: the exact email and password that were
+ * saved, each with a copy button, so what the owner sends is what works. Shown once.
+ */
+function SavedLogin({ name, email, password, onDone }: { name: string; email?: string; password: string; onDone: () => void }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Notice tone="success" title="Saved">
+        Send these to {name || "them"} now. The password is not shown again.
+      </Notice>
+      <dl className="divide-y rounded-lg border">
+        {email ? (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Email</dt>
+              <dd className="text-sm font-medium break-all">{email}</dd>
+            </div>
+            <CopyButton value={email} label="email" />
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="min-w-0">
+            <dt className="text-xs text-muted-foreground">Password</dt>
+            <dd className="tabular font-mono text-sm font-medium break-all">{password}</dd>
+          </div>
+          <CopyButton value={password} label="password" />
+        </div>
+      </dl>
+      <DialogFooter>
+        <Button type="button" size="lg" onClick={onDone}>
+          Done
+        </Button>
+      </DialogFooter>
+    </div>
+  )
 }
 
 export function NewLoginButton({
@@ -42,6 +81,7 @@ export function NewLoginButton({
   const [open, setOpen] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [pw, setPw] = React.useState("")
+  const [saved, setSaved] = React.useState<{ name: string; email: string; password: string } | null>(null)
   const [pending, start] = React.useTransition()
   const id = React.useId()
 
@@ -53,6 +93,7 @@ export function NewLoginButton({
         if (o) {
           setPw(suggestPassword())
           setErrors({})
+          setSaved(null)
         }
       }}
     >
@@ -69,6 +110,9 @@ export function NewLoginButton({
           <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {saved ? (
+          <SavedLogin {...saved} onDone={() => setOpen(false)} />
+        ) : (
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -82,7 +126,11 @@ export function NewLoginButton({
                 return
               }
               toast.success(result.message ?? "Created")
-              setOpen(false)
+              setSaved({
+                name: String(fd.get("full_name") ?? "").trim(),
+                email: String(fd.get("email") ?? "").trim().toLowerCase(),
+                password: String(fd.get("password") ?? ""),
+              })
             })
           }}
         >
@@ -112,7 +160,7 @@ export function NewLoginButton({
                 New
               </Button>
             </div>
-            {errors.password ? <FieldError>{errors.password}</FieldError> : <FieldDescription>At least 10 characters. Copy it before you save.</FieldDescription>}
+            {errors.password ? <FieldError>{errors.password}</FieldError> : <FieldDescription>At least 10 characters, no spaces at the start or end. You can copy it after saving.</FieldDescription>}
           </Field>
           <DialogFooter>
             <Button type="button" variant="ghost" size="lg" onClick={() => setOpen(false)}>
@@ -123,6 +171,7 @@ export function NewLoginButton({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -174,13 +223,17 @@ export function ResetPasswordButton({
 }) {
   const [open, setOpen] = React.useState(false)
   const [pw, setPw] = React.useState("")
+  const [saved, setSaved] = React.useState<string | null>(null)
   const [pending, start] = React.useTransition()
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
         setOpen(o)
-        if (o) setPw(suggestPassword())
+        if (o) {
+          setPw(suggestPassword())
+          setSaved(null)
+        }
       }}
     >
       <DialogTrigger
@@ -196,6 +249,9 @@ export function ResetPasswordButton({
           <DialogTitle className="text-lg font-semibold">New password for {name}</DialogTitle>
           <DialogDescription>Their old password stops working at once. Send them the new one yourself.</DialogDescription>
         </DialogHeader>
+        {saved ? (
+          <SavedLogin name={name} password={saved} onDone={() => setOpen(false)} />
+        ) : (
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -204,7 +260,7 @@ export function ResetPasswordButton({
               const result = await action(userId, pw)
               if (!result.ok) return void toast.error(result.error)
               toast.success(result.message ?? "Changed")
-              setOpen(false)
+              setSaved(pw)
             })
           }}
         >
@@ -221,6 +277,7 @@ export function ResetPasswordButton({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   )

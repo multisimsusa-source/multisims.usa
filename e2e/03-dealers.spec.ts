@@ -309,7 +309,7 @@ test.describe.serial("Dealers", () => {
     await page.fill('input[name="password"]', PASSWORD)
     await page.click('button[type="submit"]')
     await expect(page).toHaveURL(/\/portal\/login/)
-    await expect(page.getByRole("alert").first()).toBeVisible()
+    await expect(page.getByText("This account is switched off. Contact the MultiSims USA team.")).toBeVisible()
   })
 
   test("dealer pages fit a phone", async ({ browser }) => {

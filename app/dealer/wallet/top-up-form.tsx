@@ -10,6 +10,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { parseMoney } from "@/lib/admin/result"
 import { formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { startTopUp } from "./actions"
@@ -21,6 +22,11 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
   const [amount, setAmount] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [pending, start] = React.useTransition()
+  // Same reading as the server: dollars with optional cents. Below the payment
+  // partner's minimum the button is blocked here and refused again on the server.
+  const cents = parseMoney(amount)
+  const belowMinimum = cents !== null && !Number.isNaN(cents) && cents < minimumCents
+  const shown = error ?? (belowMinimum ? `The smallest top-up is ${formatPrice(minimumCents)}` : null)
 
   return (
     <form
@@ -60,7 +66,7 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
           })}
         </div>
       </fieldset>
-      <Field data-invalid={Boolean(error) || undefined}>
+      <Field data-invalid={Boolean(shown) || undefined}>
         <FieldLabel htmlFor="topup-amount">Amount (USD)</FieldLabel>
         <Input
           id="topup-amount"
@@ -68,11 +74,11 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
           autoComplete="off"
           value={amount}
           onChange={(e) => setAmount(e.currentTarget.value)}
-          aria-invalid={Boolean(error) || undefined}
+          aria-invalid={Boolean(shown) || undefined}
           className="tabular font-mono"
         />
-        {error ? (
-          <FieldError>{error}</FieldError>
+        {shown ? (
+          <FieldError>{shown}</FieldError>
         ) : (
           <FieldDescription>
             From {formatPrice(minimumCents)}. You pay in USDT (TRC-20) or
@@ -84,7 +90,7 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
         type="submit"
         size="lg"
         className="w-full sm:w-fit"
-        disabled={pending || !amount.trim()}
+        disabled={pending || !amount.trim() || belowMinimum}
       >
         {pending ? "Opening payment page..." : "Continue to payment"}
       </Button>

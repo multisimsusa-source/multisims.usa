@@ -17,7 +17,7 @@ const schema = z.object({
 })
 
 export async function signIn(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim()
+  const email = String(formData.get("email") ?? "").trim().toLowerCase()
   const parsed = schema.safeParse({ email, password: formData.get("password") })
   if (!parsed.success) return { error: "Enter your email and password.", email }
 
@@ -29,6 +29,8 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data)
+  // A switched-off login is banned in Auth: say so, rather than "wrong password".
+  if (error?.code === "user_banned") return { error: "This account is switched off. Contact the MultiSims USA team.", email }
   if (error || !data.user) return { error: "That email and password do not match.", email }
 
   const { data: profile } = await supabase

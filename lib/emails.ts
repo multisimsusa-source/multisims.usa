@@ -337,12 +337,12 @@ export function agentWelcomeEmail(name: string, loginUrl: string): Rendered {
 export function dealerWelcomeEmail(name: string, company: string, loginUrl: string): Rendered {
   return {
     subject: "Your MultiSims USA dealer login",
-    text: `Hi ${name},\n\nA dealer account was opened for ${company}. Sign in at ${loginUrl} with this email address and the password we sent you.\n\nIn the dealer portal you can order eSIMs and SIM cards in bulk at your prices, top up your balance and see every line you have bought.`,
+    text: `Hi ${name},\n\nA dealer account was opened for ${company}. Sign in at ${loginUrl} with this email address and the password the MultiSims USA team gave you.\n\nIn the dealer portal you can order eSIMs and SIM cards in bulk at your prices, top up your balance and see every line you have bought.`,
     html: layout({
       preheader: "Sign in to the dealer portal.",
       heading: "Your dealer account is ready",
       body:
-        p(`Hi ${esc(name)}, a dealer account was opened for <strong>${esc(company)}</strong>. Sign in with this email address and the password we sent you.`) +
+        p(`Hi ${esc(name)}, a dealer account was opened for <strong>${esc(company)}</strong>. Sign in with this email address and the password the MultiSims USA team gave you.`) +
         p(`In the dealer portal you can order eSIMs and SIM cards in bulk at your prices, top up your balance and see every line you have bought.`),
       cta: { label: "Sign in", url: loginUrl },
     }),

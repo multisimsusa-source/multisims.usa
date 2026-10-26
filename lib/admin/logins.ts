@@ -12,7 +12,12 @@ import type { UserRole } from "@/lib/types"
  * Nobody signs themselves up.
  */
 
-export const loginPassword = z.string().min(10, "Use at least 10 characters").max(72, "Too long")
+// Spaces at either end are refused rather than trimmed: what the owner sends must be exactly what works.
+export const loginPassword = z
+  .string()
+  .min(10, "Use at least 10 characters")
+  .max(72, "Too long")
+  .refine((v) => v === v.trim(), "Remove the space at the start or end")
 
 const loginSchema = z.object({
   full_name: z.string().trim().min(2, "Enter their name").max(80),

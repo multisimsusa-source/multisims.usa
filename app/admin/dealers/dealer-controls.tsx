@@ -347,7 +347,7 @@ export function DealerAccountForm({ dealer, defaultSimCents }: { dealer: DealerW
         </FormSection>
         <FormSection title="Terms">
           <Field data-invalid={Boolean(errors.credit_limit) || undefined}>
-            <FieldLabel htmlFor="credit_limit">Credit allowed (USD)</FieldLabel>
+            <FieldLabel htmlFor="credit_limit">Credit limit (USD)</FieldLabel>
             <Input id="credit_limit" name="credit_limit" inputMode="decimal" defaultValue={centsToInput(dealer.credit_limit_cents)} className="font-mono tabular" />
             {errors.credit_limit ? (
               <FieldError>{errors.credit_limit}</FieldError>

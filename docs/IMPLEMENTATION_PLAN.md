@@ -199,7 +199,7 @@ Migrations: `20261014000001_order_shipped_status.sql`, `20261014000002_pricing_a
 
 ## Milestone 3: Dealers, reviews, launch (final)
 
-Target 28 Oct 2026. Scope: brief section 10, the 14 Oct additions (dealer bulk SIM card price, retail sale prices, discount codes) and the international calling destinations list (`docs/MVNO MSU International Calling destination and caps.pdf`). Recharge Requests is not built (no specification yet).
+Target 28 Oct 2026. Scope: brief section 10, the 14 Oct additions (dealer bulk SIM card price, retail sale prices, discount codes) and the international calling destinations list (`docs/MVNO MSU International Calling destination and caps.pdf`). Refill (the old portal's Recharge Requests) was specified on 26 Oct: see "Changes agreed 26 Oct 2026".
 
 Demo checklist (from the brief):
 - [ ] Two dealers created; one tops up in crypto, the other gets funds added by hand.
@@ -252,8 +252,37 @@ Local note: the Supabase CLI here (v2.75) and its auth image disagree on JWT sig
 Added to `/admin/design` and DESIGN.md: `StarRating`, `StatGrid`, `QuantityStepper` (from checkout), `DateRangeFilter`, `WalletMeter`/`WalletSummary`/`WalletLedger`, `PriceWithSale`, `BulkTools`, a shared `TicketForm` (`components/site/`), and a dealer nav variant in `PortalShell`.
 
 ### Open points
-- Recharge Requests: no specification, not built.
+- Refill: specified 26 Oct, see "Changes agreed 26 Oct 2026".
 - Calling destinations PDF is marked Confidential: confirm the client may publish it, whether caps are per month or per plan period, and which plans it covers (default: every plan with international calling).
 - Defaults to confirm: no network fee on wallet orders, shipping once per physical batch, top-up minimum = provider minimum.
 - Sale "was" prices must be prices genuinely charged before (FTC rule); goes in the admin guide.
 - NOWPayments keys must be set in production before checkout or top-ups are public.
+
+## Changes agreed 26 Oct 2026 (call with Zafir and his follow-up answers)
+
+Built in three phases, each tested in a real browser and deployed before the next.
+
+### 1. Refill (replaces "Recharge Requests"; the word Recharge is not used anywhere)
+- [ ] Dealers: Refill section in the portal, line by line like dealer orders (paste many numbers), paid from the wallet: held when requested, taken per number when fulfilled, returned if cancelled.
+- [ ] Website: public `/refill`, open to anyone (also numbers bought elsewhere). Carrier, phone number (required), ICCID (optional, asked for), plan and length from plans marked "Offer for refills" in admin, international calling and discount codes as at checkout, contact details. Total = day package price (+ calling) + network fee, no shipping or SIM card; usual minimum check; crypto checkout.
+- [ ] "Refill this number" on Delivered orders, pre-filled with carrier, number and ICCID.
+- [ ] A refill is an order of kind `refill` in the same agent queue with the same alerts. The agent sees carrier, number, ICCID, plan, days, the number's current end date (if known) and the proposed start and end dates, and can edit them.
+- [ ] Timing: if the current plan is still running, the refill starts the day after it ends; otherwise on the day the agent completes it. End = start + days - 1. Refills link to the existing line by phone number or ICCID.
+- [ ] Customers see only Processing and Delivered; Delivered shows the new end date, also in the email.
+
+### 2. Plan timer
+- [ ] `plan_starts_on` and `plan_ends_on` on every activated line (new eSIMs, SIM cards when activated, refills). Days count from the day the agent completes activation.
+- [ ] Shown to customers and dealers ("Active until 12 Nov 2026, 9 days left", "Next plan starts 13 Nov 2026"), agents, and admin (Activations shows the end date).
+
+### 3. SIM card on its own (changes the earlier rule that a SIM card always has a plan)
+- [ ] SIM cards per carrier (AT&T SIM card, T-Mobile SIM card...): retail price in admin, dealer price per dealer.
+- [ ] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee; minimum check applies.
+- [ ] SIM cards shown with a price and no duration everywhere (no "1 day").
+- [ ] Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
+- [ ] Dealers without a SIM card price see "No SIM card prices set for your account yet. Contact us."; bulk quantities are typed in one field; all cards in an order ship together with one tracking number.
+
+### 4. Dealer portal fixes from Zafir's testing
+- [x] Dealer login "incorrect password": the production accounts were checked (all confirmed, active, not suspended, both dealers had signed in). The cause was the password hand-off: the welcome email spoke of "the password we sent you" though nothing sends one, and the suggested password changed every time the dialog opened. Now: after Create login or Change password the dialog shows the saved email and password to copy; passwords with spaces at either end are refused; the welcome email says "the password the MultiSims USA team gave you"; sign-in ignores email capitals; a switched-off login says "This account is switched off" instead of "wrong password".
+- [x] Admin password reset tested end to end: the new password works, the old one stops at once.
+- [x] Wallet: one line of help under each figure (Balance, Held for orders, Available to spend, Credit limit).
+- [x] Crypto top-ups below the payment partner's live minimum are blocked in the form and refused on the server. No network fee on top-ups (undecided).
