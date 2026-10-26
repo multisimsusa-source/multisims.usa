@@ -28,6 +28,14 @@ export type OrderingTerms = {
   calling_price_cents: number | null
 }
 
+/** A carrier's SIM card a dealer can order on its own, at their price. */
+export type DealerSimCard = { carrier_id: string; carrier_name: string; price_cents: number }
+
+export async function getDealerSimCards(db: SupabaseClient): Promise<DealerSimCard[]> {
+  const { data } = await db.rpc("dealer_sim_cards")
+  return (data ?? []) as DealerSimCard[]
+}
+
 export async function getDealerCatalog(db: SupabaseClient): Promise<DealerCatalogRow[]> {
   const { data } = await db.rpc("dealer_catalog")
   return (data ?? []) as DealerCatalogRow[]
@@ -54,6 +62,7 @@ export async function getOrderingTerms(dealerId: string): Promise<OrderingTerms>
 export type BatchOrder = Pick<
   Order,
   | "id"
+  | "kind"
   | "number"
   | "status"
   | "phase"
@@ -84,10 +93,11 @@ export type Batch = {
   orders: BatchOrder[]
 }
 
-export type BatchProgress = { delivered: number; total: number; status: CustomerStatus }
+/** delivered/total count SIMs with a plan; cards/cardsShipped count SIM cards with none. */
+export type BatchProgress = { delivered: number; total: number; cards: number; cardsShipped: number; status: CustomerStatus }
 
 const orderColumns =
-  "id, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at"
+  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at"
 
 /** The dealer's batches, newest first, with their orders. RLS keeps it to their own. */
 export async function listBatches(db: SupabaseClient, dealerId: string, limit = 50): Promise<Batch[]> {
@@ -130,14 +140,19 @@ export async function listBatchItems(db: SupabaseClient, orderIds: string[]): Pr
  */
 export function batchProgress(orders: BatchOrder[]): BatchProgress {
   const live = orders.filter((o) => o.status !== "cancelled" && !o.replacement_of)
-  if (!live.length) return { delivered: 0, total: 0, status: "Cancelled" }
+  if (!live.length) return { delivered: 0, total: 0, cards: 0, cardsShipped: 0, status: "Cancelled" }
   const statuses = live.map((o) => customerOrderStatus(o))
-  const total = live.reduce((n, o) => n + o.quantity, 0)
-  const delivered = live.reduce((n, o, i) => n + (statuses[i] === "Delivered" ? o.quantity : 0), 0)
-  const status: CustomerStatus = statuses.every((s) => s === "Delivered")
-    ? "Delivered"
-    : statuses.some((s) => s === "Processing")
-      ? "Processing"
+  // SIM cards with no plan are done once shipped; they never count as live lines.
+  const lines = live.filter((o) => o.kind !== "card_only")
+  const total = lines.reduce((n, o) => n + o.quantity, 0)
+  const delivered = lines.reduce((n, o) => n + (customerOrderStatus(o) === "Delivered" ? o.quantity : 0), 0)
+  const cardLines = live.filter((o) => o.kind === "card_only")
+  const cards = cardLines.reduce((n, o) => n + o.quantity, 0)
+  const cardsShipped = cardLines.reduce((n, o) => n + (o.status === "fulfilled" ? o.quantity : 0), 0)
+  const status: CustomerStatus = statuses.some((s) => s === "Processing")
+    ? "Processing"
+    : lines.length && lines.every((o) => customerOrderStatus(o) === "Delivered")
+      ? "Delivered"
       : "Shipped"
-  return { delivered, total, status }
+  return { delivered, total, cards, cardsShipped, status }
 }

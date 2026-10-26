@@ -15,7 +15,7 @@ import { batchLabel, getWallet, listLedger, type DealerWithLogin } from "@/lib/d
 import { formatPrice } from "@/lib/format"
 import { formatDateTime } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
-import { DealerAccountForm, DealerActiveSwitch, DealerPasswordButton, DealerPricesForm, WalletEntryButton, type PriceRow } from "../dealer-controls"
+import { DealerAccountForm, DealerActiveSwitch, DealerPasswordButton, DealerPricesForm, WalletEntryButton, type CardPriceRow, type PriceRow } from "../dealer-controls"
 
 export const metadata: Metadata = { title: "Dealer" }
 
@@ -42,10 +42,11 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
   if (!data) notFound()
   const dealer = data as DealerWithLogin
 
-  const [wallet, ledger, { data: settings }, { data: packages }, { data: overrides }, { data: batches }] = await Promise.all([
+  const [wallet, ledger, { data: cardRows }, { data: cardOverrides }, { data: packages }, { data: overrides }, { data: batches }] = await Promise.all([
     getWallet(supabase, id),
     listLedger(supabase, id, 100),
-    supabase.from("settings").select("dealer_sim_card_price_cents").eq("id", true).single(),
+    supabase.from("sim_cards").select("carrier_id, price_cents, wholesale_price_cents, carrier:carriers!inner(name, display_order, active)").eq("active", true),
+    supabase.from("dealer_sim_card_prices").select("carrier_id, price_cents").eq("dealer_id", id),
     supabase
       .from("day_packages")
       .select("id, days, price_cents, wholesale_price_cents, active, plan:plans!inner(name, product_type, display_order, published, carrier:carriers!inner(name, display_order))")
@@ -82,6 +83,19 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
       retailCents: p.price_cents,
       wholesaleCents: p.wholesale_price_cents,
       dealerCents: override.get(p.id) ?? null,
+    }))
+
+  const cardOverride = new Map((cardOverrides ?? []).map((o) => [o.carrier_id as string, o.price_cents as number]))
+  type CardRow = { carrier_id: string; price_cents: number; wholesale_price_cents: number | null; carrier: { name: string; display_order: number; active: boolean } }
+  const cards: CardPriceRow[] = ((cardRows ?? []) as unknown as CardRow[])
+    .filter((c) => c.carrier.active)
+    .sort((a, b) => a.carrier.display_order - b.carrier.display_order || a.carrier.name.localeCompare(b.carrier.name))
+    .map((c) => ({
+      carrierId: c.carrier_id,
+      carrier: c.carrier.name,
+      retailCents: c.price_cents,
+      wholesaleCents: c.wholesale_price_cents,
+      dealerCents: cardOverride.get(c.carrier_id) ?? null,
     }))
 
   const name = dealer.profile.full_name || dealer.profile.email
@@ -135,14 +149,14 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
                 This dealer pays the wholesale price unless you set a special price here. A package with neither is not offered to dealers.
               </p>
             </div>
-            <DealerPricesForm dealerId={id} rows={rows} />
+            <DealerPricesForm dealerId={id} rows={rows} cards={cards} />
           </section>
 
           <section aria-labelledby="account-title" className="flex flex-col gap-4">
             <h2 id="account-title" className="type-section-title">
               Account
             </h2>
-            <DealerAccountForm dealer={dealer} defaultSimCents={settings?.dealer_sim_card_price_cents ?? 0} />
+            <DealerAccountForm dealer={dealer} />
           </section>
         </div>
 

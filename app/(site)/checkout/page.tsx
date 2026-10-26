@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Container } from "@/components/site/section"
 import { CarrierLogo } from "@/components/site/carrier-logo"
-import { getCallingDestinations, getIntlCallingAddon, getLivePlanBySlug } from "@/lib/catalog"
+import { getCallingDestinations, getIntlCallingAddon, getPublishedPlans, getSimCards } from "@/lib/catalog"
 import { dataLabel, hotspotLabel } from "@/lib/format"
 import { minimumOrderCents, paymentsEnabled } from "@/lib/payments"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -34,17 +34,30 @@ async function Checkout({
 }: Pick<PageProps<"/checkout">, "searchParams">) {
   const params = await searchParams
   const slug = typeof params.plan === "string" ? params.plan : ""
+  const cardSlug = typeof params.card === "string" ? params.card : ""
   const days = Number(params.days)
 
-  const [plan, addon, fees, destinations] = await Promise.all([
-    getLivePlanBySlug(slug),
+  const [plans, simCards, addon, fees, destinations] = await Promise.all([
+    getPublishedPlans(),
+    getSimCards(),
     getIntlCallingAddon(),
     getCheckoutFees(),
     getCallingDestinations(),
   ])
+  const plan = slug ? (plans.find((p) => p.slug === slug) ?? null) : null
   const pkg = plan?.packages.find((p) => p.days === days)
+  // SIM cards: the carrier's card, and its SIM card plans to pick from (or none).
+  const carrierSlug = plan?.carrier.slug ?? cardSlug
+  const physical = plan ? plan.product_type === "physical" : Boolean(cardSlug)
+  const simCard = physical ? (simCards.find((c) => c.carrier.slug === carrierSlug) ?? null) : null
+  const carrier = plan?.carrier ?? simCard?.carrier
+  const choices = physical
+    ? plans.filter((p) => p.product_type === "physical" && p.carrier.slug === carrierSlug)
+    : plan
+      ? [plan]
+      : []
 
-  if (!plan || !pkg) {
+  if (!carrier || (plan ? !pkg : !simCard)) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center">
         <h2 className="text-2xl font-semibold">Choose a plan first</h2>
@@ -64,11 +77,11 @@ async function Checkout({
   return (
     <>
       <Link
-        href={`/plans/${plan.slug}`}
+        href={plan ? `/plans/${plan.slug}` : "/plans?type=physical"}
         className="-ml-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" />
-        {plan.carrier.name} {plan.name}
+        {plan ? `${plan.carrier.name} ${plan.name}` : "SIM cards"}
       </Link>
       <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Checkout</h1>
       <p className="mt-2 text-muted-foreground">
@@ -76,23 +89,22 @@ async function Checkout({
       </p>
       <div className="mt-8">
         <CheckoutForm
-          plan={{
-            slug: plan.slug,
-            name: plan.name,
-            carrierName: plan.carrier.name,
-            productType: plan.product_type,
-          }}
-          logo={<CarrierLogo carrier={plan.carrier} size="sm" />}
-          facts={[dataLabel(plan), plan.hotspot_gb ? hotspotLabel(plan) : null]
-            .filter(Boolean)
-            .join(", ")}
-          days={pkg.days}
-          unitCents={pkg.price_cents}
-          regularCents={pkg.regular_price_cents}
+          productType={physical ? "physical" : "esim"}
+          carrier={{ name: carrier.name, slug: carrier.slug }}
+          logo={<CarrierLogo carrier={carrier} size="sm" />}
+          choices={choices.map((p) => ({
+            slug: p.slug,
+            name: p.name,
+            facts: [dataLabel(p), p.hotspot_gb ? hotspotLabel(p) : null].filter(Boolean).join(", "),
+            packages: p.packages.map(({ days, price_cents, regular_price_cents }) => ({ days, price_cents, regular_price_cents })),
+          }))}
+          initialPlan={plan?.slug ?? null}
+          initialDays={pkg?.days ?? null}
+          cardOnSale={Boolean(simCard)}
           addon={addon}
           initialIntl={params.intl === "1"}
           callingList={destinations.length > 0}
-          fees={fees}
+          fees={{ ...fees, simCardCents: simCard?.price_cents ?? fees.simCardCents }}
           takesPayment={paymentsEnabled()}
         />
       </div>

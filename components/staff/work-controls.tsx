@@ -49,6 +49,8 @@ type WorkProps = {
   canClaim: boolean
   canWork: boolean
   missing: number
+  /** SIM cards with no plan: done once shipped, nothing to activate. */
+  cardOnly?: boolean
 }
 
 const completeCopy: Record<
@@ -95,8 +97,15 @@ export function WorkControls({
   canClaim,
   canWork,
   missing,
+  cardOnly,
 }: WorkProps) {
-  const copy = completeCopy[need]
+  const copy = cardOnly
+    ? {
+        ...completeCopy.ship,
+        description:
+          "The tracking number goes to the customer by email and shows on their order page. These cards have no plan, so the order is done once shipped. This cannot be undone.",
+      }
+    : completeCopy[need]
   if (canClaim)
     return <ClaimButton orderId={orderId} className="w-full px-8 sm:w-auto" />
   if (!canWork) return null

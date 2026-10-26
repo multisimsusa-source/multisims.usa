@@ -10,6 +10,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import type { Order, Payment, PaymentStatus } from "@/lib/types"
 import { NowPaymentsProvider } from "./nowpayments"
 import { paymentRank, statusesBelow, type PaymentEvent, type PaymentProvider } from "./provider"
+import { orderTitle } from "@/lib/format"
 
 /**
  * The configured provider, or null when none is set up. With none, checkout takes no
@@ -88,7 +89,7 @@ export async function invoiceUrlForOrder(provider: PaymentProvider, order: Order
     const invoice = await provider.createInvoice({
       paymentId: row.id,
       amountCents: order.total_cents,
-      description: `${orderLabel(order)} ${order.carrier_name} ${order.plan_name} x ${order.quantity}`,
+      description: `${orderLabel(order)} ${orderTitle(order)} x ${order.quantity}`,
       successUrl: `${orderPage}?paid=1`,
       cancelUrl: orderPage,
       webhookUrl: absoluteUrl(`/api/payments/${provider.id}`),

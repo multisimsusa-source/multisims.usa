@@ -78,16 +78,14 @@ export async function saveDealerAccount(dealerId: string, formData: FormData): P
     note: formData.get("note") ?? "",
   })
   const creditLimit = parseMoney(formData.get("credit_limit"))
-  const simPrice = parseMoney(formData.get("sim_card_price"))
   const fieldErrors: Record<string, string> = parsed.success ? {} : zodFieldErrors(parsed.error.issues)
   if (creditLimit === null || Number.isNaN(creditLimit)) fieldErrors.credit_limit = "Enter an amount, 0 for none"
-  if (Number.isNaN(simPrice)) fieldErrors.sim_card_price = "Enter a price like 4.00, or leave it empty"
   if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "Check the highlighted fields", fieldErrors }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from("dealers")
-    .update({ ...parsed.data, credit_limit_cents: creditLimit, sim_card_price_cents: simPrice })
+    .update({ ...parsed.data, credit_limit_cents: creditLimit })
     .eq("profile_id", dealerId)
   if (error) return { ok: false, error: "Could not save. Try again." }
   refresh()
@@ -138,8 +136,19 @@ export async function saveDealerPrices(dealerId: string, formData: FormData): Pr
 
   const set: { dealer_id: string; day_package_id: string; price_cents: number }[] = []
   const clear: string[] = []
+  const setCards: { dealer_id: string; carrier_id: string; price_cents: number }[] = []
+  const clearCards: string[] = []
   const fieldErrors: Record<string, string> = {}
   for (const [key, value] of formData.entries()) {
+    if (key.startsWith("card:")) {
+      const carrierId = key.slice(5)
+      if (!z.uuid().safeParse(carrierId).success) continue
+      const cents = parseMoney(value)
+      if (cents === null) clearCards.push(carrierId)
+      else if (Number.isNaN(cents)) fieldErrors[key] = "Enter a price like 4.00"
+      else setCards.push({ dealer_id: dealerId, carrier_id: carrierId, price_cents: cents })
+      continue
+    }
     if (!key.startsWith("price:")) continue
     const packageId = key.slice(6)
     if (!z.uuid().safeParse(packageId).success) continue
@@ -159,6 +168,15 @@ export async function saveDealerPrices(dealerId: string, formData: FormData): Pr
     const { error } = await supabase.from("dealer_prices").delete().eq("dealer_id", dealerId).in("day_package_id", clear)
     if (error) return { ok: false, error: "Could not save the prices. Try again." }
   }
+  if (setCards.length) {
+    const { error } = await supabase.from("dealer_sim_card_prices").upsert(setCards, { onConflict: "dealer_id,carrier_id" })
+    if (error) return { ok: false, error: "Could not save the prices. Try again." }
+  }
+  if (clearCards.length) {
+    const { error } = await supabase.from("dealer_sim_card_prices").delete().eq("dealer_id", dealerId).in("carrier_id", clearCards)
+    if (error) return { ok: false, error: "Could not save the prices. Try again." }
+  }
   refresh()
-  return { ok: true, message: set.length ? `Saved ${set.length} special ${set.length === 1 ? "price" : "prices"}` : "All prices follow the wholesale price list" }
+  const special = set.length + setCards.length
+  return { ok: true, message: special ? `Saved ${special} special ${special === 1 ? "price" : "prices"}` : "All prices follow the wholesale price list" }
 }

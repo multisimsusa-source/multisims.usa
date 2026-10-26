@@ -258,7 +258,12 @@ export async function completeOrder(orderId: string): Promise<ActionResult> {
   const order = data as Order
   after(() => notifyOrderDelivered(order.id))
   refresh()
-  const message = order.product_type === "esim" ? "Delivered to the customer" : order.status === "fulfilled" ? "Line active. The customer has the number." : "Marked shipped"
+  const message =
+    order.product_type === "esim"
+      ? "Delivered to the customer"
+      : order.kind === "card_only" || order.status !== "fulfilled"
+        ? "Marked shipped"
+        : "Line active. The customer has the number."
   return { ok: true, message }
 }
 

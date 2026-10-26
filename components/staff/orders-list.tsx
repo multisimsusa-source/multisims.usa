@@ -16,7 +16,7 @@ import {
 import { ProductBadge } from "@/components/site/product-mark"
 import { OrderStatusTag } from "@/components/patterns/status-tag"
 import { UrlFilters } from "@/components/staff/url-filters"
-import { formatDays, formatPrice } from "@/lib/format"
+import { formatDays, formatPrice, orderTitle } from "@/lib/format"
 import { formatDateTime, orderLabel, orderStatusLabel } from "@/lib/orders"
 import {
   listDealerNames,
@@ -211,12 +211,12 @@ export async function OrdersList({
                     <TableCell>
                       <span className="flex items-center gap-2">
                         <span className="max-w-48 truncate">
-                          {o.carrier_name} {o.plan_name}
+                          {orderTitle(o)}
                         </span>
                         <ProductBadge type={o.product_type} />
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {o.quantity} x {formatDays(o.days)}
+                        {o.quantity} x {o.days !== null ? formatDays(o.days) : "SIM card only"}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-48">
@@ -269,7 +269,7 @@ export async function OrdersList({
                   </span>
                 </div>
                 <p className="mt-1 text-sm font-medium">
-                  {o.quantity} x {o.carrier_name} {o.plan_name}
+                  {o.quantity} x {orderTitle(o)}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {o.customer_name}, {formatDateTime(o.created_at)}

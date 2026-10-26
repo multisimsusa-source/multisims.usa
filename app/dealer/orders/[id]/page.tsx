@@ -25,7 +25,7 @@ import {
   type BatchOrder,
 } from "@/lib/dealer-orders"
 import { batchLabel, type LedgerEntry } from "@/lib/dealers"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import {
   customerItemStatus,
   customerOrderStatus,
@@ -215,11 +215,20 @@ async function BatchDetail({
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-20">
           <Panel title="Progress">
-            <KeyValue
-              label="SIMs live"
-              value={`${progress.delivered} of ${progress.total}`}
-              mono
-            />
+            {progress.total ? (
+              <KeyValue
+                label="SIMs live"
+                value={`${progress.delivered} of ${progress.total}`}
+                mono
+              />
+            ) : null}
+            {progress.cards ? (
+              <KeyValue
+                label="SIM cards shipped"
+                value={`${progress.cardsShipped} of ${progress.cards}`}
+                mono
+              />
+            ) : null}
             <KeyValue label="Lines" value={lines.length} mono />
           </Panel>
           <Panel title="Payment">
@@ -306,19 +315,21 @@ function LineCard({
   )
   const status = customerOrderStatus(order)
   const esim = order.product_type === "esim"
-  const live = items.filter(
-    (i) => customerItemStatus(order, i) === "Delivered"
+  // A SIM card with no plan is done once shipped: count shipped cards, not live lines.
+  const cardOnly = order.kind === "card_only"
+  const live = items.filter((i) =>
+    cardOnly ? i.status === "fulfilled" : customerItemStatus(order, i) === "Delivered"
   ).length
   return (
     <section className="overflow-hidden rounded-xl border bg-background">
       <header className="flex flex-col gap-2 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="min-w-0">
           <h2 className="type-card-title">
-            {order.carrier_name} {order.plan_name}
+            {orderTitle(order)}
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {productTypeLabel[order.product_type]} &middot;{" "}
-            {formatDays(order.days)}
+            {productTypeLabel[order.product_type]}
+            {order.days !== null ? ` · ${formatDays(order.days)}` : " only"}
             {order.addon_name ? ` · ${order.addon_name}` : ""} &middot;{" "}
             <span className="tabular font-mono">{orderLabel(order)}</span>
           </p>
@@ -328,7 +339,7 @@ function LineCard({
             <span className="text-sm text-muted-foreground">
               <span className="tabular font-mono text-foreground">{live}</span>{" "}
               of <span className="tabular font-mono">{order.quantity}</span>{" "}
-              live
+              {cardOnly ? "shipped" : "live"}
             </span>
           )}
           <CustomerStatusTag status={status} />
@@ -403,7 +414,7 @@ function LineCard({
             action={saveDealerReview.bind(null, order.id, null)}
             given={reviews.get(`line:${order.id}`) ?? null}
             subject={`line ${orderLabel(order)}`}
-            description={`${order.carrier_name} ${order.plan_name}, ${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}. Rate it from 1 to 5 stars.`}
+            description={`${orderTitle(order)}, ${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}. Rate it from 1 to 5 stars.`}
             consent={DEALER_CONSENT}
           />
         </div>

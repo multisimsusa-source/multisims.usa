@@ -12,7 +12,7 @@ import { Tag } from "@/components/patterns/tag"
 import { Age } from "@/components/staff/age"
 import { ClaimButton } from "@/components/staff/order-actions"
 import { getSessionProfile } from "@/lib/auth"
-import { formatDays } from "@/lib/format"
+import { formatDays, orderTitle } from "@/lib/format"
 import { elapsed, orderLabel, planStartLabel } from "@/lib/orders"
 import { getSettings, listOpenOrders, type QueueOrder } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
@@ -143,7 +143,7 @@ function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; a
   const startsToday = activation && order.plan_start === "on_date" && order.activate_on === usToday()
   const facts = [
     `${order.quantity} x`,
-    formatDays(order.days),
+    order.days !== null ? formatDays(order.days) : "SIM card only",
     order.addon_name,
     order.zip_code ? `ZIP ${order.zip_code}` : null,
     order.area_code ? `Area ${order.area_code}` : null,
@@ -179,7 +179,7 @@ function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; a
           {order.status === "needs_attention" ? <Tag tone="danger">Needs attention</Tag> : null}
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-2 font-medium">
-          {order.carrier_name} {order.plan_name}
+          {orderTitle(order)}
           <ProductBadge type={order.product_type} />
         </p>
         <p className="mt-0.5 text-sm text-muted-foreground">{facts.join(" · ")}</p>

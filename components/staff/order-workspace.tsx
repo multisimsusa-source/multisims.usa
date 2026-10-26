@@ -27,7 +27,7 @@ import {
   WorkControls,
 } from "@/components/staff/work-controls"
 import type { Profile } from "@/lib/types"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import {
   formatDateTime,
   orderLabel,
@@ -112,7 +112,7 @@ export async function OrderWorkspace({
           ) : null}
         </div>
         <p className="flex flex-wrap items-center gap-2 text-lg font-medium">
-          {order.carrier_name} {order.plan_name}
+          {orderTitle(order)}
           <ProductBadge type={order.product_type} />
         </p>
         <WorkControls
@@ -122,6 +122,7 @@ export async function OrderWorkspace({
           canClaim={canClaim}
           canWork={canWork}
           missing={missing}
+          cardOnly={order.kind === "card_only"}
         />
         {order.claimed_by && !holder && order.status === "claimed" ? (
           <p className="text-sm text-muted-foreground">
@@ -283,13 +284,16 @@ export async function OrderWorkspace({
           <Panel title="Line to get">
             <KeyValue
               label="Carrier and plan"
-              value={`${order.carrier_name} ${order.plan_name}`}
+              value={`${orderTitle(order)}`}
             />
             <KeyValue
               label="Product"
               value={productTypeLabel[order.product_type]}
             />
-            <KeyValue label="Days" value={formatDays(order.days)} />
+            <KeyValue
+              label="Days"
+              value={order.days !== null ? formatDays(order.days) : "No plan, SIM card only"}
+            />
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
             <KeyValue
               label="ZIP code"

@@ -29,8 +29,8 @@ import { ActionBar } from "@/components/patterns/action-bar"
 import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { Notice } from "@/components/patterns/notice"
 import { QuantityStepper } from "@/components/patterns/quantity-stepper"
-import type { DealerCatalogRow, OrderingTerms } from "@/lib/dealer-orders"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import type { DealerCatalogRow, DealerSimCard, OrderingTerms } from "@/lib/dealer-orders"
+import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import type { ProductType } from "@/lib/types"
 import { usStates } from "@/lib/us-states"
 import { placeDealerOrder } from "./actions"
@@ -43,6 +43,8 @@ type Line = {
   key: number
   planId: string | null
   packageId: string | null
+  /** SIM cards on their own: the carrier, instead of a plan. */
+  cardCarrierId: string | null
   calling: boolean
   quantity: number
 }
@@ -50,6 +52,7 @@ type PlanOption = {
   id: string
   label: string
   carrier: string
+  carrierId: string
   productType: ProductType
   packages: { id: string; days: number; price_cents: number }[]
 }
@@ -59,16 +62,21 @@ const newLine = (): Line => ({
   key: nextKey++,
   planId: null,
   packageId: null,
+  cardCarrierId: null,
   calling: false,
   quantity: 1,
 })
 
+const CARD = "card:"
+
 export function OrderBuilder({
   catalog,
+  cards,
   terms,
   availableCents,
 }: {
   catalog: DealerCatalogRow[]
+  cards: DealerSimCard[]
   terms: OrderingTerms
   availableCents: number
 }) {
@@ -82,6 +90,20 @@ export function OrderBuilder({
     () => [...new Set(plans.map((p) => p.carrier))],
     [plans]
   )
+  const cardByCarrier = React.useMemo(
+    () => new Map(cards.map((c) => [c.carrier_id, c])),
+    [cards]
+  )
+  const choiceItems = [
+    ...cards.map((c) => ({
+      value: `${CARD}${c.carrier_id}`,
+      label: `${c.carrier_name} SIM card, ${formatPrice(c.price_cents)} each`,
+    })),
+    ...plans.map((p) => ({
+      value: p.id,
+      label: `${p.label} (${productTypeLabel[p.productType]})`,
+    })),
+  ]
 
   const [lines, setLines] = React.useState<Line[]>(() => [newLine()])
   const [address, setAddress] = React.useState({
@@ -97,17 +119,23 @@ export function OrderBuilder({
   const [pending, start] = React.useTransition()
 
   const priced = lines.map((line) => {
+    const card = line.cardCarrierId ? cardByCarrier.get(line.cardCarrierId) : undefined
     const plan = line.planId ? planById.get(line.planId) : undefined
     const pkg = plan?.packages.find((p) => p.id === line.packageId)
     const calling =
-      line.calling && terms.calling_price_cents !== null
+      plan && line.calling && terms.calling_price_cents !== null
         ? terms.calling_price_cents
         : 0
-    const sim =
-      plan?.productType === "physical" ? terms.sim_card_price_cents : 0
-    const each = pkg ? pkg.price_cents + calling + sim : 0
+    // A SIM card plan includes the card, at this dealer's price for that carrier.
+    const sim = card
+      ? card.price_cents
+      : plan?.productType === "physical"
+        ? (cardByCarrier.get(plan.carrierId)?.price_cents ?? terms.sim_card_price_cents)
+        : 0
+    const each = card ? card.price_cents : pkg ? pkg.price_cents + calling + sim : 0
     return {
       line,
+      card,
       plan,
       pkg,
       calling,
@@ -116,11 +144,11 @@ export function OrderBuilder({
       subtotal: each * line.quantity,
     }
   })
-  const physical = priced.some((p) => p.plan?.productType === "physical")
+  const physical = priced.some((p) => p.card || p.plan?.productType === "physical")
   const shipping = physical ? terms.shipping_fee_cents : 0
   const total = priced.reduce((n, p) => n + p.subtotal, 0) + shipping
   const sims = lines.reduce((n, l) => n + l.quantity, 0)
-  const complete = priced.every((p) => p.pkg)
+  const complete = priced.every((p) => p.pkg || p.card)
   const short = total > availableCents
   const canPlace = complete && !short && sims <= MAX_SIMS && total > 0
 
@@ -130,7 +158,7 @@ export function OrderBuilder({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setServerError(null)
-    const missing = priced.findIndex((p) => !p.pkg)
+    const missing = priced.findIndex((p) => !p.pkg && !p.card)
     if (missing >= 0) {
       setErrors({
         [`line-${lines[missing].key}`]: "Choose a plan and a length",
@@ -147,11 +175,15 @@ export function OrderBuilder({
     setErrors({})
     start(async () => {
       const result = await placeDealerOrder({
-        lines: priced.map((p) => ({
-          day_package_id: p.pkg!.id,
-          quantity: p.line.quantity,
-          intl_calling: p.calling > 0,
-        })),
+        lines: priced.map((p) =>
+          p.card
+            ? { sim_card_carrier_id: p.card.carrier_id, quantity: p.line.quantity }
+            : {
+                day_package_id: p.pkg!.id,
+                quantity: p.line.quantity,
+                intl_calling: p.calling > 0,
+              }
+        ),
         address: physical ? address : null,
         reference,
       })
@@ -194,11 +226,17 @@ export function OrderBuilder({
             <h2 className="type-card-title">Lines</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Up to {MAX_PER_LINE} SIMs per line and {MAX_SIMS} per order.
-              Prices are yours, per SIM.
+              Prices are yours, per SIM. SIM cards on their own are at the top
+              of the Plan list; type any quantity.
             </p>
+            {cards.length === 0 ? (
+              <Notice tone="info" className="mt-4">
+                No SIM card prices set for your account yet. Contact us.
+              </Notice>
+            ) : null}
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, plan, pkg, each, subtotal }, i) => {
+            {priced.map(({ line, card, plan, pkg, each, subtotal }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -235,21 +273,29 @@ export function OrderBuilder({
                   </div>
 
                   <div className="grid gap-x-4 gap-y-5 sm:grid-cols-[1fr_11rem]">
-                    <Field data-invalid={Boolean(err && !plan) || undefined}>
+                    <Field data-invalid={Boolean(err && !plan && !card) || undefined}>
                       <FieldLabel htmlFor={`plan-${line.key}`}>Plan</FieldLabel>
                       <Select
-                        items={plans.map((p) => ({
-                          value: p.id,
-                          label: `${p.label} (${productTypeLabel[p.productType]})`,
-                        }))}
-                        value={line.planId}
+                        items={choiceItems}
+                        value={line.cardCarrierId ? `${CARD}${line.cardCarrierId}` : line.planId}
                         onValueChange={(v) => {
-                          const next = planById.get(String(v))
+                          const value = String(v ?? "")
+                          if (value.startsWith(CARD)) {
+                            update(line.key, {
+                              cardCarrierId: value.slice(CARD.length),
+                              planId: null,
+                              packageId: null,
+                              calling: false,
+                            })
+                            return
+                          }
+                          const next = planById.get(value)
                           const days = pkg?.days
                           const keep = next?.packages.find(
                             (p) => p.days === days
                           )
                           update(line.key, {
+                            cardCarrierId: null,
                             planId: next?.id ?? null,
                             packageId: keep?.id ?? null,
                           })
@@ -258,11 +304,24 @@ export function OrderBuilder({
                         <SelectTrigger
                           id={`plan-${line.key}`}
                           className="w-full"
-                          aria-invalid={Boolean(err && !plan) || undefined}
+                          aria-invalid={Boolean(err && !plan && !card) || undefined}
                         >
-                          <SelectValue placeholder="Choose a plan" />
+                          <SelectValue placeholder="Choose a plan or SIM cards" />
                         </SelectTrigger>
                         <SelectContent>
+                          {cards.length ? (
+                            <SelectGroup>
+                              <SelectLabel>SIM cards only, no plan</SelectLabel>
+                              {cards.map((c) => (
+                                <SelectItem key={c.carrier_id} value={`${CARD}${c.carrier_id}`}>
+                                  <span className="flex w-full justify-between gap-4">
+                                    {c.carrier_name} SIM card
+                                    <span className="tabular font-mono">{formatPrice(c.price_cents)}</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ) : null}
                           {carriers.map((carrier) => (
                             <SelectGroup key={carrier}>
                               <SelectLabel>{carrier}</SelectLabel>
@@ -279,6 +338,14 @@ export function OrderBuilder({
                         </SelectContent>
                       </Select>
                     </Field>
+                    {card ? (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-medium">Length</span>
+                        <p className="flex min-h-11 items-center text-sm text-muted-foreground">
+                          No plan, card only
+                        </p>
+                      </div>
+                    ) : (
                     <Field
                       data-invalid={Boolean(err && plan && !pkg) || undefined}
                     >
@@ -321,6 +388,7 @@ export function OrderBuilder({
                         </SelectContent>
                       </Select>
                     </Field>
+                    )}
                     {err ? (
                       <FieldError className="sm:col-span-full">
                         {err}
@@ -329,7 +397,7 @@ export function OrderBuilder({
                   </div>
 
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    {terms.calling_price_cents !== null ? (
+                    {terms.calling_price_cents !== null && !card ? (
                       <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
                         <Switch
                           checked={line.calling}
@@ -495,8 +563,20 @@ export function OrderBuilder({
           <div className="p-5">
             <h2 className="type-card-title">Order summary</h2>
             <dl className="mt-4 space-y-2 text-sm">
-              {priced.map(({ line, plan, pkg, subtotal }, i) =>
-                pkg && plan ? (
+              {priced.map(({ line, card, plan, pkg, subtotal }, i) =>
+                card ? (
+                  <div
+                    key={line.key}
+                    className="flex items-baseline justify-between gap-4"
+                  >
+                    <dt className="min-w-0 text-muted-foreground">
+                      {card.carrier_name} SIM card x {line.quantity}
+                    </dt>
+                    <dd className="tabular shrink-0 font-mono">
+                      {formatPrice(subtotal)}
+                    </dd>
+                  </div>
+                ) : pkg && plan ? (
                   <div
                     key={line.key}
                     className="flex items-baseline justify-between gap-4"
@@ -525,10 +605,9 @@ export function OrderBuilder({
                   </div>
                 )
               )}
-              {physical && terms.sim_card_price_cents > 0 ? (
+              {priced.some((p) => !p.card && p.plan?.productType === "physical" && p.sim > 0) ? (
                 <p className="text-xs text-muted-foreground">
-                  SIM card lines include{" "}
-                  {formatPrice(terms.sim_card_price_cents)} per card.
+                  SIM card plans include the card at your SIM card price.
                 </p>
               ) : null}
               {physical ? (
@@ -682,8 +761,9 @@ function groupPlans(rows: DealerCatalogRow[]): PlanOption[] {
     if (!plan) {
       plan = {
         id: r.plan_id,
-        label: `${r.carrier_name} ${r.plan_name}`,
+        label: `${orderTitle(r)}`,
         carrier: r.carrier_name,
+        carrierId: r.carrier_id,
         productType: r.product_type,
         packages: [],
       }

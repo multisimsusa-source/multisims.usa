@@ -10,6 +10,11 @@ export function formatDays(days: number) {
   return days === 1 ? "1 day" : `${days} days`
 }
 
+/** "AT&T Unlimited", or "AT&T SIM card" for a card on its own. */
+export function orderTitle(o: { carrier_name: string; plan_name: string | null }) {
+  return `${o.carrier_name} ${o.plan_name ?? "SIM card"}`
+}
+
 export function formatGb(gb: number) {
   return `${Number.isInteger(gb) ? gb : gb.toFixed(1)} GB`
 }

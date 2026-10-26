@@ -13,15 +13,26 @@ import { createClient } from "@/lib/supabase/server"
 const schema = z.object({
   lines: z
     .array(
-      z.object({
-        day_package_id: z.uuid("Choose a plan and length"),
-        quantity: z
-          .number()
-          .int()
-          .min(1, "At least 1 SIM")
-          .max(500, "At most 500 SIMs per line"),
-        intl_calling: z.boolean(),
-      })
+      z.union([
+        z.object({
+          day_package_id: z.uuid("Choose a plan and length"),
+          quantity: z
+            .number()
+            .int()
+            .min(1, "At least 1 SIM")
+            .max(500, "At most 500 SIMs per line"),
+          intl_calling: z.boolean(),
+        }),
+        // SIM cards on their own, no plan.
+        z.object({
+          sim_card_carrier_id: z.uuid("Choose a SIM card"),
+          quantity: z
+            .number()
+            .int()
+            .min(1, "At least 1 SIM card")
+            .max(500, "At most 500 SIM cards per line"),
+        }),
+      ])
     )
     .min(1, "Add at least one line")
     .max(30, "At most 30 lines per order"),

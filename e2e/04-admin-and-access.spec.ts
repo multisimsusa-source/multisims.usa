@@ -69,15 +69,15 @@ test.describe.serial("Owner tools and access", () => {
 
   test("owner changes a setting and it sticks", async ({ browser }) => {
     const owner = await pageAs(browser, "owner")
-    const { data: before } = await db().from("settings").select("dealer_sim_card_price_cents").single()
+    const { data: before } = await db().from("settings").select("shipping_fee_cents").single()
     await owner.goto("/admin/settings")
-    await owner.getByLabel("Dealer SIM card price (USD)").fill("4.50")
+    await owner.getByLabel("Shipping fee (USD)").fill("1.50")
     await owner.getByRole("button", { name: "Save settings" }).click()
     await expectToast(owner, "Settings saved")
-    const { data: after } = await db().from("settings").select("dealer_sim_card_price_cents").single()
-    expect(after?.dealer_sim_card_price_cents).toBe(450)
+    const { data: after } = await db().from("settings").select("shipping_fee_cents").single()
+    expect(after?.shipping_fee_cents).toBe(150)
     // Put it back for the next run.
-    await db().from("settings").update({ dealer_sim_card_price_cents: before!.dealer_sim_card_price_cents }).eq("id", true)
+    await db().from("settings").update({ shipping_fee_cents: before!.shipping_fee_cents }).eq("id", true)
   })
 
   test("contact form sends a message", async ({ browser }) => {

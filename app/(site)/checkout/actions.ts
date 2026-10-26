@@ -16,8 +16,10 @@ import type { Order } from "@/lib/types"
 import { usStateCodes } from "@/lib/us-states"
 
 const base = z.object({
-  plan: z.string().min(1).max(120),
-  days: z.coerce.number().int().min(1).max(365),
+  // Empty for a SIM card on its own: then `card` names the carrier.
+  plan: z.string().max(120).default(""),
+  card: z.string().max(120).default(""),
+  days: z.union([z.literal(""), z.coerce.number().int().min(1).max(365)]).default(""),
   intl: z.boolean(),
   quantity: z.coerce.number().int().min(1, "At least 1").max(MAX_QUANTITY, `Up to ${MAX_QUANTITY} per order`),
   name: z.string().trim().min(2, "Enter your full name").max(120),
@@ -57,6 +59,13 @@ function checkStartDate(value: string): string | null {
   if (value > limit.toISOString().slice(0, 10)) return "Choose a date within the next year"
   return null
 }
+/** A carrier's SIM card price: its own card row, or the old flat price when it has none. */
+async function simCardPrice(carrierId: string, known: { price_cents: number } | undefined, fallback: number) {
+  if (known) return known.price_cents
+  const { data } = await createServiceClient().from("sim_cards").select("price_cents").eq("carrier_id", carrierId).maybeSingle()
+  return data?.price_cents ?? fallback
+}
+
 export type CheckoutState = {
   status: "idle" | "error"
   message?: string
@@ -89,29 +98,43 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
 
   const db = createServiceClient()
   const slug = values.plan ?? ""
-  const [{ data: plan }, { data: settings }, { data: addon }] = await Promise.all([
-    db
-      .from("plans")
-      .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
-      .eq("slug", slug)
-      .maybeSingle(),
+  const cardOnly = slug === ""
+  const [{ data: plan }, { data: cardCarrier }, { data: settings }, { data: addon }] = await Promise.all([
+    cardOnly
+      ? Promise.resolve({ data: null })
+      : db
+          .from("plans")
+          .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
+          .eq("slug", slug)
+          .maybeSingle(),
+    cardOnly
+      ? db.from("carriers").select("id, name, active, card:sim_cards!inner(price_cents, active)").eq("slug", (values.card ?? "").slice(0, 120)).maybeSingle()
+      : Promise.resolve({ data: null }),
     db.from("settings").select("shipping_fee_cents, sim_card_price_cents, network_fee_cents, min_order_cents").maybeSingle(),
     db.from("addons").select("id, name, price_cents").eq("code", "intl_calling").eq("active", true).maybeSingle(),
   ])
 
-  const carrier = plan?.carrier as unknown as { id: string; name: string; active: boolean } | undefined
+  type Card = { price_cents: number; active: boolean }
+  const card = cardCarrier?.card as unknown as Card | Card[] | undefined
+  const cardRow = Array.isArray(card) ? card[0] : card
+  const carrier = (cardOnly ? cardCarrier : plan?.carrier) as unknown as { id: string; name: string; active: boolean } | undefined
   const pkg = plan?.packages.find((p) => p.active && p.days === Number(values.days))
-  if (!plan || !plan.published || !carrier?.active || !pkg) {
+  if (cardOnly) {
+    if (!carrier?.active || !cardRow?.active) {
+      return { status: "error", message: "This SIM card is no longer on sale. Go back and choose again.", values }
+    }
+  } else if (!plan || !plan.published || !carrier?.active || !pkg) {
     return { status: "error", message: "This plan or day package is no longer on sale. Go back and choose again.", values }
   }
 
-  const physical = plan.product_type === "physical"
+  const physical = cardOnly || plan?.product_type === "physical"
   let shipping: z.infer<typeof address> | null = null
   if (physical) {
-    const a = address.safeParse({ plan_start: "on_receipt", activate_on: "", ...values })
+    // A card on its own has no plan to start.
+    const a = address.safeParse({ plan_start: "on_receipt", activate_on: "", ...values, ...(cardOnly ? { plan_start: "on_receipt", activate_on: "" } : {}) })
     if (a.success) {
       shipping = a.data
-      if (a.data.plan_start === "on_date") {
+      if (!cardOnly && a.data.plan_start === "on_date") {
         const dateError = checkStartDate(a.data.activate_on)
         if (dateError) fieldErrors.activate_on = dateError
       }
@@ -123,17 +146,19 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   }
 
   const input = parsed.data
-  const useAddon = input.intl && addon ? addon : null
+  // Calling comes with a plan; a card on its own has none.
+  const useAddon = input.intl && addon && !cardOnly ? addon : null
   const shippingCents = physical ? (settings?.shipping_fee_cents ?? 0) : 0
-  const simCardCents = physical ? (settings?.sim_card_price_cents ?? 0) : 0
+  // The carrier's card price; a carrier without a card row keeps the old flat price.
+  const simCardCents = physical ? await simCardPrice(carrier!.id, cardRow, settings?.sim_card_price_cents ?? 0) : 0
   const networkFeeCents = settings?.network_fee_cents ?? 0
   // The sale price, when the package is on sale.
-  const unitCents = pkg.sale_price_cents !== null && pkg.sale_price_cents < pkg.price_cents ? pkg.sale_price_cents : pkg.price_cents
+  const unitCents = !pkg ? 0 : pkg.sale_price_cents !== null && pkg.sale_price_cents < pkg.price_cents ? pkg.sale_price_cents : pkg.price_cents
   const priceInput = { unitCents, addonCents: useAddon?.price_cents ?? 0, quantity: input.quantity, physical, simCardCents }
 
   let discount: { id: string; code: string; cents: number } | null = null
   if (values.discount_code?.trim()) {
-    const found = await findDiscountCode(values.discount_code, carrier.id)
+    const found = await findDiscountCode(values.discount_code, carrier!.id)
     if (!found.ok) return { status: "error", message: `${found.error}. Remove it or try another code.`, values }
     discount = { id: found.code.id, code: found.code.code, cents: discountFor(found.code as DiscountRule, discountableCents(priceInput)) }
   }
@@ -159,14 +184,15 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       shipping_address: shipping
         ? { line1: shipping.line1, line2: shipping.line2 || undefined, city: shipping.city, state: shipping.state, zip: shipping.ship_zip }
         : null,
-      carrier_id: carrier.id,
-      plan_id: plan.id,
-      day_package_id: pkg.id,
+      kind: cardOnly ? "card_only" : "line",
+      carrier_id: carrier!.id,
+      plan_id: plan?.id ?? null,
+      day_package_id: pkg?.id ?? null,
       addon_id: useAddon?.id ?? null,
-      carrier_name: carrier.name,
-      plan_name: plan.name,
-      product_type: plan.product_type,
-      days: pkg.days,
+      carrier_name: carrier!.name,
+      plan_name: plan?.name ?? null,
+      product_type: cardOnly ? "physical" : plan!.product_type,
+      days: pkg?.days ?? null,
       addon_name: useAddon?.name ?? null,
       quantity: input.quantity,
       unit_price_cents: unitCents,
@@ -178,8 +204,8 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       discount_code_id: discount?.id ?? null,
       discount_code: discount?.code ?? null,
       discount_cents: discount?.cents ?? 0,
-      plan_start: shipping ? shipping.plan_start : null,
-      activate_on: shipping?.plan_start === "on_date" ? shipping.activate_on : null,
+      plan_start: shipping && !cardOnly ? shipping.plan_start : null,
+      activate_on: shipping && !cardOnly && shipping.plan_start === "on_date" ? shipping.activate_on : null,
     })
     .select("*")
     .single()
@@ -221,13 +247,13 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
 
 export type DiscountCheck = { ok: true; code: string; kind: "percent" | "fixed"; value: number } | { ok: false; error: string }
 
-/** Checks a code typed at checkout so the total can show it. placeOrder checks it again. */
-export async function checkDiscountCode(code: string, planSlug: string): Promise<DiscountCheck> {
+/** Checks a code typed at checkout or on the refill page so the total can show it. Placing the order checks it again. */
+export async function checkDiscountCode(code: string, carrierSlug: string): Promise<DiscountCheck> {
   if (!(await rateLimit(`discount:${await clientIp()}`, 20, 10 * 60_000)).ok) return { ok: false, error: "Too many tries. Wait a few minutes." }
   const db = createServiceClient()
-  const { data: plan } = await db.from("plans").select("carrier_id").eq("slug", planSlug.slice(0, 120)).eq("published", true).maybeSingle()
-  if (!plan) return { ok: false, error: "This plan is no longer on sale" }
-  const found = await findDiscountCode(code, plan.carrier_id)
+  const { data: carrier } = await db.from("carriers").select("id").eq("slug", carrierSlug.slice(0, 120)).eq("active", true).maybeSingle()
+  if (!carrier) return { ok: false, error: "This carrier is no longer on sale" }
+  const found = await findDiscountCode(code, carrier.id)
   if (!found.ok) return found
   return { ok: true, code: found.code.code, kind: found.code.kind, value: found.code.value }
 }

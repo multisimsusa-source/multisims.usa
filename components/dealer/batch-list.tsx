@@ -3,7 +3,7 @@ import Link from "next/link"
 import { CustomerStatusTag } from "@/components/patterns/status-tag"
 import { batchProgress, type Batch } from "@/lib/dealer-orders"
 import { batchLabel } from "@/lib/dealers"
-import { formatPrice } from "@/lib/format"
+import { formatPrice, orderTitle } from "@/lib/format"
 import { formatDateTime } from "@/lib/orders"
 
 /**
@@ -44,7 +44,7 @@ export function BatchList({
               </p>
               <p className="mt-0.5 truncate text-sm text-muted-foreground">
                 {lines.length === 1
-                  ? `${lines[0].carrier_name} ${lines[0].plan_name}`
+                  ? `${orderTitle(lines[0])}`
                   : `${lines.length} plans`}{" "}
                 &middot;{" "}
                 <span className="tabular">{formatDateTime(b.created_at)}</span>
@@ -55,6 +55,11 @@ export function BatchList({
                 <>
                   <span className="tabular font-mono text-foreground">{progress.delivered}</span> of{" "}
                   <span className="tabular font-mono">{progress.total}</span> SIMs live
+                </>
+              ) : progress.cards ? (
+                <>
+                  <span className="tabular font-mono text-foreground">{progress.cardsShipped}</span> of{" "}
+                  <span className="tabular font-mono">{progress.cards}</span> SIM cards shipped
                 </>
               ) : (
                 "Nothing to deliver"

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import { orderLabel, planStartLabel } from "@/lib/orders"
 import { orderLines } from "@/lib/pricing"
 import { site } from "@/lib/site"
@@ -66,11 +66,11 @@ function rows(pairs: [string, string][]) {
 function orderRows(order: Order): [string, string][] {
   const out: [string, string][] = [
     ["Order", orderLabel(order)],
-    ["Plan", `${order.carrier_name} ${order.plan_name}`],
+    ["Plan", `${orderTitle(order)}`],
     ["Product", productTypeLabel[order.product_type]],
-    ["Days", formatDays(order.days)],
     ["Quantity", String(order.quantity)],
   ]
+  if (order.days !== null) out.splice(3, 0, ["Days", formatDays(order.days)])
   if (order.product_type === "physical" && order.plan_start) out.push(["Plan starts", planStartLabel(order)])
   if (order.total_cents > 0) {
     for (const l of orderLines(order)) out.push([l.label, formatPrice(l.cents)])
@@ -149,8 +149,9 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
         : "Your SIM card has shipped"
   // Only a delivered website order (not a posted card, not a replacement) is rated.
   const rateable = order.status === "fulfilled" && order.channel === "website" && !opts.replacement
-  const shippedNext =
-    order.plan_start === "on_date" && order.activate_on
+  const shippedNext = order.kind === "card_only"
+    ? "It comes without a plan, so no days are running. Choose a plan and activate it whenever you need the line."
+    : order.plan_start === "on_date" && order.activate_on
       ? `Your line starts ${planStartLabel(order).replace(/^On /, "on ")}, and we email you its phone number then.`
       : "When it arrives, open your order page and press \"My SIM has arrived, activate it\". Your plan days start from then."
 
@@ -234,10 +235,10 @@ export function staffNewOrderEmail(order: Order, workUrl: string, { activation =
   const heading = activation ? "SIM arrived, ready to activate" : `${what} waiting`
   const lead = activation ? "The customer has their SIM. Start the line and add its phone number." : `${what} waiting in the queue.`
   return {
-    subject: `${what} ${orderLabel(order)}: ${order.quantity} x ${order.carrier_name} ${order.plan_name}`,
+    subject: `${what} ${orderLabel(order)}: ${order.quantity} x ${orderTitle(order)}`,
     text: `${lead}\n\n${textRows(pairs)}\n\nClaim it: ${workUrl}`,
     html: layout({
-      preheader: `${order.quantity} x ${order.carrier_name} ${order.plan_name}, ${formatDays(order.days)}`,
+      preheader: `${order.quantity} x ${orderTitle(order)}${order.days !== null ? `, ${formatDays(order.days)}` : ""}`,
       heading,
       body: (activation ? p(esc(lead)) : "") + rows(pairs),
       cta: { label: "Open the queue", url: workUrl },
@@ -355,8 +356,8 @@ export type BatchEmailLine = Pick<Order, "number" | "carrier_name" | "plan_name"
 
 function batchRows(lines: BatchEmailLine[]): [string, string][] {
   return lines.map((l) => [
-    `${orderLabel(l)} ${l.carrier_name} ${l.plan_name}`,
-    `${l.quantity} x ${productTypeLabel[l.product_type]}, ${formatDays(l.days)}${l.addon_name ? `, ${l.addon_name}` : ""}`,
+    `${orderLabel(l)} ${orderTitle(l)}`,
+    `${l.quantity} x ${productTypeLabel[l.product_type]}${l.days !== null ? `, ${formatDays(l.days)}` : ""}${l.addon_name ? `, ${l.addon_name}` : ""}`,
   ])
 }
 
@@ -379,7 +380,7 @@ export function staffNewBatchEmail(batch: { number: number; company: string }, l
 
 /** One line of a dealer's bulk order is ready (eSIMs, activated SIM cards) or posted. */
 export function dealerLineEmail(order: Order, batchNumber: number, event: "delivered" | "shipped", portalUrl: string): Rendered {
-  const what = `${order.quantity} x ${order.carrier_name} ${order.plan_name}, ${formatDays(order.days)}`
+  const what = `${order.quantity} x ${orderTitle(order)}${order.days !== null ? `, ${formatDays(order.days)}` : ""}`
   const heading = event === "shipped" ? "SIM cards shipped" : order.product_type === "esim" ? "eSIMs ready" : "Lines active"
   const lead =
     event === "shipped"

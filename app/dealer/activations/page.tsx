@@ -17,7 +17,7 @@ import { UrlFilters } from "@/components/staff/url-filters"
 import { requireRole } from "@/lib/auth"
 import { listDealerActivations } from "@/lib/dealer-activations"
 import { batchLabel } from "@/lib/dealers"
-import { formatDays, productTypeLabel } from "@/lib/format"
+import { formatDays, productTypeLabel, orderTitle } from "@/lib/format"
 import { customerItemStatus, formatDateTime } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
 
@@ -89,11 +89,11 @@ async function Results({
                 >
                   <div className="min-w-0 sm:w-64">
                     <p className="truncate text-sm font-medium">
-                      {r.order.carrier_name} {r.order.plan_name}
+                      {orderTitle(r.order)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {productTypeLabel[r.order.product_type]} &middot;{" "}
-                      {formatDays(r.order.days)} &middot;{" "}
+                      {r.order.days !== null ? <>{formatDays(r.order.days)} &middot; </> : null}
                       {r.order.batch ? (
                         <Link
                           href={`/dealer/orders/${r.order.batch.id}`}

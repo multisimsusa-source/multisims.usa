@@ -21,7 +21,7 @@ import {
   type CustomerItem,
 } from "@/lib/customer-order"
 import { orderLines } from "@/lib/pricing"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
+import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import {
   customerItemStatus,
   customerOrderStatus,
@@ -164,11 +164,11 @@ async function OrderView({
           <StatusTag status={status} />
         </div>
         <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">
-          {order.carrier_name} {order.plan_name}
+          {orderTitle(order)}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {order.quantity} x {productTypeLabel[order.product_type]},{" "}
-          {formatDays(order.days)}
+          {order.quantity} x {productTypeLabel[order.product_type]}
+          {order.days !== null ? `, ${formatDays(order.days)}` : ""}
           {order.addon_name ? `, with ${order.addon_name.toLowerCase()}` : ""}
         </p>
       </header>
@@ -296,9 +296,11 @@ async function OrderView({
           <DetailRow label="Placed" value={formatDateTime(order.created_at)} />
           <DetailRow
             label="Plan"
-            value={`${order.carrier_name} ${order.plan_name}`}
+            value={`${orderTitle(order)}`}
           />
-          <DetailRow label="Length" value={formatDays(order.days)} />
+          {order.days !== null ? (
+            <DetailRow label="Length" value={formatDays(order.days)} />
+          ) : null}
           <DetailRow label="Quantity" value={String(order.quantity)} mono />
           {order.area_code ? (
             <DetailRow
@@ -391,13 +393,16 @@ async function OrderView({
 
 /**
  * Where the order is, at a glance. eSIM: Placed, Processing, Delivered. Physical SIM:
- * Placed, Processing, Shipped, Delivered (line active). Physical orders shipped before
- * the activation step existed end at Shipped.
+ * Placed, Processing, Shipped, Delivered (line active). A SIM card with no plan, and
+ * physical orders shipped before the activation step existed, end at Shipped.
  */
 function Progress({ order, status }: { order: Order; status: CustomerStatus }) {
   const physical = order.product_type === "physical"
+  // Ends at Shipped: a SIM card with no plan, and cards posted before the activation step.
   const legacy =
-    physical && order.phase === "fulfil" && order.status === "fulfilled"
+    physical &&
+    (order.kind === "card_only" ||
+      (order.phase === "fulfil" && order.status === "fulfilled"))
   const labels: string[] =
     physical && !legacy
       ? ["Placed", "Processing", "Shipped", "Delivered"]

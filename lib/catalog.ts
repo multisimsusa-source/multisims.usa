@@ -157,3 +157,30 @@ export async function getCallingDestinations(): Promise<{ name: string; minutes_
   if (error) throw error
   return data
 }
+
+/** A carrier's SIM card on its own, as the website sells it: a price, never a length. */
+export type CatalogSimCard = {
+  carrier: Pick<Carrier, "id" | "name" | "slug" | "logo_path">
+  price_cents: number
+}
+
+/** SIM cards on sale: switched on, carrier active. */
+export async function getSimCards(): Promise<CatalogSimCard[]> {
+  "use cache"
+  cacheLife(CATALOG_LIFE)
+  cacheTag(CATALOG_TAG)
+  const { data, error } = await createServiceClient()
+    .from("sim_cards")
+    .select("price_cents, carrier:carriers!inner ( id, name, slug, logo_path, active, display_order )")
+    .eq("active", true)
+  if (error) throw error
+  type Row = { price_cents: number; carrier: CatalogSimCard["carrier"] & { active: boolean; display_order: number } }
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.carrier.active)
+    .sort((a, b) => a.carrier.display_order - b.carrier.display_order || a.carrier.name.localeCompare(b.carrier.name))
+    .map(({ price_cents, carrier: { id, name, slug, logo_path } }) => ({ price_cents, carrier: { id, name, slug, logo_path } }))
+}
+
+export async function getSimCardBySlug(carrierSlug: string): Promise<CatalogSimCard | null> {
+  return (await getSimCards()).find((c) => c.carrier.slug === carrierSlug) ?? null
+}

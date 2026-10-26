@@ -13,6 +13,7 @@ import { formatDateTime, orderLabel } from "@/lib/orders"
 import type { ProductType } from "@/lib/types"
 import { createClient } from "@/lib/supabase/server"
 import { FeatureSwitch, HideButton } from "./review-controls"
+import { orderTitle } from "@/lib/format"
 
 export const metadata: Metadata = { title: "Reviews" }
 
@@ -141,7 +142,7 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
                   <Link href={`/admin/orders/${r.order.id}`} className="font-mono text-brand tabular hover:underline">
                     {orderLabel(r.order)}
                   </Link>{" "}
-                  {r.order.carrier_name} {r.order.plan_name}, <span className="tabular">{formatDateTime(r.created_at)}</span>
+                  {orderTitle(r.order)}, <span className="tabular">{formatDateTime(r.created_at)}</span>
                   {r.updated_at ? (
                     <>
                       , changed <span className="tabular">{formatDateTime(r.updated_at)}</span>

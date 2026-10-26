@@ -190,13 +190,25 @@ export type PriceRow = {
   dealerCents: number | null
 }
 
-/** One row per day package: retail and wholesale for reference, this dealer's own price to edit. */
-export function DealerPricesForm({ dealerId, rows }: { dealerId: string; rows: PriceRow[] }) {
+/** A carrier's SIM card on its own, as this dealer pays for it. */
+export type CardPriceRow = {
+  carrierId: string
+  carrier: string
+  retailCents: number
+  wholesaleCents: number | null
+  dealerCents: number | null
+}
+
+/**
+ * One row per day package, and one per carrier's SIM card: retail and wholesale for
+ * reference, this dealer's own price to edit.
+ */
+export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; rows: PriceRow[]; cards: CardPriceRow[] }) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [dirty, setDirty] = React.useState(false)
   const [pending, start] = React.useTransition()
 
-  if (!rows.length) {
+  if (!rows.length && !cards.length) {
     return <p className="rounded-xl border bg-background p-5 text-sm text-muted-foreground">No published plans yet. Publish plans under Catalogue first.</p>
   }
 
@@ -228,6 +240,65 @@ export function DealerPricesForm({ dealerId, rows }: { dealerId: string; rows: P
       }}
     >
       <Accordion multiple className="border-t-0">
+        {cards.length ? (
+          <AccordionItem value="sim-cards" className="px-4 sm:px-5">
+            <AccordionTrigger className="items-center py-4 text-sm">
+              <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-medium">SIM cards</span>
+                <span className="font-normal text-muted-foreground">
+                  {cards.length} {cards.length === 1 ? "carrier" : "carriers"}
+                  {cards.filter((c) => c.dealerCents !== null).length ? ` · ${cards.filter((c) => c.dealerCents !== null).length} special` : ""}
+                  {cards.filter((c) => c.dealerCents === null && c.wholesaleCents === null).length
+                    ? ` · ${cards.filter((c) => c.dealerCents === null && c.wholesaleCents === null).length} not offered`
+                    : ""}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent keepMounted className="max-w-none pb-4 text-foreground">
+              <div className="hidden grid-cols-[1fr_6rem_6rem_9rem] gap-4 pb-2 text-xs font-medium text-muted-foreground sm:grid">
+                <span>Card</span>
+                <span className="text-right">Retail</span>
+                <span className="text-right">Wholesale</span>
+                <span>This dealer</span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {cards.map((c) => {
+                  const name = `card:${c.carrierId}`
+                  const error = errors[name]
+                  return (
+                    <li key={c.carrierId} className="grid grid-cols-[1fr_9rem] items-center gap-x-4 gap-y-1 sm:grid-cols-[1fr_6rem_6rem_9rem]">
+                      <label htmlFor={name} className="text-sm">
+                        {c.carrier} SIM card
+                        <span className="block text-xs text-muted-foreground sm:hidden">
+                          Retail {formatPrice(c.retailCents)} &middot; Wholesale {c.wholesaleCents === null ? "not set" : formatPrice(c.wholesaleCents)}
+                        </span>
+                      </label>
+                      <span className="hidden text-right font-mono text-sm text-muted-foreground tabular sm:block">{formatPrice(c.retailCents)}</span>
+                      <span className="hidden text-right font-mono text-sm tabular sm:block">
+                        {c.wholesaleCents === null ? <span className="font-sans text-muted-foreground">Not set</span> : formatPrice(c.wholesaleCents)}
+                      </span>
+                      <Input
+                        id={name}
+                        name={name}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        defaultValue={centsToInput(c.dealerCents)}
+                        aria-invalid={Boolean(error) || undefined}
+                        aria-describedby={error ? `${name}-error` : undefined}
+                        className="font-mono tabular"
+                      />
+                      {error ? (
+                        <p id={`${name}-error`} className="col-span-full text-sm text-danger-ink">
+                          {error}
+                        </p>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        ) : null}
         {groups.map((g) => {
           const special = g.rows.filter((r) => r.dealerCents !== null).length
           const missing = g.rows.filter((r) => r.dealerCents === null && r.wholesaleCents === null).length
@@ -291,7 +362,7 @@ export function DealerPricesForm({ dealerId, rows }: { dealerId: string; rows: P
         })}
       </Accordion>
       <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <p className="text-sm text-muted-foreground">Open a plan to set special prices. An empty field uses the wholesale price.</p>
+        <p className="text-sm text-muted-foreground">Open a plan or SIM cards to set special prices. An empty field uses the wholesale price.</p>
         <Button type="submit" size="lg" disabled={pending || !dirty}>
           {pending ? "Saving..." : "Save prices"}
         </Button>
@@ -300,7 +371,7 @@ export function DealerPricesForm({ dealerId, rows }: { dealerId: string; rows: P
   )
 }
 
-export function DealerAccountForm({ dealer, defaultSimCents }: { dealer: DealerWithLogin; defaultSimCents: number }) {
+export function DealerAccountForm({ dealer }: { dealer: DealerWithLogin }) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [dirty, setDirty] = React.useState(false)
   const [pending, start] = React.useTransition()
@@ -353,23 +424,6 @@ export function DealerAccountForm({ dealer, defaultSimCents }: { dealer: DealerW
               <FieldError>{errors.credit_limit}</FieldError>
             ) : (
               <FieldDescription>How far below zero they may order. 0 means they pay first.</FieldDescription>
-            )}
-          </Field>
-          <Field data-invalid={Boolean(errors.sim_card_price) || undefined}>
-            <FieldLabel htmlFor="sim_card_price">
-              SIM card price (USD) <span className="font-normal text-muted-foreground">(optional)</span>
-            </FieldLabel>
-            <Input
-              id="sim_card_price"
-              name="sim_card_price"
-              inputMode="decimal"
-              defaultValue={centsToInput(dealer.sim_card_price_cents)}
-              className="font-mono tabular"
-            />
-            {errors.sim_card_price ? (
-              <FieldError>{errors.sim_card_price}</FieldError>
-            ) : (
-              <FieldDescription>Per physical card. Empty uses the dealer price in Settings ({formatPrice(defaultSimCents)}).</FieldDescription>
             )}
           </Field>
         </FormSection>

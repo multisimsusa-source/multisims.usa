@@ -3,7 +3,7 @@
 import { z } from "zod"
 
 import { catalogChanged } from "@/lib/admin/catalog-changed"
-import { isUniqueViolation, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
+import { isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
 import { slugify } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
@@ -169,4 +169,37 @@ export async function deleteCarrier(id: string): Promise<ActionResult> {
   if (current?.logo_path) await supabase.storage.from("carrier-logos").remove([current.logo_path])
   catalogChanged()
   return { ok: true, message: `${current?.name ?? "Carrier"} removed, with its plans` }
+}
+
+const simCardSchema = z.object({
+  price_cents: z.number({ error: "Enter the price" }).int().min(0, "Enter the price").max(100_000, "Too high"),
+  wholesale_price_cents: z.number().int().min(0).max(100_000, "Too high").nullable(),
+  active: z.boolean(),
+})
+
+/**
+ * A carrier's SIM card: retail price, the default dealer price (empty = not offered to
+ * dealers unless they have their own price) and whether it is sold on its own.
+ */
+export async function saveSimCard(carrierId: string, formData: FormData): Promise<ActionResult> {
+  await requireRole("admin")
+  if (!z.uuid().safeParse(carrierId).success) return { ok: false, error: "Unknown carrier" }
+  const price = parseMoney(formData.get("price"))
+  const wholesale = parseMoney(formData.get("wholesale"))
+  const fieldErrors: Record<string, string> = {}
+  if (price === null || Number.isNaN(price)) fieldErrors.price = "Enter the price, for example 5.00"
+  if (Number.isNaN(wholesale)) fieldErrors.wholesale = "Enter a price, for example 4.00, or leave it empty"
+  if (Object.keys(fieldErrors).length) return { ok: false, error: "Check the highlighted fields", fieldErrors }
+  const parsed = simCardSchema.safeParse({
+    price_cents: price,
+    wholesale_price_cents: wholesale,
+    active: formData.get("active") === "on",
+  })
+  if (!parsed.success) return { ok: false, error: "Check the highlighted fields", fieldErrors: zodFieldErrors(parsed.error.issues) }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from("sim_cards").upsert({ carrier_id: carrierId, ...parsed.data })
+  if (error) return { ok: false, error: "Could not save. Try again." }
+  catalogChanged()
+  return { ok: true, message: parsed.data.active ? "SIM card saved, on sale" : "SIM card saved, not sold on its own" }
 }

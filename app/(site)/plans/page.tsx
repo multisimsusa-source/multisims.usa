@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PlanCard } from "@/components/site/plan-card"
 import { PlansBrowser, type PlanSort } from "@/components/site/plans-browser"
 import { Container, PageHeader } from "@/components/site/section"
-import { getActiveCarriers, getPublishedPlans } from "@/lib/catalog"
+import { getActiveCarriers, getPublishedPlans, getSimCards } from "@/lib/catalog"
+import { SimCardCard } from "@/components/site/sim-card-card"
 import type { CatalogPlan, ProductType } from "@/lib/types"
 
 export const metadata: Metadata = {
@@ -38,7 +39,9 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
   const carrier = typeof params.carrier === "string" ? params.carrier : undefined
   const sort = parseSort(params.sort)
 
-  const [allPlans, carriers] = await Promise.all([getPublishedPlans(), getActiveCarriers()])
+  const [allPlans, carriers, simCards] = await Promise.all([getPublishedPlans(), getActiveCarriers(), getSimCards()])
+  // Cards on their own sit with the SIM card plans, filtered by carrier like them.
+  const cards = type === "esim" ? [] : simCards.filter((c) => !carrier || c.carrier.slug === carrier)
 
   // Each menu's counts respect the other filter, so a number is what you would get.
   const byCarrier = allPlans.filter((p) => !carrier || p.carrier.slug === carrier)
@@ -67,6 +70,21 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
       }}
       carriers={carrierOptions}
     >
+      {cards.length ? (
+        <section aria-labelledby="sim-cards" className="mt-6">
+          <h2 id="sim-cards" className="type-section-title">
+            SIM cards on their own
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">No plan included. Add one at checkout, or activate the card later.</p>
+          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card) => (
+              <li key={card.carrier.id} className="grid">
+                <SimCardCard card={card} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {plans.length ? (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => (

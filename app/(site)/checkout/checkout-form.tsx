@@ -39,21 +39,27 @@ import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { CallingDestinations } from "@/components/site/calling-destinations"
 import { checkDiscountCode, placeOrder, type CheckoutField, type CheckoutState } from "./actions"
 
-type Props = {
-  plan: {
-    slug: string
-    name: string
-    carrierName: string
-    productType: ProductType
-  }
-  /** The carrier logo, rendered on the server. */
-  logo: React.ReactNode
+/** A plan the buyer can pick here, with its lengths. */
+export type PlanChoice = {
+  slug: string
+  name: string
   /** One line of the plan's key facts, e.g. "20 GB data, 10 GB hotspot". */
   facts: string
-  days: number
-  unitCents: number
-  /** The regular price when the package is on sale (unitCents is then the sale price). */
-  regularCents?: number | null
+  /** price_cents is the sale price when regular_price_cents is set. */
+  packages: { days: number; price_cents: number; regular_price_cents: number | null }[]
+}
+
+type Props = {
+  productType: ProductType
+  carrier: { name: string; slug: string }
+  /** The carrier logo, rendered on the server. */
+  logo: React.ReactNode
+  /** eSIM: the one plan. SIM card: the carrier's SIM card plans, any of them or none. */
+  choices: PlanChoice[]
+  initialPlan: string | null
+  initialDays: number | null
+  /** The carrier's SIM card is sold on its own, so "No plan, SIM card only" is offered. */
+  cardOnSale: boolean
   addon: { name: string; description: string; price_cents: number } | null
   initialIntl: boolean
   /** Show "See where you can call" under the calling switch. */
@@ -70,12 +76,13 @@ type Props = {
  * summary right with the button and what happens next.
  */
 export function CheckoutForm({
-  plan,
+  productType,
+  carrier,
   logo,
-  facts,
-  days,
-  unitCents,
-  regularCents,
+  choices,
+  initialPlan,
+  initialDays,
+  cardOnSale,
   addon,
   initialIntl,
   callingList,
@@ -88,8 +95,21 @@ export function CheckoutForm({
   >(placeOrder, { status: "idle" })
   const values = state.values ?? {}
   const errors = state.fieldErrors ?? {}
-  const physical = plan.productType === "physical"
+  const physical = productType === "physical"
   const formRef = React.useRef<HTMLFormElement>(null)
+
+  // Which plan and length; null plan = a SIM card on its own.
+  const [planSlug, setPlanSlug] = React.useState<string | null>(() =>
+    values.plan !== undefined ? values.plan || null : initialPlan
+  )
+  const plan = choices.find((c) => c.slug === planSlug) ?? null
+  const [chosenDays, setChosenDays] = React.useState<number | null>(() =>
+    values.days ? Number(values.days) : initialDays
+  )
+  const pkg = plan ? (plan.packages.find((p) => p.days === chosenDays) ?? plan.packages[0]) : null
+  const days = pkg?.days ?? null
+  const unitCents = pkg?.price_cents ?? 0
+  const regularCents = pkg?.regular_price_cents ?? null
 
   const [quantity, setQuantity] = React.useState(() =>
     clamp(Number(values.quantity) || 1)
@@ -103,7 +123,7 @@ export function CheckoutForm({
 
   const [discount, setDiscount] = React.useState<(DiscountRule & { code: string }) | null>(null)
 
-  const addonCents = intl && addon ? addon.price_cents : 0
+  const addonCents = intl && addon && plan ? addon.price_cents : 0
   const priceInput = { unitCents, addonCents, quantity, physical, simCardCents: fees.simCardCents }
   const discountCents = discount ? discountFor(discount, discountableCents(priceInput)) : 0
   const total = orderTotal({
@@ -173,10 +193,11 @@ export function CheckoutForm({
       noValidate
       className="grid gap-6 lg:grid-cols-[1fr_24rem] lg:items-start lg:gap-10"
     >
-      <input type="hidden" name="plan" value={plan.slug} />
-      <input type="hidden" name="days" value={days} />
+      <input type="hidden" name="plan" value={plan?.slug ?? ""} />
+      <input type="hidden" name="days" value={days ?? ""} />
+      <input type="hidden" name="card" value={physical ? carrier.slug : ""} />
       <input type="hidden" name="quantity" value={quantity} />
-      {addon ? (
+      {addon && plan ? (
         <input type="hidden" name="intl" value={intl ? "on" : "off"} />
       ) : null}
 
@@ -186,26 +207,45 @@ export function CheckoutForm({
           <div className="p-5">
             <div className="flex items-center justify-between gap-3">
               <span className="flex h-6 items-center">{logo}</span>
-              <ProductBadge type={plan.productType} />
+              <ProductBadge type={productType} />
             </div>
             <p className="mt-4 font-heading text-xl font-semibold tracking-[-0.02em]">
-              {plan.name}
+              {plan ? plan.name : `${carrier.name} SIM card`}
             </p>
-            {facts ? (
-              <p className="mt-1 text-sm text-muted-foreground">{facts}</p>
+            {plan?.facts ? (
+              <p className="mt-1 text-sm text-muted-foreground">{plan.facts}</p>
+            ) : !plan ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No plan. Activate it later with us or anywhere else.
+              </p>
             ) : null}
-            <p className="mt-3 flex items-center gap-2 text-sm">
-              <span className="font-medium">{formatDays(days)}</span>
-              <span aria-hidden className="text-border">
-                |
-              </span>
-              <Link
-                href={`/plans/${plan.slug}`}
-                className="inline-flex min-h-6 items-center text-brand underline-offset-4 hover:underline"
-              >
-                Change
-              </Link>
-            </p>
+            {physical ? (
+              <PlanPicker
+                choices={choices}
+                cardOnSale={cardOnSale}
+                planSlug={plan?.slug ?? null}
+                days={days}
+                onPlan={(slug) => {
+                  setPlanSlug(slug)
+                  const next = choices.find((c) => c.slug === slug)
+                  if (next && !next.packages.some((p) => p.days === chosenDays)) setChosenDays(next.packages[0]?.days ?? null)
+                }}
+                onDays={setChosenDays}
+              />
+            ) : plan && days !== null ? (
+              <p className="mt-3 flex items-center gap-2 text-sm">
+                <span className="font-medium">{formatDays(days)}</span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <Link
+                  href={`/plans/${plan.slug}`}
+                  className="inline-flex min-h-6 items-center text-brand underline-offset-4 hover:underline"
+                >
+                  Change
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-between gap-4 border-t px-5 py-4">
@@ -214,13 +254,19 @@ export function CheckoutForm({
                 {unit}s
               </p>
               <p className="text-xs text-muted-foreground">
-                <PriceWithSale cents={unitCents} regularCents={regularCents} /> each
+                {plan ? (
+                  <>
+                    <PriceWithSale cents={unitCents} regularCents={regularCents} /> each
+                  </>
+                ) : (
+                  <>{formatPrice(fees.simCardCents)} each</>
+                )}
               </p>
             </div>
             <QuantityStepper value={quantity} onChange={setQuantity} max={MAX_QUANTITY} labelledBy="qty-label" />
           </div>
 
-          {addon ? (
+          {addon && plan ? (
             <label
               htmlFor="intl"
               className="flex cursor-pointer items-center gap-3 border-t px-5 py-4"
@@ -240,24 +286,31 @@ export function CheckoutForm({
               <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
             </label>
           ) : null}
-          {addon && callingList ? (
+          {addon && plan && callingList ? (
             <div className="-mt-2 px-5 pb-2">
               <CallingDestinations />
             </div>
           ) : null}
 
           <dl className="space-y-2 border-t px-5 py-4 text-sm">
-            <Line
-              label={`${plan.carrierName} ${plan.name}, ${formatDays(days)} x ${quantity}`}
-              value={formatPrice(unitCents * quantity)}
-            />
-            {intl && addon ? (
+            {plan && days !== null ? (
+              <Line
+                label={`${carrier.name} ${plan.name}, ${formatDays(days)} x ${quantity}`}
+                value={formatPrice(unitCents * quantity)}
+              />
+            ) : (
+              <Line
+                label={`${carrier.name} SIM card x ${quantity}`}
+                value={formatPrice(fees.simCardCents * quantity)}
+              />
+            )}
+            {intl && addon && plan ? (
               <Line
                 label={`${addon.name} x ${quantity}`}
                 value={formatPrice(addonCents * quantity)}
               />
             ) : null}
-            {physical && fees.simCardCents > 0 ? (
+            {physical && plan && fees.simCardCents > 0 ? (
               <Line
                 label={`SIM card x ${quantity}`}
                 value={formatPrice(fees.simCardCents * quantity)}
@@ -274,7 +327,7 @@ export function CheckoutForm({
             ) : null}
             {discount ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
             <DiscountCode
-              planSlug={plan.slug}
+              carrierSlug={carrier.slug}
               applied={discount}
               initial={values.discount_code ?? ""}
               onChange={setDiscount}
@@ -308,7 +361,7 @@ export function CheckoutForm({
           </div>
         </div>
 
-        <NextSteps physical={physical} takesPayment={takesPayment} className="mt-6 max-lg:hidden" />
+        <NextSteps physical={physical} cardOnly={physical && !plan} takesPayment={takesPayment} className="mt-6 max-lg:hidden" />
       </aside>
 
       {/* Keyed by the returned values so fields remount with them after a failed submit. */}
@@ -517,7 +570,7 @@ export function CheckoutForm({
             </FormSection>
           ) : null}
 
-          {physical ? (
+          {physical && plan ? (
             <FormSection
               title="Plan start"
               description="Your plan days count from activation, so they never run while the SIM is in the post."
@@ -582,7 +635,7 @@ export function CheckoutForm({
           {alert}
           {agreement}
         </div>
-        <NextSteps physical={physical} takesPayment={takesPayment} className="lg:hidden" />
+        <NextSteps physical={physical} cardOnly={physical && !plan} takesPayment={takesPayment} className="lg:hidden" />
 
         {/* Honeypot */}
         <div
@@ -617,17 +670,25 @@ export function CheckoutForm({
 
 function NextSteps({
   physical,
+  cardOnly,
   takesPayment,
   className,
 }: {
   physical: boolean
+  cardOnly: boolean
   takesPayment: boolean
   className?: string
 }) {
   const first = takesPayment
     ? "Pay in crypto on our payment partner's secure page. Your private order page follows."
     : "Your private order page opens straight away."
-  const steps = physical
+  const steps = cardOnly
+    ? [
+        first,
+        "Your SIM card ships by USPS, with tracking on that page and by email.",
+        "Activate it from your order page when you need a plan, or anywhere else.",
+      ]
+    : physical
     ? [
         first,
         "Your SIM card ships by USPS, with tracking on that page and by email.",
@@ -663,12 +724,12 @@ function NextSteps({
  * preview and again when the order is placed; it never comes off shipping or the network fee.
  */
 function DiscountCode({
-  planSlug,
+  carrierSlug,
   applied,
   initial,
   onChange,
 }: {
-  planSlug: string
+  carrierSlug: string
   applied: (DiscountRule & { code: string }) | null
   initial: string
   onChange: (d: (DiscountRule & { code: string }) | null) => void
@@ -708,7 +769,7 @@ function DiscountCode({
   const apply = () =>
     start(async () => {
       setError(null)
-      const result = await checkDiscountCode(text, planSlug)
+      const result = await checkDiscountCode(text, carrierSlug)
       if (!result.ok) return setError(result.error)
       onChange({ code: result.code, kind: result.kind, value: result.value })
     })
@@ -740,6 +801,77 @@ function DiscountCode({
       </div>
       {error ? <FieldError>{error}</FieldError> : null}
     </Field>
+  )
+}
+
+/**
+ * SIM cards: which plan comes with the cards, or none ("No plan, SIM card only"), and
+ * for how many days. Changes the summary at once; nothing is reloaded.
+ */
+function PlanPicker({
+  choices,
+  cardOnSale,
+  planSlug,
+  days,
+  onPlan,
+  onDays,
+}: {
+  choices: PlanChoice[]
+  cardOnSale: boolean
+  planSlug: string | null
+  days: number | null
+  onPlan: (slug: string | null) => void
+  onDays: (days: number) => void
+}) {
+  const NONE = "none"
+  const planItems = [
+    ...(cardOnSale ? [{ value: NONE, label: "No plan, SIM card only" }] : []),
+    ...choices.map((c) => ({ value: c.slug, label: c.name })),
+  ]
+  const plan = choices.find((c) => c.slug === planSlug) ?? null
+  const dayItems = (plan?.packages ?? []).map((p) => ({
+    value: String(p.days),
+    label: `${formatDays(p.days)}, ${formatPrice(p.price_cents)}`,
+  }))
+  return (
+    <div className="mt-4 grid gap-3">
+      <Field>
+        <FieldLabel htmlFor="plan-choice">Plan</FieldLabel>
+        <Select
+          items={planItems}
+          value={planSlug ?? NONE}
+          onValueChange={(v) => onPlan(!v || v === NONE ? null : String(v))}
+        >
+          <SelectTrigger id="plan-choice" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {planItems.map((i) => (
+              <SelectItem key={i.value} value={i.value}>
+                {i.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      {plan ? (
+        <Field>
+          <FieldLabel htmlFor="days-choice">Length</FieldLabel>
+          <Select items={dayItems} value={days !== null ? String(days) : null} onValueChange={(v) => v && onDays(Number(v))}>
+            <SelectTrigger id="days-choice" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {dayItems.map((i) => (
+                <SelectItem key={i.value} value={i.value}>
+                  {i.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+    </div>
   )
 }
 

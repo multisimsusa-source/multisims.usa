@@ -8,7 +8,7 @@ import { AdminPageHeader } from "@/components/admin/page-header"
 import { FormSkeleton } from "@/components/admin/skeletons"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { requireRole } from "@/lib/auth"
-import { getDealerCatalog, getOrderingTerms } from "@/lib/dealer-orders"
+import { getDealerCatalog, getDealerSimCards, getOrderingTerms } from "@/lib/dealer-orders"
 import { getWallet } from "@/lib/dealers"
 import { createClient } from "@/lib/supabase/server"
 import { OrderBuilder } from "./order-builder"
@@ -32,13 +32,14 @@ export default function NewDealerOrderPage() {
 async function Builder() {
   const profile = await requireRole("dealer")
   const supabase = await createClient()
-  const [catalog, terms, wallet] = await Promise.all([
+  const [catalog, cards, terms, wallet] = await Promise.all([
     getDealerCatalog(supabase),
+    getDealerSimCards(supabase),
     getOrderingTerms(profile.id),
     getWallet(supabase, profile.id),
   ])
 
-  if (!catalog.length) {
+  if (!catalog.length && !cards.length) {
     return (
       <EmptyState
         icon={<TagIcon />}
@@ -60,6 +61,7 @@ async function Builder() {
   return (
     <OrderBuilder
       catalog={catalog}
+      cards={cards}
       terms={terms}
       availableCents={wallet.available_cents}
     />

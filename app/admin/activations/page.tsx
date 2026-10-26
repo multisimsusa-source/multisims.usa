@@ -10,7 +10,7 @@ import { ListSkeleton } from "@/components/admin/skeletons"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Tag } from "@/components/patterns/tag"
 import { UrlFilters } from "@/components/staff/url-filters"
-import { formatDays } from "@/lib/format"
+import { formatDays, orderTitle } from "@/lib/format"
 import { formatDateTime, orderLabel } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
 import type { Order, OrderItem } from "@/lib/types"
@@ -46,6 +46,8 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
        agent:profiles!order_items_fulfilled_by_fkey ( full_name, email )`
     )
     .in("status", ["fulfilled", "replaced"])
+    // SIM cards with no plan are not lines yet.
+    .neq("order.kind", "card_only")
     .order("fulfilled_at", { ascending: false })
     .limit(200)
 
@@ -94,9 +96,9 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
                   </TableCell>
                   <TableCell>
                     <span className="flex items-center gap-2 whitespace-nowrap">
-                      {r.order.carrier_name} {r.order.plan_name} <ProductBadge type={r.order.product_type} />
+                      {orderTitle(r.order)} <ProductBadge type={r.order.product_type} />
                     </span>
-                    <span className="text-xs text-muted-foreground">{formatDays(r.order.days)}</span>
+                    <span className="text-xs text-muted-foreground">{r.order.days !== null ? formatDays(r.order.days) : "SIM card only"}</span>
                   </TableCell>
                   <TableCell className="max-w-52">
                     <span className="block truncate">{r.order.customer_name}</span>

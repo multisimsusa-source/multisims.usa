@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
+import { orderTitle } from "@/lib/format"
 
 const SOUND_KEY = "msu:alert-sound"
 
@@ -145,7 +146,7 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
     function announceOrder(order: OrderRow) {
       announce({
         title: `${order.phase === "activate" ? "Activate" : order.replacement_of ? "Replacement" : "New order"} MS-${order.number}`,
-        body: `${order.quantity} x ${order.carrier_name} ${order.plan_name}`,
+        body: `${order.quantity} x ${orderTitle(order)}`,
         href: `/agent/orders/${order.id}`,
         tag: `order-${order.id}`,
       })

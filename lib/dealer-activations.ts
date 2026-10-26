@@ -23,6 +23,8 @@ export async function listDealerActivations(db: SupabaseClient, dealerId: string
          batch:order_batches ( id, number, reference ) )`
     )
     .eq("order.dealer_id", dealerId)
+    // SIM cards with no plan are not lines yet; they show here once activated.
+    .neq("order.kind", "card_only")
     .in("status", ["fulfilled", "replaced"])
     .order("fulfilled_at", { ascending: false })
     .limit(limit)

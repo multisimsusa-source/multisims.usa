@@ -275,14 +275,16 @@ Built in three phases, each tested in a real browser and deployed before the nex
 - [ ] Shown to customers and dealers ("Active until 12 Nov 2026, 9 days left", "Next plan starts 13 Nov 2026"), agents, and admin (Activations shows the end date).
 
 ### 3. SIM card on its own (changes the earlier rule that a SIM card always has a plan)
-- [ ] SIM cards per carrier (AT&T SIM card, T-Mobile SIM card...): retail price in admin, dealer price per dealer.
-- [ ] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee; minimum check applies.
-- [ ] SIM cards shown with a price and no duration everywhere (no "1 day").
-- [ ] Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
-- [ ] Dealers without a SIM card price see "No SIM card prices set for your account yet. Contact us."; bulk quantities are typed in one field; all cards in an order ship together with one tracking number.
+- [x] SIM cards per carrier (AT&T SIM card, T-Mobile SIM card...): retail price in admin, dealer price per dealer.
+- [x] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee; minimum check applies.
+- [x] SIM cards shown with a price and no duration everywhere (no "1 day").
+- [ ] (phase 3) Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
+- [x] Dealers without a SIM card price see "No SIM card prices set for your account yet. Contact us."; bulk quantities are typed in one field; all cards in an order ship together with one tracking number.
 
 ### 4. Dealer portal fixes from Zafir's testing
 - [x] Dealer login "incorrect password": the production accounts were checked (all confirmed, active, not suspended, both dealers had signed in). The cause was the password hand-off: the welcome email spoke of "the password we sent you" though nothing sends one, and the suggested password changed every time the dialog opened. Now: after Create login or Change password the dialog shows the saved email and password to copy; passwords with spaces at either end are refused; the welcome email says "the password the MultiSims USA team gave you"; sign-in ignores email capitals; a switched-off login says "This account is switched off" instead of "wrong password".
 - [x] Admin password reset tested end to end: the new password works, the old one stops at once.
 - [x] Wallet: one line of help under each figure (Balance, Held for orders, Available to spend, Credit limit).
 - [x] Crypto top-ups below the payment partner's live minimum are blocked in the form and refused on the server. No network fee on top-ups (undecided).
+
+Phase 2 notes: migration `20261027000001_sim_cards.sql` adds `sim_cards` (per carrier: retail, default dealer price, on sale), `dealer_sim_card_prices`, `orders.kind` (`line`, `card_only`, later `refill`, `activation`) and lets a card-only order have no plan or days. Existing prices were copied in: every carrier with SIM card plans got a card at the old Settings price; per-dealer card prices were copied to every carrier. The old Settings and dealer card price columns are kept but no longer read. Card-only orders end at Shipped and do not appear in Activations. The fake "SIM card, 1 day" plans the owner made earlier should be unpublished now that cards sell on their own.

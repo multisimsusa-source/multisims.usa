@@ -18,8 +18,8 @@ import { JsonLd } from "@/components/json-ld"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
-import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublishedPlans } from "@/lib/catalog"
-import { dataLabel, hotspotLabel, productTypeLabel, slowdownLabel } from "@/lib/format"
+import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublishedPlans, getSimCards } from "@/lib/catalog"
+import { dataLabel, formatPrice, hotspotLabel, productTypeLabel, slowdownLabel } from "@/lib/format"
 import { absoluteUrl } from "@/lib/site"
 import type { CatalogPlan } from "@/lib/types"
 
@@ -62,8 +62,9 @@ export default function PlanPage({ params }: PageProps<"/plans/[slug]">) {
 
 async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params">) {
   const { slug } = await params
-  const [plan, addon, destinations] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon(), getCallingDestinations()])
+  const [plan, addon, destinations, simCards] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon(), getCallingDestinations(), getSimCards()])
   if (!plan) notFound()
+  const card = plan.product_type === "physical" ? simCards.find((c) => c.carrier.id === plan.carrier.id) : undefined
 
   return (
     <>
@@ -130,6 +131,15 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
                 ? "Your eSIM arrives as a QR code, by email and on your private order page. Scan it with your phone's camera to install the line. Your phone needs to support eSIM and be unlocked."
                 : "We post your SIM card from the US by USPS. The tracking number appears on your private order page as soon as it ships."}
             </p>
+            {card ? (
+              <p className="mt-3 text-foreground/80">
+                Only need the card?{" "}
+                <Link href={`/checkout?card=${card.carrier.slug}`} className="font-medium text-brand underline-offset-4 hover:underline">
+                  {card.carrier.name} SIM card on its own, {formatPrice(card.price_cents)}
+                </Link>
+                . Activate it later from your order page.
+              </p>
+            ) : null}
           </section>
         </div>
 

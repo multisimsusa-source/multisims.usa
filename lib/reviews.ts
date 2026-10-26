@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache"
 
 import { CATALOG_LIFE } from "@/lib/catalog"
 import { createServiceClient } from "@/lib/supabase/service"
+import { orderTitle } from "@/lib/format"
 
 /**
  * Reviews the owner chose to feature, for the public site. Cached and tagged "reviews";
@@ -37,5 +38,5 @@ export async function getFeaturedReviews(limit = 6): Promise<FeaturedReview[]> {
     .limit(limit)
   if (error) throw error
   type Row = Omit<FeaturedReview, "plan"> & { order: { carrier_name: string; plan_name: string } }
-  return ((data ?? []) as unknown as Row[]).map(({ order, ...r }) => ({ ...r, plan: `${order.carrier_name} ${order.plan_name}` }))
+  return ((data ?? []) as unknown as Row[]).map(({ order, ...r }) => ({ ...r, plan: `${orderTitle(order)}` }))
 }

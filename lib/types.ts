@@ -98,8 +98,12 @@ export type OrderPhase = "fulfil" | "activate"
 
 export type ShippingAddress = { line1: string; line2?: string; city: string; state: string; zip: string }
 
+/** What an order is: a SIM with a plan, a SIM card on its own, a refill, or a card's activation. */
+export type OrderKind = "line" | "card_only" | "refill" | "activation"
+
 export type Order = {
   id: string
+  kind: OrderKind
   number: number
   public_token: string
   channel: "website" | "dealer"
@@ -116,15 +120,16 @@ export type Order = {
   day_package_id: string | null
   addon_id: string | null
   carrier_name: string
-  plan_name: string
+  /** Null only for a SIM card on its own (kind card_only), which has no plan or days. */
+  plan_name: string | null
   product_type: ProductType
-  days: number
+  days: number | null
   addon_name: string | null
   quantity: number
   unit_price_cents: number
   addon_price_cents: number
   shipping_cents: number
-  /** Per physical SIM card, copied from settings at purchase. */
+  /** Per physical SIM card: the carrier's card price at purchase. */
   sim_card_price_cents: number
   /** Flat, once per order. */
   network_fee_cents: number

@@ -1,4 +1,4 @@
-import { formatDays } from "@/lib/format"
+import { formatDays, orderTitle } from "@/lib/format"
 import type { Order } from "@/lib/types"
 
 /**
@@ -54,11 +54,13 @@ type LineSource = Pick<
 /** The lines of an order as stored on it. Lines that do not apply are left out. */
 export function orderLines(o: LineSource): PriceLine[] {
   const physical = o.product_type === "physical"
-  const lines: PriceLine[] = [
-    { key: "plan", label: `${o.carrier_name} ${o.plan_name}, ${formatDays(o.days)} x ${o.quantity}`, cents: o.unit_price_cents * o.quantity },
-  ]
+  // A SIM card on its own has no plan line: the card is the product.
+  const lines: PriceLine[] =
+    o.days === null
+      ? [{ key: "sim", label: `${orderTitle(o)} x ${o.quantity}`, cents: o.sim_card_price_cents * o.quantity }]
+      : [{ key: "plan", label: `${orderTitle(o)}, ${formatDays(o.days)} x ${o.quantity}`, cents: o.unit_price_cents * o.quantity }]
   if (o.addon_name) lines.push({ key: "addon", label: `${o.addon_name} x ${o.quantity}`, cents: o.addon_price_cents * o.quantity })
-  if (physical && o.sim_card_price_cents > 0) lines.push({ key: "sim", label: `SIM card x ${o.quantity}`, cents: o.sim_card_price_cents * o.quantity })
+  if (physical && o.days !== null && o.sim_card_price_cents > 0) lines.push({ key: "sim", label: `SIM card x ${o.quantity}`, cents: o.sim_card_price_cents * o.quantity })
   if (physical) lines.push({ key: "shipping", label: "Shipping", cents: o.shipping_cents })
   if (o.network_fee_cents > 0) lines.push({ key: "network", label: "Network fee", cents: o.network_fee_cents })
   if (o.discount_cents) lines.push({ key: "discount", label: `Discount${o.discount_code ? ` (${o.discount_code})` : ""}`, cents: -o.discount_cents })

@@ -19,6 +19,7 @@ import {
 } from "@/lib/orders"
 import { getTicket, listTickets } from "@/lib/staff/queries"
 import type { TicketStatus } from "@/lib/types"
+import { orderTitle } from "@/lib/format"
 
 const FILTERS = ["active", "open", "in_progress", "resolved", "all"] as const
 
@@ -229,7 +230,7 @@ export async function TicketView({
               {orderLabel(t.order)}
             </Link>
             <p className="mt-1 text-sm">
-              {t.order.carrier_name} {t.order.plan_name}
+              {orderTitle(t.order)}
             </p>
             <p className="mt-2 text-sm">{t.order.customer_name}</p>
             <a
