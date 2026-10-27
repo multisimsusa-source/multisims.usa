@@ -97,7 +97,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
 
   const alert = belowMinimum ? (
     <Notice tone="warning" icon={false}>
-      {minimumOrderMessage(fees.minimumCents)}
+      {minimumOrderMessage(fees.minimumCents, "Choose a longer plan.")}
     </Notice>
   ) : state.status === "error" && state.message ? (
     <Notice tone="danger" icon={false}>
@@ -170,7 +170,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
               <Line label="Plan, not chosen yet" value={formatPrice(0)} />
             )}
             {intl && addon && pkg ? <Line label={addon.name} value={formatPrice(addonCents)} /> : null}
-            {fees.networkFeeCents > 0 ? <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} /> : null}
+            {pkg && fees.networkFeeCents > 0 ? <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} /> : null}
             {discount && pkg ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
             {carrier ? (
               <DiscountCode carrierSlug={carrier.slug} applied={discount} initial={state.values?.discount_code ?? ""} onChange={setDiscount} />
@@ -185,7 +185,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
 
           <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
             {alert}
-            <Button type="submit" size="xl" disabled={pending || !pkg || belowMinimum} className="w-full">
+            <Button type="submit" size="xl" disabled={pending || belowMinimum} className="w-full">
               {submitLabel}
             </Button>
             <Agreement takesPayment={takesPayment} />
@@ -430,7 +430,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
             {formatPrice(total)}
           </p>
         </div>
-        <Button type="submit" size="xl" disabled={pending || !pkg || belowMinimum} className="flex-1">
+        <Button type="submit" size="xl" disabled={pending || belowMinimum} className="flex-1">
           {submitLabel}
         </Button>
       </ActionBar>

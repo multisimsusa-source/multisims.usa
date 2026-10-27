@@ -28,6 +28,8 @@ type Props = {
   need: ItemNeed
   editable: boolean
   title: string
+  /** A SIM card sold without a plan: it has no number yet, only its ICCID. */
+  cardOnly?: boolean
 }
 
 const needLabel: Record<ItemNeed, string> = {
@@ -42,7 +44,14 @@ const needLabel: Record<ItemNeed, string> = {
  * and ICCID. Physical: phone number and ICCID; the tracking number is set once for the
  * parcel. QR images can be dropped, picked, or pasted straight from WhatsApp.
  */
-export function ItemForm({ item, productType, need, editable, title }: Props) {
+export function ItemForm({
+  item,
+  productType,
+  need,
+  editable,
+  title,
+  cardOnly = false,
+}: Props) {
   const esim = productType === "esim"
   const [file, setFile] = React.useState<File | null>(null)
   const preview = React.useMemo(
@@ -205,22 +214,24 @@ export function ItemForm({ item, productType, need, editable, title }: Props) {
         ) : null}
 
         <div className="grid min-w-0 flex-1 content-start gap-4 sm:grid-cols-2">
-          <Field data-invalid={Boolean(errors.phone_number) || undefined}>
-            <FieldLabel htmlFor={`${item.id}-phone`}>Phone number</FieldLabel>
-            <Input
-              id={`${item.id}-phone`}
-              name="phone_number"
-              inputMode="tel"
-              autoComplete="off"
-              defaultValue={item.phone_number ?? ""}
-              disabled={!editable}
-              onChange={() => setDirty(true)}
-              className="tabular font-mono"
-            />
-            {errors.phone_number ? (
-              <FieldError>{errors.phone_number}</FieldError>
-            ) : null}
-          </Field>
+          {cardOnly ? null : (
+            <Field data-invalid={Boolean(errors.phone_number) || undefined}>
+              <FieldLabel htmlFor={`${item.id}-phone`}>Phone number</FieldLabel>
+              <Input
+                id={`${item.id}-phone`}
+                name="phone_number"
+                inputMode="tel"
+                autoComplete="off"
+                defaultValue={item.phone_number ?? ""}
+                disabled={!editable}
+                onChange={() => setDirty(true)}
+                className="tabular font-mono"
+              />
+              {errors.phone_number ? (
+                <FieldError>{errors.phone_number}</FieldError>
+              ) : null}
+            </Field>
+          )}
           <Field data-invalid={Boolean(errors.iccid) || undefined}>
             <FieldLabel htmlFor={`${item.id}-iccid`}>ICCID</FieldLabel>
             <Input

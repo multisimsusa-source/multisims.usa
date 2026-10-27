@@ -371,12 +371,17 @@ function LineCard({
                 SIM {item.seq}
               </p>
               <dl className="grid min-w-0 flex-1 grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-                <Value
-                  label="Phone"
-                  value={item.phone_number}
-                  copy={!replaced}
-                />
-                <Value label="ICCID" value={item.iccid} copy={!replaced} />
+                {/* A card with no plan gets no number here; a refill's ICCID is only what the dealer gave. */}
+                {cardOnly ? null : (
+                  <Value
+                    label="Phone"
+                    value={item.phone_number}
+                    copy={!replaced}
+                  />
+                )}
+                {order.kind === "refill" && !item.iccid ? null : (
+                  <Value label="ICCID" value={item.iccid} copy={!replaced} />
+                )}
                 {!replaced && timers.get(item.id) ? (
                   <PlanTimer timer={timers.get(item.id)!} className="sm:col-span-full" />
                 ) : null}

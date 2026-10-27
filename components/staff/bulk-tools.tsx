@@ -29,10 +29,13 @@ export function BulkTools({
   orderId,
   items,
   qr,
+  cardOnly = false,
 }: {
   orderId: string
   items: BulkItem[]
   qr: boolean
+  /** SIM cards sold without a plan have no number yet: ICCIDs only. */
+  cardOnly?: boolean
 }) {
   return (
     <section
@@ -51,7 +54,7 @@ export function BulkTools({
       {qr ? (
         <BulkQr items={items.filter((i) => !i.hasQr)} total={items.length} />
       ) : null}
-      <BulkDetails orderId={orderId} count={items.length} />
+      <BulkDetails orderId={orderId} count={items.length} cardOnly={cardOnly} />
     </section>
   )
 }
@@ -265,7 +268,15 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
   )
 }
 
-function BulkDetails({ orderId, count }: { orderId: string; count: number }) {
+function BulkDetails({
+  orderId,
+  count,
+  cardOnly,
+}: {
+  orderId: string
+  count: number
+  cardOnly: boolean
+}) {
   const [text, setText] = React.useState("")
   const [pending, start] = React.useTransition()
   const id = React.useId()
@@ -284,7 +295,9 @@ function BulkDetails({ orderId, count }: { orderId: string; count: number }) {
       }}
     >
       <Field>
-        <FieldLabel htmlFor={id}>Phone numbers and ICCIDs</FieldLabel>
+        <FieldLabel htmlFor={id}>
+          {cardOnly ? "ICCIDs" : "Phone numbers and ICCIDs"}
+        </FieldLabel>
         <Textarea
           id={id}
           rows={5}
@@ -294,8 +307,9 @@ function BulkDetails({ orderId, count }: { orderId: string; count: number }) {
           spellCheck={false}
         />
         <FieldDescription>
-          One line per SIM, in SIM order: phone number and ICCID, separated by a
-          comma or tab. Pasting two columns from a spreadsheet works.{" "}
+          {cardOnly
+            ? "One ICCID per line, in SIM order. Pasting a column from a spreadsheet works."
+            : "One line per SIM, in SIM order: phone number and ICCID, separated by a comma or tab. Pasting two columns from a spreadsheet works."}{" "}
           {lines ? (
             <span className={cn("tabular", lines > count && "text-danger-ink")}>
               {lines} of {count} lines.

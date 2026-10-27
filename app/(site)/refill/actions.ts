@@ -51,6 +51,9 @@ const schema = z.discriminatedUnion("mode", [
   }),
 ])
 
+// One number per refill, so only the length can grow.
+const REFILL_HINT = "Choose a longer plan."
+
 export type RefillField = "line_phone" | "iccid" | "zip" | "area_code" | "name" | "email" | "phone" | "plan"
 
 export type RefillState = {
@@ -110,7 +113,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   }
   const total = orderTotal({ ...priceInput, shippingCents: 0, networkFeeCents, discountCents: discount?.cents ?? 0 })
   const minimum = await minimumOrderCents(settings?.min_order_cents ?? 0)
-  if (total < minimum) return { status: "error", message: minimumOrderMessage(minimum), values }
+  if (total < minimum) return { status: "error", message: minimumOrderMessage(minimum, REFILL_HINT), values }
 
   const refill = input.mode === "refill"
   const linePhone = refill ? input.line_phone : null

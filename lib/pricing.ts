@@ -74,6 +74,6 @@ export function roundUpToDollar(cents: number) {
 }
 
 /** The checkout block message, with the minimum actually in use. */
-export function minimumOrderMessage(minimumCents: number) {
-  return `Minimum order is $${(minimumCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}. Add more days or another SIM.`
+export function minimumOrderMessage(minimumCents: number, hint = "Add more days or another SIM.") {
+  return `Minimum order is $${(minimumCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}. ${hint}`
 }

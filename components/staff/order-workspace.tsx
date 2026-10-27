@@ -243,6 +243,7 @@ export async function OrderWorkspace({
             <BulkTools
               orderId={order.id}
               qr={esim}
+              cardOnly={order.kind === "card_only"}
               items={working.map((i) => ({
                 id: i.id,
                 seq: i.seq,
@@ -258,6 +259,7 @@ export async function OrderWorkspace({
                 item={item}
                 productType={refillLike ? "physical" : order.product_type}
                 need={need}
+                cardOnly={order.kind === "card_only"}
                 editable={
                   canWork &&
                   (activation
@@ -335,17 +337,22 @@ export async function OrderWorkspace({
               <KeyValue label="Order" value={refill ? "Refill: add days to the number" : "Activate this SIM card"} strong />
             ) : null}
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
-            <KeyValue
-              label="ZIP code"
-              value={order.zip_code ?? "Not given"}
-              mono={Boolean(order.zip_code)}
-            />
-            <KeyValue
-              label="Area code"
-              value={order.area_code ?? "Any"}
-              mono={Boolean(order.area_code)}
-              strong={Boolean(order.area_code)}
-            />
+            {/* A new line needs a ZIP and maybe an area code; cards without a plan and refills do not. */}
+            {order.kind !== "card_only" && !refill ? (
+              <>
+                <KeyValue
+                  label="ZIP code"
+                  value={order.zip_code ?? "Not given"}
+                  mono={Boolean(order.zip_code)}
+                />
+                <KeyValue
+                  label="Area code"
+                  value={order.area_code ?? "Any"}
+                  mono={Boolean(order.area_code)}
+                  strong={Boolean(order.area_code)}
+                />
+              </>
+            ) : null}
             {!esim && order.plan_start ? (
               <KeyValue
                 label="Plan start"
@@ -377,13 +384,15 @@ export async function OrderWorkspace({
               <EnvelopeSimpleIcon className="size-4 shrink-0" />
               {order.customer_email}
             </a>
-            <a
-              href={`tel:${order.customer_phone.replace(/[^+\d]/g, "")}`}
-              className="flex min-h-9 items-center gap-2 text-sm text-brand hover:underline"
-            >
-              <PhoneIcon className="size-4 shrink-0" />
-              {order.customer_phone}
-            </a>
+            {/\d/.test(order.customer_phone) ? (
+              <a
+                href={`tel:${order.customer_phone.replace(/[^+\d]/g, "")}`}
+                className="flex min-h-9 items-center gap-2 text-sm text-brand hover:underline"
+              >
+                <PhoneIcon className="size-4 shrink-0" />
+                {order.customer_phone}
+              </a>
+            ) : null}
             {order.shipping_address ? (
               <address className="mt-2 text-sm not-italic select-all">
                 {order.customer_name}
@@ -579,9 +588,13 @@ export async function OrderWorkspace({
                 value={`${formatDateTime(order.claimed_at)}${order.claimer ? `, ${order.claimer.full_name || order.claimer.email}` : ""}`}
               />
             ) : null}
-            {order.fulfilled_at ? (
+            {order.shipped_at && !esim && !refillLike ? (
+              <KeyValue label="Shipped" value={formatDateTime(order.shipped_at)} />
+            ) : null}
+            {/* Card-only orders are done once shipped; the rest record when the line went live. */}
+            {order.fulfilled_at && order.kind !== "card_only" ? (
               <KeyValue
-                label={esim ? "Delivered" : "Shipped"}
+                label={esim ? "Delivered" : refill ? "Refilled" : "Activated"}
                 value={formatDateTime(order.fulfilled_at)}
               />
             ) : null}

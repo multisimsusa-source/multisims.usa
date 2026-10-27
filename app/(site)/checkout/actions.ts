@@ -169,7 +169,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   // usually cannot be refunded: stop here, before any order or invoice exists.
   const minimum = await minimumOrderCents(settings?.min_order_cents ?? 0)
   if (total < minimum) {
-    return { status: "error", message: minimumOrderMessage(minimum), values }
+    return { status: "error", message: minimumOrderMessage(minimum, cardOnly ? "Add more SIM cards or a plan." : undefined), values }
   }
 
   const { data: order, error } = await db

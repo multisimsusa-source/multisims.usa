@@ -70,21 +70,6 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
       }}
       carriers={carrierOptions}
     >
-      {cards.length ? (
-        <section aria-labelledby="sim-cards" className="mt-6">
-          <h2 id="sim-cards" className="type-section-title">
-            SIM cards on their own
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">No plan included. Add one at checkout, or activate the card later.</p>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cards.map((card) => (
-              <li key={card.carrier.id} className="grid">
-                <SimCardCard card={card} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
       {plans.length ? (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => (
@@ -105,6 +90,21 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
           </Link>
         </div>
       )}
+      {cards.length ? (
+        <section aria-labelledby="sim-cards" className="mt-10 border-t pt-8">
+          <h2 id="sim-cards" className="type-section-title">
+            SIM cards on their own
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">No plan included. Add one at checkout, or activate the card later.</p>
+          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card) => (
+              <li key={card.carrier.id} className="grid">
+                <SimCardCard card={card} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </PlansBrowser>
   )
 }

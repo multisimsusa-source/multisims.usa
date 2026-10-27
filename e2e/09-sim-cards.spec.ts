@@ -137,7 +137,7 @@ test.describe.serial("SIM cards on their own", () => {
     await agent.locator("#tracking").fill("9400111899223344559999")
     await agent.getByRole("button", { name: "Save for all SIMs" }).click()
     await expectToast(agent, "Tracking number saved")
-    await agent.getByLabel("Phone numbers and ICCIDs").fill("8901410000000000301\n8901410000000000302\n8901410000000000303")
+    await agent.getByLabel("ICCIDs").fill("8901410000000000301\n8901410000000000302\n8901410000000000303")
     await agent.getByRole("button", { name: "Save details" }).click()
     await expectToast(agent, "Saved details for 3 SIMs")
     await agent.reload()

@@ -218,7 +218,9 @@ async function OrderView({
                   ? "Scan the QR code below with the phone you will use in the US. We also emailed it to you."
                   : status === "Delivered"
                     ? "Your line is active. Your phone number is below, and we emailed it to you."
-                    : "Your SIM card is on its way by USPS. Track it with the number below."}
+                    : order.quantity > 1
+                      ? "Your SIM cards are on their way by USPS. Track them with the number below."
+                      : "Your SIM card is on its way by USPS. Track it with the number below."}
             </p>
           </div>
         )}

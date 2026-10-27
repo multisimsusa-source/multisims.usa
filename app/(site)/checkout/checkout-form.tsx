@@ -154,7 +154,7 @@ export function CheckoutForm({
 
   const alert = belowMinimum ? (
     <Notice tone="warning" icon={false}>
-      {minimumOrderMessage(fees.minimumCents)}
+      {minimumOrderMessage(fees.minimumCents, plan ? undefined : "Add more SIM cards or a plan.")}
     </Notice>
   ) : state.status === "error" && state.message ? (
     <Notice tone="danger" icon={false}>
