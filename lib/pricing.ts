@@ -46,14 +46,15 @@ export type PriceLine = { key: string; label: string; cents: number }
 
 type LineSource = Pick<
   Order,
-  | "carrier_name" | "plan_name" | "days" | "quantity" | "product_type" | "addon_name"
+  | "kind" | "carrier_name" | "plan_name" | "days" | "quantity" | "product_type" | "addon_name"
   | "unit_price_cents" | "addon_price_cents" | "sim_card_price_cents" | "shipping_cents" | "network_fee_cents"
 > &
   Partial<Pick<Order, "discount_cents" | "discount_code">>
 
 /** The lines of an order as stored on it. Lines that do not apply are left out. */
 export function orderLines(o: LineSource): PriceLine[] {
-  const physical = o.product_type === "physical"
+  // A refill or a card's activation posts nothing: no SIM card or shipping lines.
+  const physical = o.product_type === "physical" && o.kind !== "refill" && o.kind !== "activation"
   // A SIM card on its own has no plan line: the card is the product.
   const lines: PriceLine[] =
     o.days === null

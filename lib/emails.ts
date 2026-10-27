@@ -68,7 +68,10 @@ function orderRows(order: Order): [string, string][] {
   const out: [string, string][] = [
     ["Order", orderLabel(order)],
     ["Plan", `${orderTitle(order)}`],
-    ["Product", productTypeLabel[order.product_type]],
+    [
+      "Product",
+      order.kind === "refill" ? "Refill" : order.kind === "activation" ? "SIM card activation" : productTypeLabel[order.product_type],
+    ],
     ["Quantity", String(order.quantity)],
   ]
   if (order.days !== null) out.splice(3, 0, ["Days", formatDays(order.days)])
@@ -89,9 +92,15 @@ function textRows(pairs: [string, string][]) {
 export function orderConfirmationEmail(order: Order, orderUrl: string): Rendered {
   const pairs = orderRows(order)
   const eta =
-    order.product_type === "esim"
-      ? "Your eSIM QR code will appear on your order page and arrive by email as soon as it is ready."
-      : "We will email you the tracking number as soon as your SIM card ships."
+    order.kind === "refill"
+      ? "We email you as soon as the days are on your number, with the new dates. If your plan is still running, they start the day after it ends."
+      : order.kind === "activation"
+        ? "We email you your phone number and plan dates as soon as the line is active."
+        : order.kind === "card_only"
+          ? "We will email you the tracking number as soon as your SIM cards ship. They come without a plan."
+          : order.product_type === "esim"
+            ? "Your eSIM QR code will appear on your order page and arrive by email as soon as it is ready."
+            : "We will email you the tracking number as soon as your SIM card ships."
   return {
     subject: `Order ${orderLabel(order)} confirmed`,
     text: `Hi ${order.customer_name},\n\nThanks, we have your order and it is processing.\n\n${textRows(pairs)}\n\n${eta}\n\nYour private order page: ${orderUrl}\n\nKeep this link to yourself: anyone with it can see your order.`,
@@ -406,15 +415,25 @@ export function staffNewBatchEmail(batch: { number: number; company: string }, l
 /** One line of a dealer's bulk order is ready (eSIMs, activated SIM cards) or posted. */
 export function dealerLineEmail(order: Order, batchNumber: number, event: "delivered" | "shipped", portalUrl: string): Rendered {
   const what = `${order.quantity} x ${orderTitle(order)}${order.days !== null ? `, ${formatDays(order.days)}` : ""}`
-  const heading = event === "shipped" ? "SIM cards shipped" : order.product_type === "esim" ? "eSIMs ready" : "Lines active"
-  const lead =
-    event === "shipped"
-      ? `The SIM cards for ${what} are in the post. The tracking number is on your order page. Press "The cards arrived" there once you have them, and the lines start.`
+  const refill = order.kind === "refill"
+  const heading = refill
+    ? "Numbers refilled"
+    : event === "shipped"
+      ? "SIM cards shipped"
+      : order.product_type === "esim"
+        ? "eSIMs ready"
+        : "Lines active"
+  const lead = refill
+    ? `The refill of ${what} is done. The new dates for each number are on your order page.`
+    : event === "shipped"
+      ? order.kind === "card_only"
+        ? `The SIM cards for ${what} are in the post. The tracking number is on your order page. They come without a plan.`
+        : `The SIM cards for ${what} are in the post. The tracking number is on your order page. Press "The cards arrived" there once you have them, and the lines start.`
       : order.product_type === "esim"
         ? `The QR codes for ${what} are ready on your order page.`
         : `The lines for ${what} are active. Their phone numbers are on your order page.`
   return {
-    subject: `B-${batchNumber}: ${heading.toLowerCase()} (${orderLabel(order)})`,
+    subject: `B-${batchNumber}: ${heading} (${orderLabel(order)})`,
     text: `${lead}\n\nOpen your order: ${portalUrl}`,
     html: layout({
       preheader: what,

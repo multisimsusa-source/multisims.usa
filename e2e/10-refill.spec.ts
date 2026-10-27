@@ -298,6 +298,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await expect(page.getByText("Refill, 7 days")).toBeVisible()
     // A refill never ships: no tracker step for it, no address on it.
     await expect(page.getByText("Shipped")).toHaveCount(0)
+    await expect(page.locator("main").getByText("Shipping", { exact: true })).toHaveCount(0)
     const refill = await latestOrder(testEmail("card-refill"), "refill")
     expect(refill.product_type).toBe("physical")
   })
