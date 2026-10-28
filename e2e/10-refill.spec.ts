@@ -225,7 +225,7 @@ test.describe.serial("Refill and the plan timer", () => {
     const customer = await guestPage(browser)
     await customer.goto(`/order/${original!.public_token}`)
     await expect(customer.getByText(`Active until ${shown(currentEnd)}, 7 days left`)).toBeVisible()
-    await expect(customer.getByText(`Next plan starts ${shown(addDays(currentEnd, 1))}`)).toBeVisible()
+    await expect(customer.getByText(`Next plan starts ${shown(addDays(currentEnd, 1))}, until ${shown(addDays(currentEnd, 30))}`)).toBeVisible()
     await customer.goto(`/order/${refill.public_token}`)
     await expect(customer.getByText("Delivered").first()).toBeVisible()
     await expect(customer.getByText(`Plan starts ${shown(addDays(currentEnd, 1))}`)).toBeVisible()

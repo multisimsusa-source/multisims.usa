@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * How long a line has: "Active until 12 Nov 2026, 9 days left", then "Next plan starts
- * 13 Nov 2026" when a refill is already bought, or "Ended 3 Oct 2026". Words first; the
+ * 13 Nov 2026, until 12 Dec 2026" when a refill is already bought, or "Plan ended 3 Oct 2026". Words first; the
  * icon only supports them.
  */
 export function PlanTimer({ timer, className, today = usToday() }: { timer: LineTimer; className?: string; today?: string }) {
@@ -26,8 +26,8 @@ export function PlanTimer({ timer, className, today = usToday() }: { timer: Line
         <p className="flex items-start gap-2">
           <CalendarPlusIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-brand" />
           <span>
-            {current ? "Next plan starts" : "Plan starts"} <span className="font-medium">{formatPlanDate(next.starts_on)}</span>
-            {current ? null : <>, until {formatPlanDate(next.ends_on)}</>}
+            {current ? "Next plan starts" : "Plan starts"} <span className="font-medium">{formatPlanDate(next.starts_on)}</span>, until{" "}
+            <span className="font-medium">{formatPlanDate(next.ends_on)}</span>
           </span>
         </p>
       ) : null}

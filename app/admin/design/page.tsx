@@ -391,7 +391,7 @@ export default function DesignSystemPage() {
 
         <Block
           title="Plan timer"
-          note="PlanTimer: how long a line has, in words first. Active until a date with the days left; Next plan starts when a refill is already bought; Plan ended once it is over. PlanEnds is the compact form for lists (Activations). Dates are US days, inclusive."
+          note="PlanTimer: how long a line has, in words first. Active until a date with the days left; Next plan starts, with its end, when a refill is already bought; Plan ended once it is over. PlanEnds is the compact form for lists (Activations). Dates are US days, inclusive."
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border bg-card p-4">

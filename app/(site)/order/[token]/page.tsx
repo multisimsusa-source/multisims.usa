@@ -330,8 +330,8 @@ async function OrderView({
           <DetailRow label="Order number" value={orderLabel(order)} mono />
           <DetailRow label="Placed" value={formatDateTime(order.created_at)} />
           <DetailRow
-            label="Plan"
-            value={`${orderTitle(order)}`}
+            label={order.kind === "card_only" ? "Product" : "Plan"}
+            value={orderTitle(order)}
           />
           {order.days !== null ? (
             <DetailRow label="Length" value={formatDays(order.days)} />
