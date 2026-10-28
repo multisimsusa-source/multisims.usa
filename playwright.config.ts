@@ -17,7 +17,8 @@ export default defineConfig({
   // One shared database: the flows build on each other, so they run in order.
   fullyParallel: false,
   workers: 1,
-  timeout: 90_000,
+  // On the deployed site a sandbox payment alone can take a few minutes to confirm.
+  timeout: REMOTE ? 300_000 : 90_000,
   expect: { timeout: 15_000 },
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],

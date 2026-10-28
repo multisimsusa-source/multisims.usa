@@ -61,17 +61,26 @@ export function watchErrors(page: Page) {
   const reload = page.reload.bind(page)
   page.goto = async (url, options) => {
     const response = await goto(url, { waitUntil: "domcontentloaded", ...options })
-    await streamed(page)
+    await ready(page)
     return response
   }
   page.reload = async (options) => {
     const response = await reload({ waitUntil: "domcontentloaded", ...options })
-    await streamed(page)
+    await ready(page)
     return response
   }
   page.on("pageerror", (error) => {
     throw new Error(`Page error on ${page.url()}: ${error.message}`)
   })
+}
+
+/**
+ * The page is usable: its scripts have run (on a slower deployed site a click can otherwise
+ * land on a button that does nothing yet) and its streamed parts are in place.
+ */
+async function ready(page: Page) {
+  await page.waitForLoadState("load").catch(() => {})
+  await streamed(page)
 }
 
 /**
@@ -108,6 +117,30 @@ export async function expectNoHorizontalScroll(page: Page) {
 export async function orderFor(email: string) {
   const { data } = await db().from("orders").select("*").eq("customer_email", email).is("replacement_of", null).order("created_at", { ascending: false }).limit(1).single()
   return data as { id: string; number: number; public_token: string; status: string; total_cents: number; discount_cents: number; unit_price_cents: number; quantity: number }
+}
+
+/** The website's order button: it reads "Continue to payment" when the site takes payments. */
+export function orderButton(page: Page, local: string) {
+  return page.getByRole("button", { name: REMOTE ? "Continue to payment" : local }).filter({ visible: true }).first()
+}
+
+/**
+ * Submits a website order or refill and gets it paid. Locally there is no payment provider:
+ * the order page opens with the order already in the queue. On the deployed site the buyer
+ * goes to the provider's (sandbox) invoice; the test pays it there, waits for the webhook,
+ * then opens the order page.
+ */
+export async function submitAndPay(page: Page, local: string, email: string) {
+  await orderButton(page, local).click()
+  if (!REMOTE) {
+    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    return
+  }
+  await page.waitForURL((url) => url.hostname.includes("nowpayments"), { timeout: 60_000 })
+  const order = await orderFor(email)
+  await payInSandbox({ orderId: order.id })
+  await expectPaid(order.id)
+  await page.goto(`/order/${order.public_token}?paid=1`)
 }
 
 /** Confirms an alert dialog (ConfirmAction) by its confirm button name. */

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { db } from "./support/db"
 import { PASSWORD, testEmail } from "./support/env"
-import { choose, confirm, expectNoHorizontalScroll, expectToast, guestPage, orderFor, pageAs, PHONE, signIn } from "./support/helpers"
+import { choose, confirm, expectNoHorizontalScroll, expectToast, guestPage, orderButton, orderFor, pageAs, PHONE, signIn, submitAndPay } from "./support/helpers"
 
 /**
  * SIM cards on their own (agreed 26 Oct): priced per carrier in admin, sold on the
@@ -30,11 +30,6 @@ async function fillContactAndAddress(page: Page, name: string, email: string) {
   await page.getByLabel("City").fill("New York")
   await choose(page, page.locator("#state"), "New York")
   await page.locator("#ship_zip").fill("10118")
-}
-
-async function placeOrder(page: Page) {
-  await page.getByRole("button", { name: "Place order" }).filter({ visible: true }).first().click()
-  await page.waitForURL(/\/order\/[0-9a-f]{48}/)
 }
 
 test.describe.serial("SIM cards on their own", () => {
@@ -86,7 +81,7 @@ test.describe.serial("SIM cards on their own", () => {
     const one = 600 + settings!.shipping_fee_cents + settings!.network_fee_cents
     if (one < settings!.min_order_cents) {
       await expect(page.getByText(/Minimum order is/).filter({ visible: true }).first()).toBeVisible()
-      await expect(page.getByRole("button", { name: "Place order" }).filter({ visible: true }).first()).toBeDisabled()
+      await expect(orderButton(page, "Place order")).toBeDisabled()
     }
     await page.getByRole("button", { name: "One more" }).filter({ visible: true }).first().click()
     await page.getByRole("button", { name: "One more" }).filter({ visible: true }).first().click()
@@ -95,7 +90,7 @@ test.describe.serial("SIM cards on their own", () => {
     await page.screenshot({ path: `${SHOTS}/p2-checkout-card-phone.png`, fullPage: true })
 
     await fillContactAndAddress(page, "Noor Haddad", CARD_BUYER)
-    await placeOrder(page)
+    await submitAndPay(page, "Place order", CARD_BUYER)
     await expect(page.getByText("3 x SIM card")).toBeVisible()
     await expect(page.locator("main").getByText(/\b\d+ days?\b/).filter({ visible: true })).toHaveCount(0)
 
@@ -121,7 +116,7 @@ test.describe.serial("SIM cards on their own", () => {
     await choose(page, page.locator("#plan-choice"), "E2E Card")
 
     await fillContactAndAddress(page, "Omar Said", CARD_PLAN_BUYER)
-    await placeOrder(page)
+    await submitAndPay(page, "Place order", CARD_PLAN_BUYER)
     const order = await orderFor(CARD_PLAN_BUYER)
     const { data: row } = await db().from("orders").select("kind, days, sim_card_price_cents, plan_start").eq("id", order.id).single()
     expect(row).toMatchObject({ kind: "line", days: 7, sim_card_price_cents: 600, plan_start: "on_receipt" })

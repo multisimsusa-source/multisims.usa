@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { db } from "./support/db"
-import { REMOTE, testEmail } from "./support/env"
-import { choose, confirm, expectNoHorizontalScroll, expectPaid, expectToast, guestPage, orderFor, pageAs, payInSandbox } from "./support/helpers"
+import { testEmail } from "./support/env"
+import { choose, confirm, expectNoHorizontalScroll, expectToast, guestPage, orderFor, pageAs, submitAndPay } from "./support/helpers"
 
 /**
  * Milestone 2 and the M3 website additions, as a customer and the team see them:
@@ -26,26 +26,6 @@ async function fillContact(page: Page, name: string, email: string) {
   await page.getByLabel("Email").fill(email)
   await page.getByLabel("Phone or WhatsApp").fill("+44 7700 900123")
   await page.getByLabel("US ZIP code").fill("10001")
-}
-
-/**
- * Places the order and gets it paid. Locally there is no payment provider: the order page
- * opens with the order already in the queue. On the deployed site the buyer goes to the
- * provider's (sandbox) invoice; the test pays it there and waits for the webhook, then
- * opens the order page.
- */
-async function placeOrder(page: Page, email: string) {
-  const button = page.getByRole("button", { name: REMOTE ? "Continue to payment" : "Place order" }).filter({ visible: true }).first()
-  await button.click()
-  if (!REMOTE) {
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
-    return
-  }
-  await page.waitForURL((url) => url.hostname.includes("nowpayments"), { timeout: 60_000 })
-  const order = await orderFor(email)
-  await payInSandbox({ orderId: order.id })
-  await expectPaid(order.id)
-  await page.goto(`/order/${order.public_token}?paid=1`)
 }
 
 async function deliver(agent: Page, orderId: string, finish: { button: string; confirm: string }) {
@@ -84,7 +64,7 @@ test.describe.serial("Website orders", () => {
 
     await fillContact(page, "Ana Silva", ESIM_CUSTOMER)
     await expectNoHorizontalScroll(page)
-    await placeOrder(page, ESIM_CUSTOMER)
+    await submitAndPay(page, "Place order", ESIM_CUSTOMER)
     await expect(page.getByText("Order placed.")).toBeVisible()
     await expect(page.getByText("Processing").first()).toBeVisible()
 
@@ -211,7 +191,7 @@ test.describe.serial("Website orders", () => {
     await page.getByLabel("City").fill("New York")
     await choose(page, page.locator("#state"), "New York")
     await page.locator("#ship_zip").fill("10118")
-    await placeOrder(page, SIM_CUSTOMER)
+    await submitAndPay(page, "Place order", SIM_CUSTOMER)
     const order = await orderFor(SIM_CUSTOMER)
     // 14.00 + SIM card 5.00 + shipping + network fee: stored line by line.
     expect(order.total_cents).toBeGreaterThan(1900)
@@ -260,7 +240,7 @@ test.describe.serial("Website orders", () => {
     // 30 days, so the total is above any payment provider minimum.
     await page.goto(`/checkout?plan=${await slugOf("E2E Unlimited")}&days=30`)
     await fillContact(page, "Chen Wei", CANCEL_CUSTOMER)
-    await placeOrder(page, CANCEL_CUSTOMER)
+    await submitAndPay(page, "Place order", CANCEL_CUSTOMER)
     const order = await orderFor(CANCEL_CUSTOMER)
 
     const owner = await pageAs(browser, "owner")

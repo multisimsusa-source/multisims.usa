@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { db, resetRateLimits } from "./support/db"
 import { PASSWORD, testEmail } from "./support/env"
-import { choose, confirm, expectNoHorizontalScroll, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
+import { choose, confirm, expectNoHorizontalScroll, expectToast, guestPage, orderButton, pageAs, PHONE, signIn, submitAndPay } from "./support/helpers"
 
 /**
  * Refill (agreed 26 Oct): add days to a number, starting the day after its current plan
@@ -109,6 +109,17 @@ async function claimAndOpen(agent: Page, orderId: string) {
   await expectToast(agent, "Claimed")
 }
 
+/**
+ * The deployed site's minimum can be higher than the local one (the payment provider sets a
+ * floor): when the order is under it, add international calling as a customer would.
+ */
+async function overMinimum(page: Page) {
+  if (await page.getByText(/Minimum order is/).filter({ visible: true }).count()) {
+    await page.getByRole("switch").first().click()
+    await expect(page.getByText(/Minimum order is/).filter({ visible: true })).toHaveCount(0)
+  }
+}
+
 async function fillRefillContact(page: Page, email: string) {
   await page.getByLabel("Full name").fill("Sam Rivera")
   await page.getByLabel("Email").fill(email)
@@ -175,13 +186,12 @@ test.describe.serial("Refill and the plan timer", () => {
     const seven = pays(unlimited.packages.find((p) => p.days === 7)!) + settings!.network_fee_cents
     if (seven < settings!.min_order_cents) {
       await expect(page.getByText(/Minimum order is/).filter({ visible: true }).first()).toBeVisible()
-      await expect(page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first()).toBeDisabled()
+      await expect(orderButton(page, "Refill my number")).toBeDisabled()
     }
     await choose(page, page.locator("#days-choice"), /^30 days/)
     await expectNoHorizontalScroll(page)
     await page.screenshot({ path: `${SHOTS}/p3-refill-form-phone.png`, fullPage: true })
-    await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    await submitAndPay(page, "Refill my number", ESIM_BUYER)
     await expect(page.getByText("Refill, 30 days")).toBeVisible()
     await expect(page.getByText("Processing").first()).toBeVisible()
 
@@ -237,8 +247,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await page.getByRole("button", { name: "Apply" }).click()
     await expect(page.getByText("Discount (E2EREFILL)")).toBeVisible()
     await fillRefillContact(page, STRANGER)
-    await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    await submitAndPay(page, "Refill my number", STRANGER)
 
     const refill = await latestOrder(STRANGER, "refill")
     expect(refill.discount_cents).toBeGreaterThan(0)
@@ -274,8 +283,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await page.getByRole("link", { name: "Refill this number" }).click()
     await choose(page, page.locator("#plan-choice"), "E2E Unlimited")
     await choose(page, page.locator("#days-choice"), /^30 days/)
-    await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    await submitAndPay(page, "Refill my number", testEmail("expired"))
 
     const refill = await latestOrder(testEmail("expired"), "refill")
     const agent = await pageAs(browser, "agent")
@@ -293,8 +301,8 @@ test.describe.serial("Refill and the plan timer", () => {
     await page.getByLabel(/^ICCID/).fill("8901410000000000888")
     await choose(page, page.locator("#plan-choice"), "E2E Card")
     await fillRefillContact(page, testEmail("card-refill"))
-    await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    await overMinimum(page)
+    await submitAndPay(page, "Refill my number", testEmail("card-refill"))
     await expect(page.getByText("Refill, 7 days")).toBeVisible()
     // A refill never ships: no tracker step for it, no address on it.
     await expect(page.getByText("Shipped")).toHaveCount(0)
@@ -311,7 +319,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await choose(page, page.locator("#plan-choice"), "E2E Unlimited")
     await choose(page, page.locator("#days-choice"), /^30 days/)
     await fillRefillContact(page, testEmail("refill-bad"))
-    await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
+    await orderButton(page, "Refill my number").click()
     await expect(page.getByText("Enter the US number, for example (212) 555-0100")).toBeVisible()
 
     // A plan switched off for refills, sent anyway.
@@ -319,7 +327,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await db().from("plans").update({ refillable: false }).eq("id", unlimited.id)
     try {
       await page.getByLabel("Phone number", { exact: true }).fill("+1 646 555 0188")
-      await page.getByRole("button", { name: "Refill my number" }).filter({ visible: true }).first().click()
+      await orderButton(page, "Refill my number").click()
       await expect(page.getByText("This plan is no longer offered for refills. Choose another plan.")).toBeVisible()
       const { count } = await db().from("orders").select("id", { count: "exact", head: true }).eq("customer_email", testEmail("refill-bad"))
       expect(count).toBe(0)
@@ -340,8 +348,8 @@ test.describe.serial("Refill and the plan timer", () => {
     await page.getByLabel("US ZIP code").fill("10001")
     await page.getByLabel(/^Area code/).fill("212")
     await page.screenshot({ path: `${SHOTS}/p3-activate-form-phone.png`, fullPage: true })
-    await page.getByRole("button", { name: "Activate my SIM" }).filter({ visible: true }).first().click()
-    await page.waitForURL(/\/order\/[0-9a-f]{48}/)
+    await overMinimum(page)
+    await submitAndPay(page, "Activate my SIM", CARD_BUYER)
     await expect(page.getByText(/SIM card activation, 7 days/)).toBeVisible()
 
     const activation = await latestOrder(CARD_BUYER, "activation")

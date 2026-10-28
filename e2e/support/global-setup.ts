@@ -23,15 +23,26 @@ export default async function globalSetup() {
     [OWNER, AUTH.owner],
     [AGENT, AUTH.agent],
   ] as const) {
-    const context = await browser.newContext({ baseURL: BASE_URL })
-    const page = await context.newPage()
-    await page.goto("/portal/login")
-    await page.fill('input[name="email"]', email)
-    await page.fill('input[name="password"]', PASSWORD)
-    await page.click('button[type="submit"]')
-    await page.waitForURL((url) => !url.pathname.startsWith("/portal"), { timeout: 60_000 })
-    await context.storageState({ path: file })
-    await context.close()
+    // A deployed site over a shaky connection can drop one sign-in: try again, and say what
+    // the page showed if it still fails.
+    for (let attempt = 1; ; attempt++) {
+      const context = await browser.newContext({ baseURL: BASE_URL })
+      const page = await context.newPage()
+      try {
+        await page.goto("/portal/login")
+        await page.fill('input[name="email"]', email)
+        await page.fill('input[name="password"]', PASSWORD)
+        await page.click('button[type="submit"]')
+        await page.waitForURL((url) => !url.pathname.startsWith("/portal"), { timeout: 60_000 })
+        await context.storageState({ path: file })
+        await context.close()
+        break
+      } catch (error) {
+        const shown = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 200)
+        await context.close()
+        if (attempt === 3) throw new Error(`Could not sign in as ${email}. The page showed: ${shown}`, { cause: error })
+      }
+    }
   }
   await browser.close()
 }

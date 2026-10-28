@@ -312,7 +312,7 @@ test.describe.serial("Ratings", () => {
     await expect(page.getByRole("button", { name: "Rate eSIM 1 replacement" })).toBeVisible()
     await expect(page.getByRole("button", { name: "Rate eSIM 1", exact: true })).toBeVisible()
     await rateInDialog(page, "Rate eSIM 1 replacement", "5 stars, excellent", "The new one works.")
-    await rateInDialog(page, "Rate eSIM 1", "1 star, poor", "The first one never connected.")
+    await rateInDialog(page, /^Rate eSIM 1$/, "1 star, poor", "The first one never connected.")
     await shot(page, "c5-replacement-phone")
 
     expect(await reviewsOf(replacement.id)).toEqual([expect.objectContaining({ order_item_id: replacement.items[0].id, rating: 5 })])
