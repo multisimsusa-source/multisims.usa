@@ -12,6 +12,8 @@ const shop: FooterLink[] = [
   { href: "/plans?type=esim", label: "eSIM plans" },
   { href: "/plans?type=physical", label: "SIM card plans" },
   { href: "/plans", label: "All plans" },
+  { href: "/refill", label: "Refill a number" },
+  { href: "/refill?mode=activate", label: "Activate a SIM card" },
 ]
 const help: FooterLink[] = [
   { href: "/faq", label: "FAQ" },

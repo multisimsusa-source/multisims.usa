@@ -124,9 +124,11 @@ export async function OrderWorkspace({
           {order.refunded_at ? <Tag tone="neutral">Refunded</Tag> : null}
           {order.paid_at &&
           order.status !== "fulfilled" &&
+          order.status !== "shipped" &&
           order.status !== "cancelled" ? (
             <span className="text-sm">
-              <Age since={order.paid_at} className="text-sm" />{" "}
+              {/* As in the queue: from the activation request when the SIM is back for its number. */}
+              <Age since={order.activation_requested_at ?? order.paid_at} className="text-sm" />{" "}
               <span className="text-muted-foreground">waiting</span>
             </span>
           ) : null}
@@ -220,7 +222,7 @@ export async function OrderWorkspace({
           {batch.otherOpen
             ? ` ${batch.otherOpen} other ${batch.otherOpen === 1 ? "line is" : "lines are"} still being filled.`
             : ""}
-          {!esim && !activation
+          {!esim && !activation && !refillLike
             ? " All SIM cards in the batch go in one parcel with one tracking number."
             : ""}
         </Notice>
@@ -251,58 +253,67 @@ export async function OrderWorkspace({
               }))}
             />
           ) : null}
-          {items.map((item) => (
-            <div key={item.id}>
-              <ItemForm
-                // Remount with fresh defaults after each save.
-                key={`${item.status}-${item.qr_path}-${item.phone_number}-${item.iccid}`}
-                item={item}
-                productType={refillLike ? "physical" : order.product_type}
-                need={need}
-                cardOnly={order.kind === "card_only"}
-                editable={
-                  canWork &&
-                  (activation
-                    ? item.status === "fulfilled"
-                    : item.status === "pending")
-                }
-                title={
-                  items.length > 1
-                    ? `${unit} ${item.seq} of ${items.length}`
-                    : unit
-                }
-              />
-              {refill && item.status === "pending" && refillDates.get(item.id) ? (
-                <div className="mt-2">
-                  <RefillDates
-                    key={`${item.plan_starts_on}-${item.plan_ends_on}`}
-                    itemId={item.id}
-                    currentEndsOn={refillDates.get(item.id)!.current_ends_on}
-                    startsOn={item.plan_starts_on ?? refillDates.get(item.id)!.starts_on}
-                    endsOn={item.plan_ends_on ?? refillDates.get(item.id)!.ends_on}
-                    saved={Boolean(item.plan_ends_on)}
-                    days={order.days ?? 1}
-                    editable={canWork}
-                  />
-                </div>
-              ) : null}
-              {item.status !== "pending" && timers.get(item.id) ? (
-                <PlanTimer timer={timers.get(item.id)!} className="mt-2 rounded-xl border bg-background px-4 py-3" />
-              ) : null}
-              {item.status === "fulfilled" ? (
-                <div className="mt-2 flex justify-end">
-                  {canReplace ? (
-                    <ReplaceButton itemId={item.id} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Replacement limit reached ({allowance.used} of{" "}
-                      {allowance.limit})
-                    </p>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ))}
+          {items.map((item) =>
+            // A cancelled order's undelivered SIM has nothing to fill in: say so instead of empty boxes.
+            order.status === "cancelled" && item.status === "pending" ? (
+              <p key={item.id} className="rounded-xl border bg-background px-4 py-3 text-sm text-muted-foreground sm:px-5">
+                {items.length > 1 ? `${unit} ${item.seq} of ${items.length}` : unit}: not delivered, the order was cancelled.
+              </p>
+            ) : (
+              <div key={item.id}>
+                <ItemForm
+                  // Remount with fresh defaults after each save.
+                  key={`${item.status}-${item.qr_path}-${item.phone_number}-${item.iccid}`}
+                  item={item}
+                  productType={refillLike ? "physical" : order.product_type}
+                  need={need}
+                  cardOnly={order.kind === "card_only"}
+                  done={order.status === "fulfilled" || order.status === "cancelled"}
+                  editable={
+                    canWork &&
+                    (activation
+                      ? item.status === "fulfilled"
+                      : item.status === "pending")
+                  }
+                  title={
+                    items.length > 1
+                      ? `${unit} ${item.seq} of ${items.length}`
+                      : unit
+                  }
+                />
+                {refill && item.status === "pending" && refillDates.get(item.id) ? (
+                  <div className="mt-2">
+                    <RefillDates
+                      key={`${item.plan_starts_on}-${item.plan_ends_on}`}
+                      itemId={item.id}
+                      currentEndsOn={refillDates.get(item.id)!.current_ends_on}
+                      startsOn={item.plan_starts_on ?? refillDates.get(item.id)!.starts_on}
+                      endsOn={item.plan_ends_on ?? refillDates.get(item.id)!.ends_on}
+                      saved={Boolean(item.plan_ends_on)}
+                      days={order.days ?? 1}
+                      editable={canWork}
+                    />
+                  </div>
+                ) : null}
+                {item.status !== "pending" && timers.get(item.id) ? (
+                  <PlanTimer timer={timers.get(item.id)!} className="mt-2 rounded-xl border bg-background px-4 py-3" />
+                ) : null}
+                {/* A refill sends no SIM, so there is nothing to replace. */}
+                {item.status === "fulfilled" && !refill ? (
+                  <div className="mt-2 flex justify-end">
+                    {canReplace ? (
+                      <ReplaceButton itemId={item.id} />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Replacement limit reached ({allowance.used} of{" "}
+                        {allowance.limit})
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )
+          )}
         </section>
 
         <aside className="flex flex-col gap-4">
@@ -581,35 +592,38 @@ export async function OrderWorkspace({
           ) : null}
 
           <Panel title="Record">
-            <KeyValue label="Placed" value={formatDateTime(order.created_at)} />
-            {order.claimed_at ? (
-              <KeyValue
-                label="Claimed"
-                value={`${formatDateTime(order.claimed_at)}${order.claimer ? `, ${order.claimer.full_name || order.claimer.email}` : ""}`}
-              />
-            ) : null}
-            {order.shipped_at && !esim && !refillLike ? (
-              <KeyValue label="Shipped" value={formatDateTime(order.shipped_at)} />
-            ) : null}
-            {/* Card-only orders are done once shipped; the rest record when the line went live. */}
-            {order.fulfilled_at && order.kind !== "card_only" ? (
-              <KeyValue
-                label={esim ? "Delivered" : refill ? "Refilled" : "Activated"}
-                value={formatDateTime(order.fulfilled_at)}
-              />
-            ) : null}
-            {order.cancelled_at ? (
-              <KeyValue
-                label="Cancelled"
-                value={`${formatDateTime(order.cancelled_at)}${order.cancel_reason ? `: ${order.cancel_reason}` : ""}`}
-              />
-            ) : null}
-            {order.refunded_at ? (
-              <KeyValue
-                label="Refunded"
-                value={`${formatDateTime(order.refunded_at)}${order.refund_note ? `: ${order.refund_note}` : ""}`}
-              />
-            ) : null}
+            {/* In time order: a SIM card is claimed again for activation after it ships. */}
+            {[
+              { label: "Placed", at: order.created_at, text: formatDateTime(order.created_at) },
+              order.claimed_at && {
+                label: "Claimed",
+                at: order.claimed_at,
+                text: `${formatDateTime(order.claimed_at)}${order.claimer ? `, ${order.claimer.full_name || order.claimer.email}` : ""}`,
+              },
+              order.shipped_at && !esim && !refillLike && { label: "Shipped", at: order.shipped_at, text: formatDateTime(order.shipped_at) },
+              // Card-only orders are done once shipped; the rest record when the line went live.
+              order.fulfilled_at &&
+                order.kind !== "card_only" && {
+                  label: esim ? "Delivered" : refill ? "Refilled" : "Activated",
+                  at: order.fulfilled_at,
+                  text: formatDateTime(order.fulfilled_at),
+                },
+              order.cancelled_at && {
+                label: "Cancelled",
+                at: order.cancelled_at,
+                text: `${formatDateTime(order.cancelled_at)}${order.cancel_reason ? `: ${order.cancel_reason}` : ""}`,
+              },
+              order.refunded_at && {
+                label: "Refunded",
+                at: order.refunded_at,
+                text: `${formatDateTime(order.refunded_at)}${order.refund_note ? `: ${order.refund_note}` : ""}`,
+              },
+            ]
+              .filter((r): r is { label: string; at: string; text: string } => Boolean(r))
+              .sort((a, b) => a.at.localeCompare(b.at))
+              .map((r) => (
+                <KeyValue key={r.label} label={r.label} value={r.text} />
+              ))}
             {isAdmin ? (
               <KeyValue
                 label="Total"
@@ -617,7 +631,8 @@ export async function OrderWorkspace({
                 mono
               />
             ) : null}
-            {isAdmin && !order.replacement_of ? (
+            {/* Website orders only: a dealer's line lives on their portal, not a retail page. */}
+            {isAdmin && !order.replacement_of && order.channel === "website" ? (
               <a
                 href={`/order/${order.public_token}`}
                 target="_blank"

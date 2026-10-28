@@ -61,8 +61,9 @@ export function PortalShell({
       />
       <SidebarInset className="min-w-0 bg-canvas">
         <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur sm:px-5">
-          <SidebarTrigger className="size-9" />
-          <Separator orientation="vertical" className="mx-1 h-5 md:hidden" />
+          <SidebarTrigger className="size-11" />
+          {/* Only between the menu button and the logo, so hidden whenever the logo is. */}
+          <Separator orientation="vertical" className="mx-1 h-5 max-[420px]:hidden md:hidden" />
           <Wordmark href={home} className="max-[420px]:hidden md:hidden" />
           <div className="hidden min-w-0 md:block">
             <Suspense

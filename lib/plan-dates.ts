@@ -3,16 +3,25 @@
  * both ends: a 30-day plan starting 1 Nov ends 30 Nov.
  */
 
+/** A SIM card plan can start this many days from today at the earliest: time for USPS. */
+export const EARLIEST_START_DAYS = 3
+
 /** Today in the US (Eastern), as YYYY-MM-DD. */
 export function usToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
 }
 
-/** "12 Nov 2026". */
+/** "Nov 12, 2026": the same US style as every other date on the site. */
 export function formatPlanDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
     new Date(`${date}T12:00:00Z`)
   )
+}
+
+/** A timestamp's US (Eastern) calendar day as YYYY-MM-DD, for CSV files. */
+export function usDate(value: string | null | undefined) {
+  if (!value) return ""
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(value))
 }
 
 /** Whole days from a to b (b - a). */

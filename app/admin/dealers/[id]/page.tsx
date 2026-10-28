@@ -115,7 +115,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
         }
         actions={
           <div className="flex items-center gap-2">
-            <DealerPasswordButton dealerId={id} name={name} />
+            <DealerPasswordButton dealerId={id} name={name} email={dealer.profile.email} />
             <DealerActiveSwitch dealerId={id} active={dealer.profile.active} name={dealer.company} />
           </div>
         }
@@ -129,14 +129,14 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
                 <h2 id="wallet-title" className="type-section-title">
                   Wallet
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">Every movement is kept with who made it. The balance is worked out from these lines and never typed in.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Every movement is kept with its note. The balance is worked out from these lines and never typed in.</p>
               </div>
               <div className="flex gap-2">
                 <WalletEntryButton dealerId={id} company={dealer.company} mode="add" />
                 <WalletEntryButton dealerId={id} company={dealer.company} mode="correct" />
               </div>
             </div>
-            <WalletSummary wallet={wallet} />
+            <WalletSummary wallet={wallet} owner />
             <WalletLedger entries={ledger} emptyText="No movements yet. Add funds to let this dealer order." />
           </section>
 
@@ -166,7 +166,14 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
               batches.map((b) => (
                 <KeyValue
                   key={b.id}
-                  label={`${batchLabel(b.number)} · ${formatDateTime(b.created_at)}`}
+                  label={
+                    <>
+                      <Link href={`/admin/orders?q=${batchLabel(b.number)}`} className="font-medium text-brand hover:underline">
+                        {batchLabel(b.number)}
+                      </Link>{" "}
+                      · {formatDateTime(b.created_at)}
+                    </>
+                  }
                   value={formatPrice(b.total_cents)}
                   mono
                 />

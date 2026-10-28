@@ -51,7 +51,11 @@ export function resolveRange(params: Record<string, string>, now = new Date()): 
   const valid = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null)
   const from = valid(params.from)
   const to = valid(params.to)
-  if (params.range === "custom" && from && to && from <= to) return { from, to, label: `${from} to ${to}` }
+  if (params.range === "custom" && from && to) {
+    // Dates picked the wrong way round mean the same days.
+    const [a, b] = from <= to ? [from, to] : [to, from]
+    return { from: a, to: b, label: `${a} to ${b}` }
+  }
   switch (params.range) {
     case "today":
       return { from: today, to: today, label: "Today" }
@@ -94,6 +98,8 @@ type ItemRow = {
 export type ReportData = Awaited<ReturnType<typeof loadReport>>
 
 /** Everything the dashboard and reports need for one range and set of filters. */
+type LedgerRow = { dealer_id: string; kind: string; amount_cents: number; order: { carrier_id: string | null; claimed_by: string | null } | null }
+
 export async function loadReport(range: Range, filters: ReportFilters = {}) {
   const supabase = await createClient()
   const start = usDayStart(range.from)
@@ -152,15 +158,27 @@ export async function loadReport(range: Range, filters: ReportFilters = {}) {
     replacements = replacements.eq("claimed_by", filters.agent)
   }
 
-  const [o, i, t, r, staff, dealers, ledger, open] = await Promise.all([
+  // Agents' "holding now" follows the same filters as everything else on the page.
+  let open = supabase.from("orders").select("id, status, quantity, claimed_by").in("status", ["queued", "claimed", "needs_attention"]).limit(5000)
+  if (filters.carrier) open = open.eq("carrier_id", filters.carrier)
+  if (filters.channel) open = open.eq("channel", filters.channel)
+  if (filters.dealer) open = open.eq("dealer_id", filters.dealer)
+
+  const [o, i, t, r, staff, dealers, ledger, openOrders] = await Promise.all([
     orders,
     items,
     tickets,
     replacements,
     supabase.from("profiles").select("id, full_name, email, role, active").in("role", ["agent", "admin"]),
     supabase.from("dealers").select("profile_id, company"),
-    supabase.from("wallet_ledger").select("dealer_id, kind, amount_cents").in("kind", ["topup", "manual_add", "capture"]).gte("created_at", start).lt("created_at", end).limit(50_000),
-    supabase.from("orders").select("id, status, quantity, claimed_by").in("status", ["queued", "claimed", "needs_attention"]).limit(5000),
+    supabase
+      .from("wallet_ledger")
+      .select("dealer_id, kind, amount_cents, order:orders(carrier_id, claimed_by)")
+      .in("kind", ["topup", "manual_add", "capture"])
+      .gte("created_at", start)
+      .lt("created_at", end)
+      .limit(50_000),
+    open,
   ])
   for (const res of [o, i, t, r]) if (res.error) throw res.error
 
@@ -171,9 +189,20 @@ export async function loadReport(range: Range, filters: ReportFilters = {}) {
     tickets: (t.data ?? []) as unknown as { id: string; order: { carrier_id: string | null; carrier_name: string } }[],
     replacements: (r.data ?? []) as { id: string; carrier_id: string | null; carrier_name: string }[],
     staff: (staff.data ?? []) as { id: string; full_name: string; email: string; role: string; active: boolean }[],
-    dealers: (dealers.data ?? []) as { profile_id: string; company: string }[],
-    ledger: (ledger.data ?? []) as { dealer_id: string; kind: string; amount_cents: number }[],
-    open: (open.data ?? []) as { id: string; status: string; quantity: number; claimed_by: string | null }[],
+    // Dealers and their money follow the filters: none for website only, one for a dealer;
+    // with a carrier or agent filter only what was taken for those orders (funds added belong
+    // to no carrier or agent).
+    dealers: filters.channel === "website"
+      ? []
+      : ((dealers.data ?? []) as { profile_id: string; company: string }[]).filter((d) => !filters.dealer || d.profile_id === filters.dealer),
+    ledger: ((ledger.data ?? []) as unknown as LedgerRow[]).filter((l) =>
+      filters.carrier || filters.agent
+        ? l.kind === "capture" &&
+          (!filters.carrier || l.order?.carrier_id === filters.carrier) &&
+          (!filters.agent || l.order?.claimed_by === filters.agent)
+        : true
+    ),
+    open: (openOrders.data ?? []) as { id: string; status: string; quantity: number; claimed_by: string | null }[],
   }
 }
 

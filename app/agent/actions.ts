@@ -7,7 +7,9 @@ import { z } from "zod"
 
 import type { ActionResult } from "@/lib/admin/result"
 import { requireStaff } from "@/lib/auth"
+import { isPhoneLike, tidyPhone } from "@/lib/format"
 import { notifyNewOrderToStaff, notifyOrderDelivered, notifyTicketAnswered } from "@/lib/notify"
+import { usToday } from "@/lib/plan-dates"
 import { createClient } from "@/lib/supabase/server"
 import type { Order, Ticket, TicketStatus } from "@/lib/types"
 
@@ -66,7 +68,12 @@ const QR_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jp
 const QR_MAX = 2 * 1024 * 1024
 
 const itemSchema = z.object({
-  phone_number: z.string().trim().max(30, "Too long"),
+  phone_number: z
+    .string()
+    .trim()
+    .max(30, "Too long")
+    .refine((v) => v === "" || isPhoneLike(v), "Enter a phone number, for example +1 (212) 555-0100")
+    .transform((v) => (v ? tidyPhone(v) : v)),
   iccid: z
     .string()
     .trim()
@@ -198,8 +205,12 @@ export async function saveItemDetailsBulk(orderId: string, text: string): Promis
   }
 
   const supabase = await createClient()
-  const { data: order } = await supabase.from("orders").select("phase").eq("id", orderId).maybeSingle()
+  const { data: order } = await supabase.from("orders").select("phase, kind").eq("id", orderId).maybeSingle()
   if (!order) return { ok: false, error: "Unknown order" }
+  // SIM cards sold without a plan have no number yet: only their ICCIDs belong here.
+  if (order.kind === "card_only" && parsed.some((r) => r.phone)) {
+    return { ok: false, error: "These SIM cards have no number yet. Paste the ICCIDs only, one per line." }
+  }
   const { data: items } = await supabase
     .from("order_items")
     .select("id, seq, phone_number, iccid, tracking_number")
@@ -213,7 +224,7 @@ export async function saveItemDetailsBulk(orderId: string, text: string): Promis
     const item = items[i]
     const { error } = await supabase.rpc("save_order_item", {
       p_item_id: item.id,
-      p_phone_number: row.phone || item.phone_number || "",
+      p_phone_number: (row.phone && tidyPhone(row.phone)) || item.phone_number || "",
       p_iccid: row.iccid || item.iccid || "",
       p_qr_path: "",
       p_tracking_number: item.tracking_number ?? "",
@@ -318,6 +329,7 @@ export async function saveRefillDates(itemId: string, startsOn: string, endsOn: 
   if (!id.safeParse(itemId).success) return { ok: false, error: "Unknown SIM" }
   if (!planDate.safeParse(startsOn).success || !planDate.safeParse(endsOn).success) return { ok: false, error: "Choose both dates" }
   if (endsOn < startsOn) return { ok: false, error: "The end date must be on or after the start date" }
+  if (endsOn < usToday()) return { ok: false, error: "The end date is in the past. Choose dates from today on." }
   const supabase = await createClient()
   const { error } = await supabase.rpc("save_plan_dates", { p_item_id: itemId, p_starts_on: startsOn, p_ends_on: endsOn })
   if (error) return fail(error)

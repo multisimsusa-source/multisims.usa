@@ -3,7 +3,7 @@
 import { z } from "zod"
 
 import { catalogChanged } from "@/lib/admin/catalog-changed"
-import { isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
+import { dbFailed, isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
 import { slugify } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
@@ -72,7 +72,7 @@ export async function createCarrier(formData: FormData): Promise<ActionResult> {
     .select("id")
     .single()
   if (isUniqueViolation(error)) return { ok: false, error: "That URL name is taken", fieldErrors: { slug: "Another carrier already uses this URL name" } }
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
 
   if (logo) {
     try {
@@ -114,7 +114,7 @@ export async function updateCarrier(id: string, formData: FormData): Promise<Act
     .update({ ...parsed.data, ...(logo_path !== undefined ? { logo_path } : {}) })
     .eq("id", id)
   if (isUniqueViolation(error)) return { ok: false, error: "That URL name is taken", fieldErrors: { slug: "Another carrier already uses this URL name" } }
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
 
   if (logo_path !== undefined && current?.logo_path) {
     await supabase.storage.from("carrier-logos").remove([current.logo_path])
@@ -128,7 +128,7 @@ export async function setCarrierActive(id: string, active: boolean): Promise<Act
   await requireRole("admin")
   const supabase = await createClient()
   const { error } = await supabase.from("carriers").update({ active }).eq("id", id)
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
   catalogChanged()
   return { ok: true, message: active ? "Carrier shown on the site" : "Carrier hidden from the site" }
 }
@@ -141,7 +141,7 @@ export async function moveCarrier(id: string, direction: "up" | "down"): Promise
     .select("id, display_order")
     .order("display_order")
     .order("name")
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
 
   const ids = rows.map((r) => r.id)
   const index = ids.indexOf(id)
@@ -154,7 +154,7 @@ export async function moveCarrier(id: string, direction: "up" | "down"): Promise
     ids.map((carrierId, i) => supabase.from("carriers").update({ display_order: (i + 1) * 10 }).eq("id", carrierId))
   )
   const failed = results.find((r) => r.error)
-  if (failed?.error) return { ok: false, error: failed.error.message }
+  if (failed?.error) return dbFailed(failed.error, "save the new order")
 
   catalogChanged()
   return { ok: true }
@@ -165,7 +165,7 @@ export async function deleteCarrier(id: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: current } = await supabase.from("carriers").select("name, logo_path").eq("id", id).single()
   const { error } = await supabase.from("carriers").delete().eq("id", id)
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
   if (current?.logo_path) await supabase.storage.from("carrier-logos").remove([current.logo_path])
   catalogChanged()
   return { ok: true, message: `${current?.name ?? "Carrier"} removed, with its plans` }
@@ -188,14 +188,16 @@ export async function saveSimCard(carrierId: string, formData: FormData): Promis
   const wholesale = parseMoney(formData.get("wholesale"))
   const fieldErrors: Record<string, string> = {}
   if (price === null || Number.isNaN(price)) fieldErrors.price = "Enter the price, for example 5.00"
+  else if (price <= 0 || price > 100_000) fieldErrors.price = "Enter a price from $0.01 to $1,000.00"
   if (Number.isNaN(wholesale)) fieldErrors.wholesale = "Enter a price, for example 4.00, or leave it empty"
-  if (Object.keys(fieldErrors).length) return { ok: false, error: "Check the highlighted fields", fieldErrors }
+  else if (wholesale !== null && (wholesale <= 0 || wholesale > 100_000)) fieldErrors.wholesale = "Enter a price from $0.01 to $1,000.00, or leave it empty"
+  if (Object.keys(fieldErrors).length) return { ok: false, error: Object.values(fieldErrors)[0], fieldErrors }
   const parsed = simCardSchema.safeParse({
     price_cents: price,
     wholesale_price_cents: wholesale,
     active: formData.get("active") === "on",
   })
-  if (!parsed.success) return { ok: false, error: "Check the highlighted fields", fieldErrors: zodFieldErrors(parsed.error.issues) }
+  if (!parsed.success) return { ok: false, error: "Check the prices and try again." }
 
   const supabase = await createClient()
   const { error } = await supabase.from("sim_cards").upsert({ carrier_id: carrierId, ...parsed.data })

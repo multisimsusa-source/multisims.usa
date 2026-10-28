@@ -15,6 +15,30 @@ export function orderTitle(o: { carrier_name: string; plan_name: string | null }
   return `${o.carrier_name} ${o.plan_name ?? "SIM card"}`
 }
 
+/** "AT&T Unlimited eSIM"; no repeat when the name already says it ("Unlimited Starter SIM"). */
+export function planFullName(plan: { name: string; product_type: ProductType; carrier: { name: string } }) {
+  const says = /\b(e?sim|sim card)$/i.test(plan.name.trim())
+  return `${plan.carrier.name} ${plan.name}${says ? "" : ` ${productTypeLabel[plan.product_type]}`}`
+}
+
+/** Looks like a phone number: only digits, spaces and + ( ) . -, with 7 to 15 digits. */
+export function isPhoneLike(value: string) {
+  const digits = value.replace(/\D/g, "")
+  return /^[\d\s()+.-]+$/.test(value.trim()) && digits.length >= 7 && digits.length <= 15
+}
+
+/**
+ * A line's phone number as stored and shown: a US number always reads "+1 (305) 555-0101",
+ * however it was typed; any other number stays as typed.
+ */
+export function tidyPhone(value: string) {
+  const v = value.trim()
+  const digits = v.replace(/\D/g, "")
+  const foreign = v.startsWith("+") && !v.startsWith("+1")
+  const us = digits.length === 10 ? digits : digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : null
+  return us && !foreign ? `+1 (${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}` : v
+}
+
 export function formatGb(gb: number) {
   return `${Number.isInteger(gb) ? gb : gb.toFixed(1)} GB`
 }

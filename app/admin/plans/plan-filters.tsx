@@ -68,7 +68,7 @@ export function PlanFilters({ carriers, carrier, type, query }: Props) {
             type="button"
             onClick={() => setText("")}
             aria-label="Clear search"
-            className="absolute top-1/2 right-1.5 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute top-1/2 right-1.5 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground"
           >
             <XIcon weight="bold" className="size-3.5" />
           </button>

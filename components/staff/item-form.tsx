@@ -30,6 +30,8 @@ type Props = {
   title: string
   /** A SIM card sold without a plan: it has no number yet, only its ICCID. */
   cardOnly?: boolean
+  /** The order is fulfilled or cancelled: nothing left to do on this SIM. */
+  done?: boolean
 }
 
 const needLabel: Record<ItemNeed, string> = {
@@ -51,6 +53,7 @@ export function ItemForm({
   editable,
   title,
   cardOnly = false,
+  done = false,
 }: Props) {
   const esim = productType === "esim"
   const [file, setFile] = React.useState<File | null>(null)
@@ -80,9 +83,12 @@ export function ItemForm({
   }
 
   const ready = itemReady(item, need)
+  // Still to do: an activation-stage SIM is "fulfilled" (shipped) until its order is done;
+  // once the order is done the SIM shows its own status.
   const working =
-    item.status === "pending" ||
-    (need === "activate" && item.status === "fulfilled")
+    !done &&
+    (item.status === "pending" ||
+      (need === "activate" && item.status === "fulfilled"))
   const shown = preview ?? item.qr_url
 
   return (

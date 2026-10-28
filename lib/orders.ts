@@ -147,12 +147,15 @@ export function elapsed(since: string | Date, now: Date = new Date()) {
   return `${Math.floor(h / 24)} d`
 }
 
-const dateTime = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" })
-const dateTimeShort = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+// US Eastern, wherever the server runs (Vercel is on UTC): an evening order in New York keeps its day.
+const US_TZ = "America/New_York"
+const dateTime = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: US_TZ })
+const dateTimeShort = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: US_TZ })
+const yearOf = new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: US_TZ })
 
-/** "Oct 10, 8:09 PM" this year, "Oct 10, 2025, 8:09 PM" otherwise. */
+/** "Oct 10, 8:09 PM" this year, "Oct 10, 2025, 8:09 PM" otherwise, in US Eastern time. */
 export function formatDateTime(value: string | null | undefined) {
   if (!value) return ""
   const d = new Date(value)
-  return d.getFullYear() === new Date().getFullYear() ? dateTimeShort.format(d) : dateTime.format(d)
+  return yearOf.format(d) === yearOf.format(new Date()) ? dateTimeShort.format(d) : dateTime.format(d)
 }

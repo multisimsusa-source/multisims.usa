@@ -132,7 +132,6 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
               <h2 id="attention" className="font-sans text-sm font-semibold tracking-normal">
                 Needs attention
               </h2>
-              <span className="ml-auto font-mono text-xs text-muted-foreground">{attention.length}</span>
             </div>
             <ul className="divide-y">
               {attention.map((a) => (
@@ -193,8 +192,8 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
                   <th scope="col" className="pb-2 font-normal">Dealer</th>
-                  <th scope="col" className="pb-2 text-right font-normal">SIMs ordered</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Taken</th>
+                  <th scope="col" className="pb-2 pl-4 text-right font-normal">SIMs ordered</th>
+                  <th scope="col" className="pb-2 pl-4 text-right font-normal">Taken</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -205,8 +204,8 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
                         {d.company}
                       </Link>
                     </td>
-                    <td className="py-2 text-right font-mono tabular">{d.sims}</td>
-                    <td className="py-2 text-right font-mono tabular">{formatPrice(d.takenCents)}</td>
+                    <td className="py-2 pl-4 text-right font-mono tabular">{d.sims}</td>
+                    <td className="py-2 pl-4 text-right font-mono tabular whitespace-nowrap">{formatPrice(d.takenCents)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -244,16 +244,25 @@ const normalise = (text: string) =>
     .trim()
 
 /**
- * Whole-word matching: every word typed must appear in the plan's text (spaces ignored,
- * so "tmobile" finds T-Mobile). Stricter than fuzzy matching, so nonsense finds nothing.
+ * Word matching: every word typed must start a word of the plan's text, and a number must be
+ * a whole number there ("5 GB" never finds 50 GB). A lone letter joins the next word, and two
+ * words of the text also count joined, so "t-mobile", "t mobile" and "tmobile" all find
+ * T-Mobile and nothing else. Stricter than fuzzy matching, so nonsense finds nothing.
  */
 function matchPlans(plans: SearchPlan[], query: string) {
-  const words = normalise(query).split(" ").filter(Boolean)
+  const words: string[] = []
+  for (const w of normalise(query).split(" ").filter(Boolean)) {
+    const last = words.at(-1)
+    if (last !== undefined && /^[a-z]$/.test(last)) words[words.length - 1] = last + w
+    else words.push(w)
+  }
   if (!words.length) return []
   return plans.filter((plan) => {
-    const text = normalise(plan.search)
-    const compact = text.replace(/ /g, "")
-    return words.every((w) => text.includes(w) || compact.includes(w))
+    const tokens = normalise(plan.search).split(" ")
+    const joined = tokens.slice(1).map((t, i) => tokens[i] + t)
+    return words.every((w) =>
+      /^\d+$/.test(w) ? tokens.includes(w) : tokens.some((t) => t.startsWith(w)) || joined.some((t) => t.startsWith(w))
+    )
   })
 }
 

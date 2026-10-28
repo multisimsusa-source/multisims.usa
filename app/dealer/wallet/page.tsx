@@ -39,7 +39,7 @@ export default function WalletPage({
     <>
       <AdminPageHeader
         title="Wallet"
-        description="Your balance pays for orders. It is held when you order and taken as each SIM is delivered; anything not delivered comes back."
+        description="Your balance pays for orders. It is held when you order and taken as each SIM is delivered, shipped or refilled; anything not done comes back."
       />
       <Suspense fallback={<FormSkeleton sections={2} />}>
         <Wallet searchParams={searchParams} />

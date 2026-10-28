@@ -101,7 +101,7 @@ test.describe.serial("Claiming unlocks the order", () => {
     await expectToast(agent, "Saved")
     await expect(agent.getByLabel("Phone number", { exact: true }).first()).toBeEnabled()
     await agent.reload()
-    await expect(agent.getByLabel("Phone number", { exact: true }).first()).toHaveValue("+1 212 555 0199")
+    await expect(agent.getByLabel("Phone number", { exact: true }).first()).toHaveValue("+1 (212) 555-0199")
     await expect(agent.getByLabel("Phone number", { exact: true }).first()).toBeEnabled()
   })
 

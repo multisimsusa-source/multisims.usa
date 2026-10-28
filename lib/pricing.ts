@@ -77,3 +77,8 @@ export function roundUpToDollar(cents: number) {
 export function minimumOrderMessage(minimumCents: number, hint = "Add more days or another SIM.") {
   return `Minimum order is $${(minimumCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}. ${hint}`
 }
+
+/** What a customer pays for a day package: the sale price when it is lower, else the price. */
+export function paidCents(p: { price_cents: number; sale_price_cents: number | null }) {
+  return p.sale_price_cents !== null && p.sale_price_cents < p.price_cents ? p.sale_price_cents : p.price_cents
+}

@@ -20,7 +20,7 @@ export default function NewDealerOrderPage() {
     <>
       <AdminPageHeader
         title="New order"
-        description="Mix any plans in one order, each line with its own quantity. The total is taken from your balance as each SIM is delivered."
+        description="Mix any plans in one order, each line with its own quantity. The total is taken from your balance as each SIM is delivered or shipped."
       />
       <Suspense fallback={<FormSkeleton sections={2} />}>
         <Builder />

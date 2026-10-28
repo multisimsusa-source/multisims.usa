@@ -5,7 +5,8 @@ import { getBatch, listBatchItems } from "@/lib/dealer-orders"
 import { batchLabel } from "@/lib/dealers"
 import { productTypeLabel } from "@/lib/format"
 import { customerItemStatus, orderLabel } from "@/lib/orders"
-import { toCsv } from "@/lib/staff/customers"
+import { usDate } from "@/lib/plan-dates"
+import { csvText, toCsv } from "@/lib/staff/customers"
 import { createClient } from "@/lib/supabase/server"
 
 /** Every SIM in one of the dealer's orders, for their own records or resale system. */
@@ -47,7 +48,9 @@ export async function GET(
       "Phone number",
       "ICCID",
       "Tracking",
-      "Delivered",
+      "Shipped or delivered on",
+      "Plan starts",
+      "Plan ends",
     ],
     ...items.map((item) => {
       const o = orderById.get(item.order_id)!
@@ -60,10 +63,12 @@ export async function GET(
         productTypeLabel[o.product_type],
         o.days ?? "",
         item.status === "replaced" ? "Replaced" : customerItemStatus(o, item),
-        item.phone_number ?? "",
-        item.iccid ?? "",
-        item.tracking_number ?? "",
-        item.fulfilled_at?.slice(0, 10) ?? "",
+        csvText(item.phone_number),
+        csvText(item.iccid),
+        csvText(item.tracking_number),
+        usDate(item.fulfilled_at),
+        item.plan_starts_on ?? "",
+        item.plan_ends_on ?? "",
       ]
     }),
   ])

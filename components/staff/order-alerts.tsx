@@ -240,7 +240,7 @@ export function OrderAlerts({ queuedKeys }: { queuedKeys: string[] }) {
         </TooltipTrigger>
         <TooltipContent>{liveLabel}</TooltipContent>
       </Tooltip>
-      <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted">
+      <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted">
         {sound ? (
           <SpeakerHighIcon className="size-4" />
         ) : (

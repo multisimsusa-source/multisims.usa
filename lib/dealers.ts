@@ -52,7 +52,7 @@ export const ledgerKind: Record<LedgerKind, { label: string; effect: "in" | "out
   adjustment_credit: { label: "Correction, added", effect: "in" },
   adjustment_debit: { label: "Correction, taken", effect: "out" },
   reserve: { label: "Held for order", effect: "hold" },
-  capture: { label: "SIM delivered", effect: "out" },
+  capture: { label: "Taken for a SIM", effect: "out" },
   release: { label: "Hold returned", effect: "unhold" },
   refund: { label: "Refund", effect: "in" },
 }

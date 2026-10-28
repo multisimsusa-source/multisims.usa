@@ -4,6 +4,8 @@ import { refresh } from "next/cache"
 import { z } from "zod"
 
 import { isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
+import { usDayStart } from "@/lib/admin/reports"
+import { addDays } from "@/lib/plan-dates"
 import { requireRole } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 
@@ -20,10 +22,6 @@ const schema = z.object({
   note: z.string().trim().max(200),
 })
 
-/** Dates are whole US days: from the start of the first to the end of the last. */
-function usDayStart(date: string) {
-  return new Date(`${date}T00:00:00-05:00`).toISOString()
-}
 
 export async function createDiscountCode(formData: FormData): Promise<ActionResult> {
   await requireRole("admin")
@@ -52,9 +50,10 @@ export async function createDiscountCode(formData: FormData): Promise<ActionResu
     kind: d.kind,
     value,
     carrier_id: d.carrier_id || null,
+    // Whole US Eastern days (daylight saving included): from the start of the first day to
+    // the start of the day after the last.
     starts_at: d.starts_on ? usDayStart(d.starts_on) : null,
-    // The whole last day counts: it ends at the start of the next.
-    ends_at: d.ends_on ? new Date(new Date(usDayStart(d.ends_on)).getTime() + 86_400_000).toISOString() : null,
+    ends_at: d.ends_on ? usDayStart(addDays(d.ends_on, 1)) : null,
     max_uses: d.max_uses === "" ? null : d.max_uses,
     note: d.note,
   })

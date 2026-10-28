@@ -32,11 +32,13 @@ export async function listDealerActivations(db: SupabaseClient, dealerId: string
 
   const term = q.trim()
   if (term) {
-    const batch = term.match(/^b-?(\d{4,7})$/i)?.[1]
+    const batch = term.match(/^b[-\s]?(\d{4,7})$/i)?.[1]
     // Bare digits are part of a phone number or ICCID; orders need their prefix.
-    const order = term.match(/^ms-?(\d{4,9})$/i)?.[1]
-    const safe = term.replace(/[%,()*\\]/g, " ").slice(0, 80)
-    if (batch) query = query.eq("order.batch.number", Number(batch))
+    const order = term.match(/^ms[-\s]?(\d{4,9})$/i)?.[1]
+    const safe = term.replace(/[%,()*\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
+    // Only symbols: nothing to look for.
+    if (!safe) query = query.eq("id", "00000000-0000-0000-0000-000000000000")
+    else if (batch) query = query.eq("order.batch.number", Number(batch))
     else if (order) query = query.eq("order.number", Number(order))
     else query = query.or(
       [

@@ -27,7 +27,7 @@ function addDays(date: string, days: number) {
   return d.toISOString().slice(0, 10)
 }
 function shown(date: string) {
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))
 }
 
 async function plan(name: string) {
@@ -390,7 +390,7 @@ test.describe.serial("Refill and the plan timer", () => {
     await choose(page, page.locator('[id^="plan-"]').nth(1), /E2E Unlimited/)
     await choose(page, page.locator('[id^="days-"]').nth(1), /^7 days/)
     await page.locator('[id^="numbers-"]').nth(1).fill("+1 917 555 2001, 8901260000000002001\nnot a number")
-    await expect(page.getByText("Line 2 of the list is not a US number")).toBeVisible()
+    await expect(page.getByText(/Row 2 is not a US number/)).toBeVisible()
     await expect(page.getByRole("button", { name: "Place refill" }).filter({ visible: true }).first()).toBeDisabled()
     await page.locator('[id^="numbers-"]').nth(1).fill("+1 917 555 2001, 8901260000000002001")
     await page.getByLabel(/Reference/).fill("REFILL-50")

@@ -40,9 +40,10 @@ async function Queue() {
   const warn = settings.unclaimed_alert_minutes
 
   const waiting = orders.filter((o) => o.status === "queued")
-  const mine = orders.filter((o) => o.claimed_by === me && (o.status === "claimed" || o.status === "needs_attention"))
+  const mine = orders.filter((o) => o.claimed_by === me && o.status === "claimed")
   const others = orders.filter((o) => o.claimed_by !== me && o.status === "claimed")
-  const flagged = orders.filter((o) => o.claimed_by !== me && o.status === "needs_attention")
+  // Flagged orders wait for the owner, whoever flagged them: one count for everyone.
+  const flagged = orders.filter((o) => o.status === "needs_attention")
   const held = orders.filter((o) => o.status === "awaiting_approval")
   const scheduled = orders.filter((o) => o.status === "shipped").sort((a, b) => (a.activate_on ?? "").localeCompare(b.activate_on ?? ""))
 
@@ -87,7 +88,13 @@ async function Queue() {
       {flagged.length ? (
         <Group title="Needs the owner" count={flagged.length}>
           {flagged.map((o) => (
-            <Row key={o.id} order={o} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={isAdmin ? <OpenLink id={o.id} admin label="Decide" primary /> : <Holder order={o} />} />
+            <Row
+              key={o.id}
+              order={o}
+              warn={warn}
+              href={isAdmin ? `/admin/orders/${o.id}` : o.claimed_by === me ? `/agent/orders/${o.id}` : undefined}
+              action={isAdmin ? <OpenLink id={o.id} admin label="Decide" primary /> : o.claimed_by === me ? <OpenLink id={o.id} label="Open" /> : <Holder order={o} />}
+            />
           ))}
         </Group>
       ) : null}
@@ -108,7 +115,8 @@ async function Queue() {
               order={o}
               warn={warn}
               href={isAdmin ? `/admin/orders/${o.id}` : `/agent/orders/${o.id}`}
-              action={<span className="text-sm text-muted-foreground">{planStartLabel(o)}</span>}
+              // The start date is already in the row's facts.
+              action={<span className="text-sm text-muted-foreground">Waits for its date</span>}
             />
           ))}
         </Group>
@@ -142,7 +150,7 @@ function Row({ order, warn, action, href }: { order: QueueOrder; warn: number; a
   const activation = order.phase === "activate"
   const startsToday = activation && order.plan_start === "on_date" && order.activate_on === usToday()
   const facts = [
-    `${order.quantity} x`,
+    `${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}`,
     order.days !== null ? formatDays(order.days) : "SIM card only",
     order.addon_name,
     order.zip_code ? `ZIP ${order.zip_code}` : null,

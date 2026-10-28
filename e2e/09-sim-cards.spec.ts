@@ -25,7 +25,8 @@ async function fillContactAndAddress(page: Page, name: string, email: string) {
   await page.getByLabel("Full name").fill(name)
   await page.getByLabel("Email").fill(email)
   await page.getByLabel("Phone or WhatsApp").fill("+44 7700 900123")
-  await page.getByLabel("US ZIP code").fill("10001")
+  // Only with a plan: a card on its own has no number to match yet.
+  if (await page.getByLabel("US ZIP code").count()) await page.getByLabel("US ZIP code").fill("10001")
   await page.getByLabel("Street address").fill("350 Fifth Avenue")
   await page.getByLabel("City").fill("New York")
   await choose(page, page.locator("#state"), "New York")

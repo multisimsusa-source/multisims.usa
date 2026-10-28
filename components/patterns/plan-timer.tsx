@@ -4,8 +4,8 @@ import { daysBetween, formatPlanDate, usToday, type LineTimer } from "@/lib/plan
 import { cn } from "@/lib/utils"
 
 /**
- * How long a line has: "Active until 12 Nov 2026, 9 days left", then "Next plan starts
- * 13 Nov 2026, until 12 Dec 2026" when a refill is already bought, or "Plan ended 3 Oct 2026". Words first; the
+ * How long a line has: "Active until Nov 12, 2026, 9 days left", then "Next plan starts
+ * Nov 13, 2026, until Dec 12, 2026" when a refill is already bought, or "Plan ended Oct 3, 2026". Words first; the
  * icon only supports them.
  */
 export function PlanTimer({ timer, className, today = usToday() }: { timer: LineTimer; className?: string; today?: string }) {
@@ -41,16 +41,39 @@ export function PlanTimer({ timer, className, today = usToday() }: { timer: Line
   )
 }
 
-/** One SIM's last plan day, for lists: "12 Nov 2026" with "9 days left" or "ended" below. */
-export function PlanEnds({ endsOn, className, today = usToday() }: { endsOn: string | null; className?: string; today?: string }) {
+/**
+ * One SIM's last plan day, for lists: "Nov 12, 2026" with "9 days left" or "ended" below; a
+ * plan that has not started yet says when it starts; a replaced SIM says so.
+ */
+export function PlanEnds({
+  endsOn,
+  startsOn,
+  replaced,
+  className,
+  today = usToday(),
+}: {
+  endsOn: string | null
+  startsOn?: string | null
+  replaced?: boolean
+  className?: string
+  today?: string
+}) {
   if (!endsOn) return <span className={cn("text-sm text-muted-foreground", className)}>Not dated</span>
   const left = daysBetween(today, endsOn) + 1
+  const note = replaced
+    ? "replaced"
+    : startsOn && startsOn > today
+      ? `starts ${formatPlanDate(startsOn)}`
+      : left > 1
+        ? `${left} days left`
+        : left === 1
+          ? "last day"
+          : "ended"
+  const live = !replaced && left > 0 && !(startsOn && startsOn > today)
   return (
     <span className={cn("flex flex-col text-sm", className)}>
       <span className="tabular whitespace-nowrap">{formatPlanDate(endsOn)}</span>
-      <span className={cn("text-xs", left > 0 ? "text-success-ink" : "text-muted-foreground")}>
-        {left > 1 ? `${left} days left` : left === 1 ? "last day" : "ended"}
-      </span>
+      <span className={cn("text-xs", live ? "text-success-ink" : "text-muted-foreground")}>{note}</span>
     </span>
   )
 }

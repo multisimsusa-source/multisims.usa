@@ -28,3 +28,13 @@ export function centsToInput(cents: number | null | undefined) {
 export function isUniqueViolation(error: { code?: string } | null) {
   return error?.code === "23505"
 }
+
+/**
+ * A database error as the owner reads it: a plain sentence, never Postgres wording. The
+ * full error goes to the server log.
+ */
+export function dbFailed(error: { code?: string; message?: string }, what = "save this"): ActionResult {
+  console.error(`[admin] could not ${what}`, error)
+  if (error.code === "23503") return { ok: false, error: `Could not ${what}: something else still uses it.` }
+  return { ok: false, error: `Could not ${what}. Nothing was changed. Try again.` }
+}

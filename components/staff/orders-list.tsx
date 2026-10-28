@@ -72,6 +72,8 @@ export async function OrdersList({
     ? params.dealer
     : undefined
   const page = Math.max(1, Number(params.page) || 1)
+  // Any filter, channel and dealer included: then an empty list means nothing matched.
+  const filtered = Boolean(params.q || status !== "all" || type || agent || channel || dealer)
 
   const [{ rows, total }, staff, dealers] = await Promise.all([
     listOrders({ status, q: params.q, type, agent, channel, dealer, page }),
@@ -214,9 +216,11 @@ export async function OrdersList({
                           {orderTitle(o)}
                         </span>
                         <ProductBadge type={o.product_type} />
+                        {o.kind === "refill" ? <Tag tone="brand">Refill</Tag> : null}
+                        {o.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {o.quantity} x {o.days !== null ? formatDays(o.days) : "SIM card only"}
+                        {o.quantity} {o.quantity === 1 ? "SIM" : "SIMs"}, {o.days !== null ? formatDays(o.days) : "SIM card only"}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-48">
@@ -311,14 +315,10 @@ export async function OrdersList({
         </>
       ) : (
         <EmptyState
-          icon={params.q || status !== "all" || type || agent ? <FunnelIcon /> : <TrayIcon />}
-          title={
-            params.q || status !== "all" || type || agent
-              ? "Nothing matches these filters"
-              : "No orders yet"
-          }
+          icon={filtered ? <FunnelIcon /> : <TrayIcon />}
+          title={filtered ? "Nothing matches these filters" : "No orders yet"}
         >
-          {params.q || status !== "all" || type || agent
+          {filtered
             ? "Clear a filter or search for part of a name, email or phone."
             : "Orders appear here as soon as customers check out."}
         </EmptyState>

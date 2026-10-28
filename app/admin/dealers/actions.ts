@@ -103,7 +103,11 @@ export async function addWalletEntry(dealerId: string, kind: OwnerEntryKind, amo
   if (!z.uuid().safeParse(dealerId).success) return { ok: false, error: "Unknown dealer" }
   if (!ownerEntryKinds.includes(kind)) return { ok: false, error: "Choose what this is" }
   const cents = parseMoney(amount)
-  if (cents === null || Number.isNaN(cents) || cents <= 0) return { ok: false, error: "Enter an amount above zero, like 700.00", fieldErrors: { amount: "Enter an amount above zero" } }
+  if (cents === null || Number.isNaN(cents))
+    return { ok: false, error: "Enter an amount in dollars and cents, like 700.00", fieldErrors: { amount: "Enter an amount like 700.00" } }
+  if (cents <= 0) return { ok: false, error: "Enter an amount above zero, like 700.00", fieldErrors: { amount: "Enter an amount above zero" } }
+  // One entry is at most $100,000 (as the database allows): a bigger number is a typo.
+  if (cents > 10_000_000) return { ok: false, error: "One entry can be at most $100,000.00", fieldErrors: { amount: "At most $100,000.00" } }
   if (note.trim().length < 3) return { ok: false, error: "Add a note so the dealer knows what it is", fieldErrors: { note: "Add a short note" } }
 
   const supabase = await createClient()

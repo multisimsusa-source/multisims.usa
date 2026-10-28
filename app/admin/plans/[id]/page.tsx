@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { AdminPageHeader } from "@/components/admin/page-header"
 import { Tag } from "@/components/patterns/tag"
 import { FormSkeleton } from "@/components/admin/skeletons"
+import { FlashToast } from "@/components/patterns/flash-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAdminPlan, hiddenReason, listCarriers } from "@/lib/admin/queries"
 import { PlanCard } from "@/components/site/plan-card"
@@ -39,6 +40,9 @@ export default function EditPlanPage({ params }: PageProps<"/admin/plans/[id]">)
         }
       >
         <PlanEditor params={params} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <FlashToast messages={{ created: "Plan created. Add its day packages to put it on sale." }} />
       </Suspense>
     </>
   )
@@ -112,7 +116,7 @@ async function PlanEditor({ params }: Pick<PageProps<"/admin/plans/[id]">, "para
               <p className="mb-2 text-xs text-muted-foreground">Card preview, as last saved</p>
               {/* Inert: a picture of the card, not a second way to leave the editor. */}
               <div inert className="select-none">
-                <PlanCard plan={preview} />
+                <PlanCard plan={preview} preview />
               </div>
             </div>
           ) : null}

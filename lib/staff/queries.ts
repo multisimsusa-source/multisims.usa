@@ -64,23 +64,43 @@ export async function listOrders(filters: OrderFilters) {
   if (filters.channel) query = query.eq("channel", filters.channel)
   if (filters.dealer) query = query.eq("dealer_id", filters.dealer)
 
+  const none = "00000000-0000-0000-0000-000000000000"
   const q = filters.q?.trim()
   if (q) {
-    const number = q.match(/^(?:ms-?)?(\d{4,9})$/i)?.[1]
-    const batch = q.match(/^b-?(\d{4,7})$/i)?.[1]
+    const number = q.match(/^(?:ms[-\s]?)?(\d{4,9})$/i)?.[1]
+    const batch = q.match(/^b[-\s]?(\d{4,7})$/i)?.[1]
+    // A phone number or ICCID typed any way: digits, spaces, dashes, brackets, a leading +.
+    const digits = /^[\d\s()+.-]+$/.test(q) ? q.replace(/\D/g, "") : ""
+    const safe = q.replace(/[%,()*\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
     if (number) query = query.eq("number", Number(number))
     else if (batch) {
       const { data: b } = await supabase.from("order_batches").select("id").eq("number", Number(batch)).maybeSingle()
-      query = query.eq("batch_id", b?.id ?? "00000000-0000-0000-0000-000000000000")
-    } else {
-      const safe = q.replace(/[%,()*\\]/g, " ").slice(0, 80)
+      query = query.eq("batch_id", b?.id ?? none)
+    } else if (digits.length >= 7) {
+      // The lines' own numbers and ICCIDs, plus the customer's contact number as typed.
+      const key = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("order_id")
+        .or(`phone_key.like.%${key}%,iccid.like.%${digits}%`)
+        .limit(200)
+      const ids = [...new Set((items ?? []).map((i) => i.order_id as string))]
+      query = query.or(
+        [`customer_phone.ilike.%${safe}%`, ids.length ? `id.in.(${ids.join(",")})` : null].filter(Boolean).join(",")
+      )
+    } else if (safe) {
       query = query.or(`customer_email.ilike.%${safe}%,customer_name.ilike.%${safe}%,customer_phone.ilike.%${safe}%`)
+    } else {
+      // Only symbols: nothing to look for.
+      query = query.eq("id", none)
     }
   }
 
   const page = Math.max(1, filters.page ?? 1)
   const from = (page - 1) * ORDERS_PAGE_SIZE
   const { data, count, error } = await query.range(from, from + ORDERS_PAGE_SIZE - 1)
+  // A page past the end (an old link, a typed URL): an empty page, not an error.
+  if (error?.code === "PGRST103") return { rows: [], total: 0, page }
   if (error) throw error
   type Row = QueueOrder & Pick<Order, "customer_name" | "customer_email" | "total_cents" | "refunded_at" | "fulfilled_at" | "public_token" | "channel">
   return { rows: data as unknown as Row[], total: count ?? 0, page }
@@ -179,14 +199,14 @@ export async function getWorkOrder(id: string): Promise<WorkOrder | null> {
 }
 
 export type TicketRow = Ticket & {
-  order: Pick<Order, "id" | "number" | "customer_name" | "customer_email" | "carrier_name" | "plan_name" | "product_type" | "public_token">
+  order: Pick<Order, "id" | "number" | "customer_name" | "customer_email" | "carrier_name" | "plan_name" | "product_type" | "public_token" | "kind">
 }
 
 export async function listTickets(status: TicketStatus | "all" | "active" = "active") {
   const supabase = await createClient()
   let query = supabase
     .from("tickets")
-    .select("*, order:orders!tickets_order_id_fkey ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, public_token )")
+    .select("*, order:orders!tickets_order_id_fkey ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, public_token, kind )")
     .order("created_at", { ascending: false })
     .limit(300)
   if (status === "active") query = query.in("status", ["open", "in_progress"])
@@ -201,7 +221,7 @@ export async function getTicket(id: string) {
   const supabase = await createClient()
   const { data: ticket } = await supabase
     .from("tickets")
-    .select("*, order:orders!tickets_order_id_fkey ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, public_token )")
+    .select("*, order:orders!tickets_order_id_fkey ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, public_token, kind )")
     .eq("id", id)
     .maybeSingle()
   if (!ticket) return null

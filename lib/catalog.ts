@@ -181,6 +181,32 @@ export async function getSimCards(): Promise<CatalogSimCard[]> {
     .map(({ price_cents, carrier: { id, name, slug, logo_path } }) => ({ price_cents, carrier: { id, name, slug, logo_path } }))
 }
 
+/** What checkout adds to a plan's price: the network fee, and shipping for SIM cards. */
+export async function getPublicFees() {
+  "use cache"
+  cacheLife(CATALOG_LIFE)
+  cacheTag(CATALOG_TAG)
+  const { data } = await createServiceClient().from("settings").select("shipping_fee_cents, sim_card_price_cents, network_fee_cents").maybeSingle()
+  return {
+    shippingCents: data?.shipping_fee_cents ?? 0,
+    simCardCents: data?.sim_card_price_cents ?? 0,
+    networkFeeCents: data?.network_fee_cents ?? 0,
+  }
+}
+
+/**
+ * Every carrier's SIM card price, on sale on its own or not: a SIM card plan always charges
+ * its carrier's card price (as checkout's placeOrder does), so the page shows that one.
+ */
+export async function getSimCardPrices(): Promise<Record<string, number>> {
+  "use cache"
+  cacheLife(CATALOG_LIFE)
+  cacheTag(CATALOG_TAG)
+  const { data, error } = await createServiceClient().from("sim_cards").select("carrier_id, price_cents")
+  if (error) throw error
+  return Object.fromEntries((data ?? []).map((r) => [r.carrier_id as string, r.price_cents as number]))
+}
+
 export async function getSimCardBySlug(carrierSlug: string): Promise<CatalogSimCard | null> {
   return (await getSimCards()).find((c) => c.carrier.slug === carrierSlug) ?? null
 }

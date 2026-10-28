@@ -9,6 +9,7 @@ import { MAX_QUANTITY } from "@/lib/orders"
 import { getPaymentProvider, invoiceUrlForOrder, minimumOrderCents } from "@/lib/payments"
 import { findDiscountCode } from "@/lib/discounts"
 import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
+import { addDays, EARLIEST_START_DAYS } from "@/lib/plan-dates"
 import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -22,12 +23,17 @@ const base = z.object({
   days: z.union([z.literal(""), z.coerce.number().int().min(1).max(365)]).default(""),
   intl: z.boolean(),
   quantity: z.coerce.number().int().min(1, "At least 1").max(MAX_QUANTITY, `Up to ${MAX_QUANTITY} per order`),
-  name: z.string().trim().min(2, "Enter your full name").max(120),
-  email: z.email("Enter a valid email address").max(200),
+  name: z.string().trim().min(2, "Enter your full name").max(120, "Keep your name under 120 characters"),
+  email: z.email("Enter a valid email address").max(200, "Keep the email under 200 characters"),
   phone: z
     .string()
     .trim()
-    .regex(/^\+?[0-9 ()-]{6,24}$/, "Enter a phone number with country code, for example +94 77 123 4567"),
+    .regex(/^\+?[0-9 ()-]{6,24}$/, "Enter a phone number with country code, for example +94 77 123 4567")
+    // Real digits, not only brackets or dashes: 7 to 15, as phone numbers are.
+    .refine((v) => {
+      const digits = v.replace(/\D/g, "").length
+      return digits >= 7 && digits <= 15
+    }, "Enter a phone number with country code, for example +94 77 123 4567"),
   zip: z.string().trim().regex(/^[0-9]{5}$/, "Enter a 5-digit US ZIP code"),
   area_code: z.union([z.literal(""), z.string().trim().regex(/^[2-9][0-9]{2}$/, "Enter 3 digits, for example 212")]),
 })
@@ -53,10 +59,8 @@ function usToday() {
 function checkStartDate(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Choose the date your plan should start"
   const today = usToday()
-  const limit = new Date(`${today}T00:00:00Z`)
-  limit.setUTCFullYear(limit.getUTCFullYear() + 1)
-  if (value < today) return "Choose today or a later date"
-  if (value > limit.toISOString().slice(0, 10)) return "Choose a date within the next year"
+  if (value < addDays(today, EARLIEST_START_DAYS)) return `Choose a date at least ${EARLIEST_START_DAYS} days away: the SIM card needs time to arrive`
+  if (value > addDays(today, 365)) return "Choose a date within the next year"
   return null
 }
 /** A carrier's SIM card price: its own card row, or the old flat price when it has none. */
@@ -86,11 +90,12 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   // Honeypot: people never fill this hidden field.
   if (values.company) return { status: "error", message: "Something went wrong. Please try again.", values }
 
-  if (!(await rateLimit(`checkout:${await clientIp()}`, 8, 10 * 60_000)).ok) {
-    return { status: "error", message: "Too many orders from this connection. Please wait a few minutes.", values }
-  }
-
-  const parsed = base.safeParse({ ...values, intl: values.intl === "on" || values.intl === "1" })
+  // A SIM card with no plan has no number to match yet: no ZIP or area code.
+  const cardOnlyForm = (values.plan ?? "") === ""
+  const parsed = (cardOnlyForm ? base.extend({ zip: z.literal("").catch(""), area_code: z.literal("").catch("") }) : base).safeParse({
+    ...values,
+    intl: values.intl === "on" || values.intl === "1",
+  })
   const fieldErrors: CheckoutState["fieldErrors"] = {}
   if (!parsed.success) {
     for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as CheckoutField] ??= issue.message
@@ -158,6 +163,10 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
 
   let discount: { id: string; code: string; cents: number } | null = null
   if (values.discount_code?.trim()) {
+    // Code tries share the code check's limit, so codes cannot be guessed through this form.
+    if (!(await rateLimit(`discount:${await clientIp()}`, 20, 10 * 60_000)).ok) {
+      return { status: "error", message: "Too many code tries. Wait a few minutes, or remove the code.", values }
+    }
     const found = await findDiscountCode(values.discount_code, carrier!.id)
     if (!found.ok) return { status: "error", message: `${found.error}. Remove it or try another code.`, values }
     discount = { id: found.code.id, code: found.code.code, cents: discountFor(found.code as DiscountRule, discountableCents(priceInput)) }
@@ -172,6 +181,11 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     return { status: "error", message: minimumOrderMessage(minimum, cardOnly ? "Add more SIM cards or a plan." : undefined), values }
   }
 
+  // Counted only for orders that passed every check: typos never lock out a shared Wi-Fi.
+  if (!(await rateLimit(`checkout:${await clientIp()}`, 8, 10 * 60_000)).ok) {
+    return { status: "error", message: "Too many orders from this connection. Please wait a few minutes.", values }
+  }
+
   const { data: order, error } = await db
     .from("orders")
     .insert({
@@ -179,7 +193,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       customer_name: input.name,
       customer_email: input.email.toLowerCase(),
       customer_phone: input.phone,
-      zip_code: input.zip,
+      zip_code: input.zip || null,
       area_code: input.area_code || null,
       shipping_address: shipping
         ? { line1: shipping.line1, line2: shipping.line2 || undefined, city: shipping.city, state: shipping.state, zip: shipping.ship_zip }

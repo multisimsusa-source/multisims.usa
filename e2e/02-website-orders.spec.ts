@@ -226,7 +226,8 @@ test.describe.serial("Website orders", () => {
 
     await page.reload()
     await expect(page.getByText("Delivered").first()).toBeVisible()
-    await expect(page.getByText("+1 646 555 0201")).toBeVisible()
+    // Stored in one format, however the agent typed it.
+    await expect(page.getByText("+1 (646) 555-0201").first()).toBeVisible()
 
     // Once the line is live, a SIM card order is rated like an eSIM one.
     await page.getByRole("radio", { name: "4 stars", exact: true }).check({ force: true })

@@ -200,6 +200,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* A visually hidden radio or checkbox inside an option label is positioned absolutely;
+     without a positioned label it lands against a far ancestor and can widen a phone page. */
+  label:has(> input.sr-only) {
+    position: relative;
+  }
+  /* The browser's own clear button on search boxes clashes with the design (bright blue). */
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+  }
   html {
     @apply font-sans;
     accent-color: var(--brand);

@@ -17,7 +17,7 @@ export function Panel({ title, action, className, children }: { title: string; a
 }
 
 /** One label/value line inside a Panel: label left, value right-aligned. */
-export function KeyValue({ label, value, mono, strong }: { label: string; value: React.ReactNode; mono?: boolean; strong?: boolean }) {
+export function KeyValue({ label, value, mono, strong }: { label: React.ReactNode; value: React.ReactNode; mono?: boolean; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-sm">
       <span className="shrink-0 text-muted-foreground">{label}</span>

@@ -22,6 +22,7 @@ export function BatchList({
       {batches.map((b) => {
         const progress = batchProgress(b.orders)
         const lines = b.orders.filter((o) => !o.replacement_of)
+        const refill = lines.length > 0 && lines.every((o) => o.kind === "refill")
         return (
           <li
             key={b.id}
@@ -43,6 +44,7 @@ export function BatchList({
                 ) : null}
               </p>
               <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {refill ? "Refill: " : ""}
                 {lines.length === 1
                   ? `${orderTitle(lines[0])}`
                   : `${lines.length} plans`}{" "}
@@ -54,7 +56,7 @@ export function BatchList({
               {progress.total ? (
                 <>
                   <span className="tabular font-mono text-foreground">{progress.delivered}</span> of{" "}
-                  <span className="tabular font-mono">{progress.total}</span> SIMs live
+                  <span className="tabular font-mono">{progress.total}</span> {refill ? "numbers refilled" : "SIMs live"}
                 </>
               ) : progress.cards ? (
                 <>

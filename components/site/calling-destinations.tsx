@@ -46,7 +46,10 @@ export function CallingDestinations({ className }: { className?: string }) {
       <DialogContent className="flex max-h-[85dvh] flex-col gap-4">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">Where you can call</DialogTitle>
-          <DialogDescription>Minutes to each destination with international calling. Cellular means calls to mobile numbers there.</DialogDescription>
+          <DialogDescription>
+            Minutes to each destination with international calling. Cellular means calls to mobile numbers there; OLO means
+            calls to other phone companies there.
+          </DialogDescription>
         </DialogHeader>
         <div className="relative">
           <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -61,7 +64,8 @@ export function CallingDestinations({ className }: { className?: string }) {
             <ul className="divide-y text-sm">
               {shown.map((d) => (
                 <li key={d.name} className="flex items-baseline justify-between gap-4 py-2">
-                  <span className="min-w-0">{d.name}</span>
+                  {/* The carrier's list writes "Albania - Olo"; shown as "Albania, OLO" (no dash as punctuation). */}
+                  <span className="min-w-0">{d.name.replace(/\s+-\s+/g, ", ").replace(/\bOlo\b/g, "OLO")}</span>
                   <span className={cn("shrink-0 font-mono tabular", d.minutes_cap === null ? "text-success-ink" : "text-muted-foreground")}>{minutesLabel(d.minutes_cap)}</span>
                 </li>
               ))}

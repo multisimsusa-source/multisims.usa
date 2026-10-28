@@ -5,12 +5,14 @@ import { PlusIcon, TagIcon } from "@phosphor-icons/react/ssr"
 
 import { buttonVariants } from "@/components/ui/button"
 import { AdminPageHeader } from "@/components/admin/page-header"
+import { FlashToast } from "@/components/patterns/flash-toast"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { ProductBadge } from "@/components/site/product-mark"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
 import { formatPrice } from "@/lib/format"
+import { paidCents } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
 import { carrierMix, priceLadder, pricePerDay } from "@/lib/admin/stats"
 import { CarrierMixChart, PriceLadderChart, PricePerDayChart } from "@/components/admin/catalog-charts"
@@ -50,6 +52,9 @@ export default function AdminPlansPage({ searchParams }: PageProps<"/admin/plans
       <Suspense fallback={null}>
         <CatalogInsights />
       </Suspense>
+      <Suspense fallback={null}>
+        <FlashToast messages={{ deleted: "Plan deleted" }} />
+      </Suspense>
     </>
   )
 }
@@ -75,11 +80,13 @@ async function CatalogInsights() {
 
 async function PlanResults({ searchParams }: Pick<PageProps<"/admin/plans">, "searchParams">) {
   const params = await searchParams
-  const carrierFilter = typeof params.carrier === "string" ? params.carrier : ""
   const typeFilter = params.type === "esim" || params.type === "physical" ? params.type : ""
   const query = typeof params.q === "string" ? params.q.trim() : ""
 
   const [plans, carriers] = await Promise.all([listPlans(), listCarriers()])
+  // An unknown carrier id in the URL (a deleted carrier) means all carriers.
+  const asked = typeof params.carrier === "string" ? params.carrier : ""
+  const carrierFilter = carriers.some((c) => c.id === asked) ? asked : ""
   const needle = query.toLowerCase()
   const filtered = plans.filter(
     (p) =>
@@ -123,7 +130,7 @@ async function PlanResults({ searchParams }: Pick<PageProps<"/admin/plans">, "se
                 {filtered.map((plan) => {
                   const reason = hiddenReason(plan)
                   const onSale = plan.packages.filter((p) => p.active)
-                  const from = onSale.length ? Math.min(...onSale.map((p) => p.price_cents)) : null
+                  const from = onSale.length ? Math.min(...onSale.map(paidCents)) : null
                   return (
                     <tr key={plan.id} className="transition-colors hover:bg-muted/30">
                       <td className="max-w-64 px-4 py-3">
@@ -174,7 +181,7 @@ async function PlanResults({ searchParams }: Pick<PageProps<"/admin/plans">, "se
             {filtered.map((plan) => {
               const reason = hiddenReason(plan)
               const onSale = plan.packages.filter((p) => p.active)
-              const from = onSale.length ? Math.min(...onSale.map((p) => p.price_cents)) : null
+              const from = onSale.length ? Math.min(...onSale.map(paidCents)) : null
               return (
                 <li key={plan.id} className="p-4">
                   <div className="flex items-center justify-between gap-3">

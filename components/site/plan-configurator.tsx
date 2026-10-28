@@ -20,10 +20,12 @@ type Props = {
   defaultDays?: number
   /** Show "See where you can call" under the calling switch. */
   callingList?: boolean
+  /** What checkout adds, for example "Plus the $3.00 network fee at checkout." */
+  extras?: string
   className?: string
 }
 
-export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 30, callingList, className }: Props) {
+export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 30, callingList, extras, className }: Props) {
   const groupId = React.useId()
   const packages = plan.packages
   const initial = packages.find((p) => p.days === defaultDays) ?? packages[0]
@@ -74,7 +76,7 @@ export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 
                     checked ? "text-primary-foreground/75" : "text-muted-foreground"
                   )}
                 >
-                  <PriceWithSale cents={pkg.price_cents} regularCents={pkg.regular_price_cents} regularClassName={checked ? "text-primary-foreground/60" : undefined} />
+                  <PriceWithSale cents={pkg.price_cents} regularCents={pkg.regular_price_cents} regularClassName={checked ? "text-primary-foreground/80" : undefined} />
                 </span>
               </label>
             )
@@ -118,6 +120,7 @@ export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 
               Sale price. You save <span className="font-mono tabular">{formatPrice(selected.regular_price_cents - selected.price_cents)}</span>
             </p>
           ) : null}
+          {extras ? <p className="mt-1 text-xs text-muted-foreground">{extras}</p> : null}
         </div>
         <Link
           href={checkoutHref}

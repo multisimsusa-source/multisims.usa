@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   BellIcon,
   BellSimpleSlashIcon,
@@ -59,6 +59,7 @@ const icons: Record<string, { icon: Icon; tone: string }> = {
  */
 export function NotificationCenter({ userId, initial, toastOnArrival }: { userId: string; initial: NotificationRow[]; toastOnArrival?: boolean }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [items, setItems] = React.useState(initial)
   const [open, setOpen] = React.useState(false)
   const [now, setNow] = React.useState(() => Date.now())
@@ -98,7 +99,8 @@ export function NotificationCenter({ userId, initial, toastOnArrival }: { userId
       void markNotificationsRead(n.id)
     }
     setOpen(false)
-    if (n.href) router.push(n.href)
+    // Staff links point at the agent portal; the owner opens the same record in admin.
+    if (n.href) router.push(pathname.startsWith("/admin") ? n.href.replace(/^\/agent\//, "/admin/") : n.href)
   }
 
   const startOfToday = new Date(now)

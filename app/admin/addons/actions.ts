@@ -3,7 +3,7 @@
 import { z } from "zod"
 
 import { catalogChanged } from "@/lib/admin/catalog-changed"
-import { parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
+import { dbFailed, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
 import { parseDestinations } from "@/lib/calling-destinations"
 import { createClient } from "@/lib/supabase/server"
@@ -36,7 +36,7 @@ export async function updateAddon(id: string, formData: FormData): Promise<Actio
       active: formData.get("active") === "on",
     })
     .eq("id", id)
-  if (error) return { ok: false, error: error.message }
+  if (error) return dbFailed(error)
 
   catalogChanged()
   return { ok: true, message: "Add-on saved" }

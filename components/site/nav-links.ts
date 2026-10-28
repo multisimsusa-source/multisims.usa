@@ -1,5 +1,6 @@
 export const navLinks = [
   { href: "/plans", label: "Plans" },
+  { href: "/refill", label: "Refill" },
   { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },

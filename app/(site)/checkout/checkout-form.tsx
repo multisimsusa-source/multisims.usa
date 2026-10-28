@@ -30,6 +30,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { ProductBadge } from "@/components/site/product-mark"
 import { formatDays, formatPrice } from "@/lib/format"
+import { addDays, EARLIEST_START_DAYS } from "@/lib/plan-dates"
 import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
 import { MAX_QUANTITY } from "@/lib/orders"
@@ -202,173 +203,10 @@ export function CheckoutForm({
         <input type="hidden" name="intl" value={intl ? "on" : "off"} />
       ) : null}
 
-      {/* Order summary: top on phones, sticky right rail on desktop. */}
-      <aside aria-label="Your order" className="lg:sticky lg:top-24 lg:order-2">
-        <div className="rounded-xl border bg-card">
-          <div className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex h-6 items-center">{logo}</span>
-              <ProductBadge type={productType} />
-            </div>
-            <p className="mt-4 font-heading text-xl font-semibold tracking-[-0.02em]">
-              {plan ? plan.name : `${carrier.name} SIM card`}
-            </p>
-            {plan?.facts ? (
-              <p className="mt-1 text-sm text-muted-foreground">{plan.facts}</p>
-            ) : !plan ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                No plan. Activate it later with us or anywhere else.
-              </p>
-            ) : null}
-            {physical ? (
-              <PlanPicker
-                choices={choices}
-                cardOnSale={cardOnSale}
-                planSlug={plan?.slug ?? null}
-                days={days}
-                onPlan={(slug) => {
-                  setPlanSlug(slug)
-                  const next = choices.find((c) => c.slug === slug)
-                  if (next && !next.packages.some((p) => p.days === chosenDays)) setChosenDays(next.packages[0]?.days ?? null)
-                }}
-                onDays={setChosenDays}
-              />
-            ) : plan && days !== null ? (
-              <p className="mt-3 flex items-center gap-2 text-sm">
-                <span className="font-medium">{formatDays(days)}</span>
-                <span aria-hidden className="text-border">
-                  |
-                </span>
-                <Link
-                  href={`/plans/${plan.slug}`}
-                  className="inline-flex min-h-6 items-center text-brand underline-offset-4 hover:underline"
-                >
-                  Change
-                </Link>
-              </p>
-            ) : null}
-          </div>
-
-          <div className="flex items-center justify-between gap-4 border-t px-5 py-4">
-            <div>
-              <p id="qty-label" className="text-sm font-medium">
-                {unit}s
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {plan ? (
-                  <>
-                    <PriceWithSale cents={unitCents} regularCents={regularCents} /> each
-                  </>
-                ) : (
-                  <>{formatPrice(fees.simCardCents)} each</>
-                )}
-              </p>
-            </div>
-            <QuantityStepper value={quantity} onChange={setQuantity} max={MAX_QUANTITY} labelledBy="qty-label" />
-          </div>
-
-          {addon && plan ? (
-            <label
-              htmlFor="intl"
-              className="flex cursor-pointer items-center gap-3 border-t px-5 py-4"
-            >
-              <span
-                aria-hidden
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted"
-              >
-                <PhoneIcon className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1 text-sm">
-                <span className="block font-medium">{addon.name}</span>
-                <span className="tabular font-mono text-xs text-muted-foreground">
-                  +{formatPrice(addon.price_cents)} per {unit}
-                </span>
-              </span>
-              <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
-            </label>
-          ) : null}
-          {addon && plan && callingList ? (
-            <div className="-mt-2 px-5 pb-2">
-              <CallingDestinations />
-            </div>
-          ) : null}
-
-          <dl className="space-y-2 border-t px-5 py-4 text-sm">
-            {plan && days !== null ? (
-              <Line
-                label={`${carrier.name} ${plan.name}, ${formatDays(days)} x ${quantity}`}
-                value={formatPrice(unitCents * quantity)}
-              />
-            ) : (
-              <Line
-                label={`${carrier.name} SIM card x ${quantity}`}
-                value={formatPrice(fees.simCardCents * quantity)}
-              />
-            )}
-            {intl && addon && plan ? (
-              <Line
-                label={`${addon.name} x ${quantity}`}
-                value={formatPrice(addonCents * quantity)}
-              />
-            ) : null}
-            {physical && plan && fees.simCardCents > 0 ? (
-              <Line
-                label={`SIM card x ${quantity}`}
-                value={formatPrice(fees.simCardCents * quantity)}
-              />
-            ) : null}
-            {physical ? (
-              <Line
-                label="Shipping"
-                value={fees.shippingCents ? formatPrice(fees.shippingCents) : "Free"}
-              />
-            ) : null}
-            {fees.networkFeeCents > 0 ? (
-              <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} />
-            ) : null}
-            {discount ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
-            <DiscountCode
-              carrierSlug={carrier.slug}
-              applied={discount}
-              initial={values.discount_code ?? ""}
-              onChange={setDiscount}
-            />
-            <div className="flex items-baseline justify-between gap-4 pt-2">
-              <dt className="font-medium">Total</dt>
-              <dd
-                aria-live="polite"
-                className="tabular font-mono text-2xl font-medium tracking-tight"
-              >
-                {formatPrice(total)}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
-            {alert}
-            <Button
-              type="submit"
-              size="xl"
-              disabled={pending || belowMinimum}
-              className="w-full"
-            >
-              {submitLabel}
-            </Button>
-            {agreement}
-            <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <LockSimpleIcon className="size-3.5" />
-              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
-            </p>
-          </div>
-        </div>
-
-        <NextSteps physical={physical} cardOnly={physical && !plan} takesPayment={takesPayment} className="mt-6 max-lg:hidden" />
-      </aside>
-
       {/* Keyed by the returned values so fields remount with them after a failed submit. */}
       <div
         key={JSON.stringify(values)}
-        className="flex min-w-0 flex-col gap-6 lg:order-1"
+        className="flex min-w-0 flex-col gap-6"
       >
         <FormCard>
           <FormSection
@@ -380,6 +218,7 @@ export function CheckoutForm({
               <Input
                 id="name"
                 name="name"
+                maxLength={120}
                 autoComplete="name"
                 required
                 defaultValue={values.name}
@@ -426,58 +265,61 @@ export function CheckoutForm({
             </Field>
           </FormSection>
 
-          <FormSection
-            title="Your US number"
-            description="We match the number to where you will use it."
-          >
-            <Field data-invalid={invalid("zip")}>
-              <FieldLabel htmlFor="zip">US ZIP code</FieldLabel>
-              <Input
-                id="zip"
-                name="zip"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={5}
-                required
-                defaultValue={values.zip}
-                aria-invalid={invalid("zip")}
-                className="tabular font-mono"
-              />
-              {errors.zip ? (
-                err("zip")
-              ) : (
-                <FieldDescription>
-                  Where you will mostly be, for example 10001.
-                </FieldDescription>
-              )}
-            </Field>
-            <Field data-invalid={invalid("area_code")}>
-              <FieldLabel htmlFor="area_code">
-                Area code{" "}
-                <span className="font-normal text-muted-foreground">
-                  (optional)
-                </span>
-              </FieldLabel>
-              <Input
-                id="area_code"
-                name="area_code"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={3}
-                defaultValue={values.area_code}
-                aria-invalid={invalid("area_code")}
-                className="tabular font-mono"
-              />
-              {errors.area_code ? (
-                err("area_code")
-              ) : (
-                <FieldDescription>
-                  For a number that starts with it, like 212. If it is not
-                  available, you get the nearest one.
-                </FieldDescription>
-              )}
-            </Field>
-          </FormSection>
+          {/* A SIM card with no plan gets its number when it is activated later. */}
+          {plan ? (
+            <FormSection
+              title="Your US number"
+              description="We match the number to where you will use it."
+            >
+              <Field data-invalid={invalid("zip")}>
+                <FieldLabel htmlFor="zip">US ZIP code</FieldLabel>
+                <Input
+                  id="zip"
+                  name="zip"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={5}
+                  required
+                  defaultValue={values.zip}
+                  aria-invalid={invalid("zip")}
+                  className="tabular font-mono"
+                />
+                {errors.zip ? (
+                  err("zip")
+                ) : (
+                  <FieldDescription>
+                    Where you will mostly be, for example 10001.
+                  </FieldDescription>
+                )}
+              </Field>
+              <Field data-invalid={invalid("area_code")}>
+                <FieldLabel htmlFor="area_code">
+                  Area code{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </FieldLabel>
+                <Input
+                  id="area_code"
+                  name="area_code"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={3}
+                  defaultValue={values.area_code}
+                  aria-invalid={invalid("area_code")}
+                  className="tabular font-mono"
+                />
+                {errors.area_code ? (
+                  err("area_code")
+                ) : (
+                  <FieldDescription>
+                    For a number that starts with it, like 212. If it is not
+                    available, you get the nearest one.
+                  </FieldDescription>
+                )}
+              </Field>
+            </FormSection>
+          ) : null}
 
           {physical ? (
             <FormSection
@@ -609,7 +451,7 @@ export function CheckoutForm({
                 <p className="mt-2 text-sm text-muted-foreground">
                   {planStart === "on_receipt"
                     ? "Your order page shows a button to start your line once the SIM arrives."
-                    : "Your line starts on this date. Allow a few days for USPS delivery."}
+                    : `Your line starts on this date, at least ${EARLIEST_START_DAYS} days from now so the SIM card arrives first.`}
                 </p>
               </fieldset>
               {planStart === "on_date" ? (
@@ -619,7 +461,8 @@ export function CheckoutForm({
                     id="activate_on"
                     name="activate_on"
                     type="date"
-                    min={today}
+                    min={addDays(today, EARLIEST_START_DAYS)}
+                    max={addDays(today, 365)}
                     required
                     defaultValue={values.activate_on}
                     aria-invalid={invalid("activate_on")}
@@ -648,11 +491,181 @@ export function CheckoutForm({
         </div>
       </div>
 
+      {/* Order summary: top on phones, sticky right rail on desktop. After the form in the page so
+          the keyboard reaches the form first. */}
+      <aside aria-label="Your order" className="max-lg:order-first lg:sticky lg:top-24">
+        <div className="rounded-xl border bg-card">
+          <div className="p-5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex h-6 items-center">{logo}</span>
+              <ProductBadge type={productType} />
+            </div>
+            <p className="mt-4 font-heading text-xl font-semibold tracking-[-0.02em]">
+              {plan ? plan.name : `${carrier.name} SIM card`}
+            </p>
+            {plan?.facts ? (
+              <p className="mt-1 text-sm text-muted-foreground">{plan.facts}</p>
+            ) : !plan ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No plan. Activate it later with us or anywhere else.
+              </p>
+            ) : null}
+            {physical ? (
+              <PlanPicker
+                choices={choices}
+                cardOnSale={cardOnSale}
+                planSlug={plan?.slug ?? null}
+                days={days}
+                onPlan={(slug) => {
+                  setPlanSlug(slug)
+                  const next = choices.find((c) => c.slug === slug)
+                  if (next && !next.packages.some((p) => p.days === chosenDays)) setChosenDays(next.packages[0]?.days ?? null)
+                }}
+                onDays={setChosenDays}
+              />
+            ) : plan && days !== null ? (
+              <p className="mt-3 flex items-center gap-2 text-sm">
+                <span className="font-medium">{formatDays(days)}</span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <Link
+                  href={`/plans/${plan.slug}`}
+                  className="inline-flex min-h-6 items-center text-brand underline-offset-4 hover:underline"
+                >
+                  Change
+                </Link>
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t px-5 py-4">
+            <div>
+              <p id="qty-label" className="text-sm font-medium">
+                {unit}s
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {plan && physical ? (
+                  // The card is its own line: say both, so "each" is never just the plan.
+                  <>
+                    <PriceWithSale cents={unitCents} regularCents={regularCents} /> plan + {formatPrice(fees.simCardCents)} card, each
+                  </>
+                ) : plan ? (
+                  <>
+                    <PriceWithSale cents={unitCents} regularCents={regularCents} /> each
+                  </>
+                ) : (
+                  <>{formatPrice(fees.simCardCents)} each</>
+                )}
+              </p>
+            </div>
+            <QuantityStepper value={quantity} onChange={setQuantity} max={MAX_QUANTITY} labelledBy="qty-label" />
+          </div>
+
+          {addon && plan ? (
+            <label
+              htmlFor="intl"
+              className="flex cursor-pointer items-center gap-3 border-t px-5 py-4"
+            >
+              <span
+                aria-hidden
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted"
+              >
+                <PhoneIcon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="block font-medium">{addon.name}</span>
+                <span className="tabular font-mono text-xs text-muted-foreground">
+                  +{formatPrice(addon.price_cents)} per {unit}
+                </span>
+              </span>
+              <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
+            </label>
+          ) : null}
+          {addon && plan && callingList ? (
+            <div className="-mt-2 px-5 pb-2">
+              <CallingDestinations />
+            </div>
+          ) : null}
+
+          <dl className="space-y-2 border-t px-5 py-4 text-sm">
+            {plan && days !== null ? (
+              <Line
+                label={`${carrier.name} ${plan.name}, ${formatDays(days)} x ${quantity}`}
+                value={formatPrice(unitCents * quantity)}
+              />
+            ) : (
+              <Line
+                label={`${carrier.name} SIM card x ${quantity}`}
+                value={formatPrice(fees.simCardCents * quantity)}
+              />
+            )}
+            {intl && addon && plan ? (
+              <Line
+                label={`${addon.name} x ${quantity}`}
+                value={formatPrice(addonCents * quantity)}
+              />
+            ) : null}
+            {physical && plan && fees.simCardCents > 0 ? (
+              <Line
+                label={`SIM card x ${quantity}`}
+                value={formatPrice(fees.simCardCents * quantity)}
+              />
+            ) : null}
+            {physical ? (
+              <Line
+                label="Shipping"
+                value={fees.shippingCents ? formatPrice(fees.shippingCents) : "Free"}
+              />
+            ) : null}
+            {fees.networkFeeCents > 0 ? (
+              <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} />
+            ) : null}
+            {discount ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
+            <DiscountCode
+              carrierSlug={carrier.slug}
+              applied={discount}
+              initial={values.discount_code ?? ""}
+              onChange={setDiscount}
+            />
+            <div className="flex items-baseline justify-between gap-4 pt-2">
+              <dt className="font-medium">Total</dt>
+              <dd
+                aria-live="polite"
+                className="tabular font-mono text-2xl font-medium tracking-tight"
+              >
+                {formatPrice(total)}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
+            {alert}
+            <Button
+              type="submit"
+              size="xl"
+              disabled={pending || belowMinimum}
+              className="w-full"
+            >
+              {submitLabel}
+            </Button>
+            {agreement}
+            <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <LockSimpleIcon className="size-3.5" />
+              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
+            </p>
+          </div>
+        </div>
+
+        <NextSteps physical={physical} cardOnly={physical && !plan} takesPayment={takesPayment} className="mt-6 max-lg:hidden" />
+      </aside>
+
       {/* Phones: total and the action always in reach. */}
       <ActionBar>
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">
-            Total, {quantity} {quantity === 1 ? unit : `${unit}s`}
+          {/* On a phone the minimum notice is far down the form: say it here, by the button. */}
+          <p className={belowMinimum ? "text-xs text-warning-ink" : "text-xs text-muted-foreground"}>
+            {belowMinimum ? `Minimum ${formatPrice(fees.minimumCents)}` : `Total, ${quantity} ${quantity === 1 ? unit : `${unit}s`}`}
           </p>
           <p
             aria-hidden

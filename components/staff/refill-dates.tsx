@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { saveRefillDates } from "@/app/agent/actions"
-import { daysBetween, formatPlanDate } from "@/lib/plan-dates"
+import { daysBetween, formatPlanDate, usToday } from "@/lib/plan-dates"
 
 /**
  * A refill's dates on the fulfilment screen: what we know of the number's current plan,
@@ -38,6 +38,16 @@ export function RefillDates({
   const id = React.useId()
   const dirty = start !== startsOn || end !== endsOn
   const length = start && end ? daysBetween(start, end) + 1 : 0
+  const today = usToday()
+  // A plan that is already over is never right; an early or overlapping start may be, but say so.
+  const endsPast = Boolean(end) && end < today
+  const warning = endsPast
+    ? "The end date is in the past. Choose dates from today on."
+    : start && start < today
+      ? "The start date is in the past."
+      : start && currentEndsOn && start <= currentEndsOn
+        ? `This starts before the current plan ends on ${formatPlanDate(currentEndsOn)}, so the days overlap.`
+        : null
 
   return (
     <div className="rounded-xl border bg-background p-4 sm:p-5">
@@ -89,7 +99,7 @@ export function RefillDates({
           />
         </Field>
         {editable ? (
-          <Button type="submit" size="lg" variant={dirty ? "default" : "outline"} disabled={pending || !dirty || !start || !end || end < start}>
+          <Button type="submit" size="lg" variant={dirty ? "default" : "outline"} disabled={pending || !dirty || !start || !end || end < start || endsPast}>
             {pending ? "Saving..." : "Save dates"}
           </Button>
         ) : null}
@@ -97,6 +107,7 @@ export function RefillDates({
           {length > 0 ? `${length} ${length === 1 ? "day" : "days"}` : "Choose both dates"}
           {length > 0 && length !== days ? `, the plan is ${days} ${days === 1 ? "day" : "days"}` : ""}
         </p>
+        {editable && warning ? <p className="text-sm text-danger-ink sm:col-span-full">{warning}</p> : null}
       </form>
     </div>
   )

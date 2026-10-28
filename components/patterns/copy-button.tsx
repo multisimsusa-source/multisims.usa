@@ -5,7 +5,7 @@ import { CheckIcon, CopyIcon } from "@phosphor-icons/react"
 
 import { cn } from "@/lib/utils"
 
-/** Small icon button that copies a value and confirms with a check for 1.5 s. */
+/** Icon button (44px touch target) that copies a value and confirms with a check for 1.5 s. */
 export function CopyButton({ value, label, className }: { value: string; label: string; className?: string }) {
   const [copied, setCopied] = React.useState(false)
   return (
@@ -20,7 +20,7 @@ export function CopyButton({ value, label, className }: { value: string; label: 
         } catch {}
       }}
       className={cn(
-        "inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         className
       )}
     >

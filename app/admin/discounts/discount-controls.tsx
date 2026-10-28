@@ -44,7 +44,7 @@ export function NewDiscountButton({ carriers }: { carriers: { id: string; name: 
           </Button>
         }
       />
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">New discount code</DialogTitle>
           <DialogDescription>For website orders. It comes off the plan, calling and SIM cards, never shipping or the network fee.</DialogDescription>

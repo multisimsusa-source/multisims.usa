@@ -8,7 +8,9 @@ import { ListSkeleton } from "@/components/admin/skeletons"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { Tag } from "@/components/patterns/tag"
 import { formatPrice } from "@/lib/format"
-import { formatDateTime, type Tone } from "@/lib/orders"
+import { usDate } from "@/lib/admin/reports"
+import type { Tone } from "@/lib/orders"
+import { formatPlanDate } from "@/lib/plan-dates"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteDiscountButton, DiscountActiveSwitch, NewDiscountButton } from "./discount-controls"
 
@@ -84,8 +86,9 @@ async function Discounts() {
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {c.kind === "percent" ? `${c.value}% off` : `${formatPrice(c.value)} off`}
                     {c.carrier ? `, ${c.carrier.name} only` : ", any carrier"}
-                    {c.starts_at ? `, from ${formatDateTime(c.starts_at)}` : ""}
-                    {c.ends_at ? `, until ${formatDateTime(c.ends_at)}` : ""}
+                    {c.starts_at ? `, from ${formatPlanDate(usDate(new Date(c.starts_at)))}` : ""}
+                    {/* Stored as the start of the day after; the owner chose the day before. */}
+                    {c.ends_at ? `, last day ${formatPlanDate(usDate(new Date(new Date(c.ends_at).getTime() - 1)))}` : ""}
                     {c.note ? `. ${c.note}` : ""}
                   </p>
                 </div>

@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Container } from "@/components/site/section"
 import { CarrierLogo } from "@/components/site/carrier-logo"
-import { getCallingDestinations, getIntlCallingAddon, getPublishedPlans, getSimCards } from "@/lib/catalog"
+import { getCallingDestinations, getIntlCallingAddon, getPublishedPlans, getSimCardPrices, getSimCards } from "@/lib/catalog"
 import { dataLabel, hotspotLabel } from "@/lib/format"
 import { minimumOrderCents, paymentsEnabled } from "@/lib/payments"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -37,9 +37,10 @@ async function Checkout({
   const cardSlug = typeof params.card === "string" ? params.card : ""
   const days = Number(params.days)
 
-  const [plans, simCards, addon, fees, destinations] = await Promise.all([
+  const [plans, simCards, cardPrices, addon, fees, destinations] = await Promise.all([
     getPublishedPlans(),
     getSimCards(),
+    getSimCardPrices(),
     getIntlCallingAddon(),
     getCheckoutFees(),
     getCallingDestinations(),
@@ -62,7 +63,9 @@ async function Checkout({
       <div className="rounded-xl border bg-card p-8 text-center">
         <h2 className="text-2xl font-semibold">Choose a plan first</h2>
         <p className="mt-2 text-muted-foreground">
-          This plan or day package is no longer available.
+          {slug || cardSlug
+            ? "This plan or day package is no longer available."
+            : "Pick a plan and how many days you need, then come back here."}
         </p>
         <Link
           href="/plans"
@@ -104,7 +107,7 @@ async function Checkout({
           addon={addon}
           initialIntl={params.intl === "1"}
           callingList={destinations.length > 0}
-          fees={{ ...fees, simCardCents: simCard?.price_cents ?? fees.simCardCents }}
+          fees={{ ...fees, simCardCents: cardPrices[carrier.id] ?? fees.simCardCents }}
           takesPayment={paymentsEnabled()}
         />
       </div>

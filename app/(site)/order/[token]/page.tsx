@@ -110,7 +110,9 @@ async function OrderView({
   const activating = activations.some((a) => a.requested)
   const unit = esim ? "eSIM" : "SIM card"
   // Each delivered line's plan dates, refills of the same number included.
-  const timers = await getLineTimers(createServiceClient(), items)
+  // Only delivered SIMs: a refill still in progress must not show what we know about a number
+  // someone typed (another customer's line, its end date).
+  const timers = await getLineTimers(createServiceClient(), items.filter((i) => i.status === "fulfilled"))
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
   )
@@ -213,7 +215,7 @@ async function OrderView({
                 : processing
                 ? esim
                   ? `Your ${order.quantity > 1 ? "QR codes appear" : "QR code appears"} here as soon as ${order.quantity > 1 ? "they are" : "it is"} ready, and we email ${order.quantity > 1 ? "them" : "it"} to ${order.customer_email}. This page updates on its own.`
-                  : `Your tracking number appears here as soon as your SIM card ships, and we email it to ${order.customer_email}. This page updates on its own.`
+                  : `Your tracking number appears here as soon as your ${order.quantity > 1 ? "SIM cards ship" : "SIM card ships"}, and we email it to ${order.customer_email}. This page updates on its own.`
                 : esim
                   ? "Scan the QR code below with the phone you will use in the US. We also emailed it to you."
                   : status === "Delivered"
@@ -337,6 +339,7 @@ async function OrderView({
             <DetailRow label="Length" value={formatDays(order.days)} />
           ) : null}
           <DetailRow label="Quantity" value={String(order.quantity)} mono />
+          {order.zip_code ? <DetailRow label="ZIP code" value={order.zip_code} mono /> : null}
           {order.area_code ? (
             <DetailRow
               label="Requested area code"
@@ -357,7 +360,7 @@ async function OrderView({
             />
           ) : null}
           {order.product_type === "physical" && order.plan_start ? (
-            <DetailRow label="Plan starts" value={planStartLabel(order)} />
+            <DetailRow label="Plan starts" value={planStartLabel(order).replace(/^On /, "")} />
           ) : null}
           {orderLines(order).map((l) => (
             <DetailRow

@@ -3,6 +3,7 @@
 import { refresh } from "next/cache"
 import { z } from "zod"
 
+import { catalogChanged } from "@/lib/admin/catalog-changed"
 import { isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
@@ -42,7 +43,8 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
     .update({ ...parsed.data, ...money, owner_email: parsed.data.owner_email || null })
     .eq("id", true)
   if (error) return { ok: false, error: "Could not save. Try again." }
-  refresh()
+  // Fees show on the cached plan pages: refresh them with the rest of the catalogue.
+  catalogChanged()
   return { ok: true, message: "Settings saved" }
 }
 

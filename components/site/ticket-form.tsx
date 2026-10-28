@@ -140,7 +140,7 @@ function TicketFields({
             <label
               key={s}
               className={cn(
-                "flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors",
+                "relative flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors",
                 "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
                 severity === s ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
               )}
@@ -174,7 +174,8 @@ function TicketFields({
         </div>
       </Field>
 
-      <Field data-invalid={invalid("screenshot")}>
+      {/* relative: keeps the hidden file input inside the form, not past the screen edge. */}
+      <Field data-invalid={invalid("screenshot")} className="relative">
         <FieldLabel htmlFor="ticket-screenshot">
           Screenshot <span className="font-normal text-muted-foreground">(optional)</span>
         </FieldLabel>

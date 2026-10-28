@@ -51,8 +51,8 @@ export function DealerActiveSwitch({ dealerId, active, name }: { dealerId: strin
   return <LoginActiveSwitch userId={dealerId} active={active} name={name} action={setDealerActive} />
 }
 
-export function DealerPasswordButton({ dealerId, name }: { dealerId: string; name: string }) {
-  return <ResetPasswordButton userId={dealerId} name={name} action={resetDealerPassword} />
+export function DealerPasswordButton({ dealerId, name, email }: { dealerId: string; name: string; email?: string }) {
+  return <ResetPasswordButton userId={dealerId} name={name} email={email} action={resetDealerPassword} />
 }
 
 /**

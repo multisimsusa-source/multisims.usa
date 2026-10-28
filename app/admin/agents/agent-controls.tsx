@@ -18,6 +18,6 @@ export function AgentActiveSwitch({ agentId, active, name }: { agentId: string; 
   return <LoginActiveSwitch userId={agentId} active={active} name={name} action={setAgentActive} />
 }
 
-export function ResetPasswordButton({ agentId, name }: { agentId: string; name: string }) {
-  return <ResetLoginPassword userId={agentId} name={name} action={resetAgentPassword} />
+export function ResetPasswordButton({ agentId, name, email }: { agentId: string; name: string; email?: string }) {
+  return <ResetLoginPassword userId={agentId} name={name} email={email} action={resetAgentPassword} />
 }

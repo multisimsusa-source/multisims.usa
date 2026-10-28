@@ -53,7 +53,8 @@ export function QuantityStepper({
           onFocus={() => setDraft(String(value))}
           onChange={(e) => {
             const next = e.currentTarget.value.replace(/\D/g, "").slice(0, 4)
-            setDraft(next)
+            // Above the maximum shows the maximum at once: the field never shows a count it is not using.
+            setDraft(next !== "" && Number(next) > max ? String(max) : next)
             if (next !== "") onChange(clamp(Number(next)))
           }}
           onBlur={() => setDraft(null)}

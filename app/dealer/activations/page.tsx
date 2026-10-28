@@ -115,7 +115,7 @@ async function Results({
                         {formatDateTime(r.fulfilled_at)}
                       </span>
                     ) : (
-                      <PlanEnds endsOn={r.plan_ends_on} className="sm:text-right" />
+                      <PlanEnds endsOn={r.plan_ends_on} startsOn={r.plan_starts_on} replaced={r.status === "replaced"} className="sm:text-right" />
                     )}
                     {replaced ? (
                       <Tag tone="neutral">Replaced</Tag>
@@ -155,7 +155,7 @@ function Value({
     <div className="flex min-w-0 items-center gap-1">
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="tabular font-mono text-sm break-all sm:break-normal sm:whitespace-nowrap">
+        <dd className="tabular font-mono text-sm break-all">
           {value ?? (
             <span className="font-sans text-muted-foreground">None</span>
           )}
@@ -165,7 +165,6 @@ function Value({
         <CopyButton
           value={value}
           label={`${label} ${value}`}
-          className="size-8"
         />
       ) : null}
     </div>

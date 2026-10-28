@@ -43,7 +43,7 @@ export function CarrierList({ carriers }: { carriers: AdminCarrier[] }) {
           <div className="flex shrink-0 flex-col">
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label={`Move ${carrier.name} up`}
               disabled={index === 0 || pending}
               onClick={() => run(() => moveCarrier(carrier.id, "up"))}
@@ -52,7 +52,7 @@ export function CarrierList({ carriers }: { carriers: AdminCarrier[] }) {
             </Button>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label={`Move ${carrier.name} down`}
               disabled={index === carriers.length - 1 || pending}
               onClick={() => run(() => moveCarrier(carrier.id, "down"))}

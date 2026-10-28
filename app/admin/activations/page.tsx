@@ -19,7 +19,7 @@ import { phoneKey } from "@/lib/plan-dates"
 
 export const metadata: Metadata = { title: "Activations" }
 
-type Row = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at" | "plan_ends_on"> & {
+type Row = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on"> & {
   order: Pick<Order, "id" | "number" | "customer_name" | "customer_email" | "carrier_name" | "plan_name" | "product_type" | "days" | "replacement_of">
   agent: { full_name: string; email: string } | null
 }
@@ -43,7 +43,7 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
   let query = supabase
     .from("order_items")
     .select(
-      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at, plan_ends_on,
+      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on,
        order:orders!order_items_order_id_fkey!inner ( id, number, customer_name, customer_email, carrier_name, plan_name, product_type, days, replacement_of ),
        agent:profiles!order_items_fulfilled_by_fkey ( full_name, email )`
     )
@@ -54,10 +54,14 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
     .limit(200)
 
   if (q) {
-    const number = q.match(/^(?:ms-?)?(\d{4,9})$/i)?.[1]
-    const safe = q.replace(/[%,()*\\]/g, " ").slice(0, 80)
-    if (number && number.length <= 6) query = query.eq("order.number", Number(number))
-    else if (q.includes("@")) query = query.ilike("order.customer_email", `%${safe}%`)
+    // "MS-10793" or a bare 5 or 6 digit order number; 4 digits are the end of a phone number.
+    const number = q.match(/^ms[-\s]?(\d{4,9})$/i)?.[1] ?? q.match(/^(\d{5,6})$/)?.[1]
+    const safe = q.replace(/[%,()*\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
+    // Only symbols: nothing to look for.
+    if (!safe) query = query.eq("id", "00000000-0000-0000-0000-000000000000")
+    else if (number) query = query.eq("order.number", Number(number))
+    // Words: part of the customer's email or name ("e2e-qa-ops" without the @ too).
+    else if (q.includes("@") || (/[a-z]/i.test(safe) && !/^[\d\s]+[fF]?$/.test(safe))) query = query.ilike("order.customer_email", `%${safe}%`)
     else query = query.or(
       [
         `phone_number.ilike.%${safe}%`,
@@ -112,7 +116,7 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
                     <span className="text-xs text-muted-foreground">{r.order.days !== null ? formatDays(r.order.days) : "SIM card only"}</span>
                   </TableCell>
                   <TableCell>
-                    <PlanEnds endsOn={r.plan_ends_on} />
+                    <PlanEnds endsOn={r.plan_ends_on} startsOn={r.plan_starts_on} replaced={r.status === "replaced"} />
                   </TableCell>
                   <TableCell className="max-w-52">
                     <span className="block truncate">{r.order.customer_name}</span>

@@ -31,7 +31,7 @@ export function DayPackages({ planId, packages }: { planId: string; packages: Da
 
       {packages.length ? (
         <div className="divide-y">
-          <div aria-hidden className="grid grid-cols-[3.5rem_1fr_1fr_1fr] gap-2 px-4 pt-3 pb-2 text-xs text-muted-foreground sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6">
+          <div aria-hidden className="grid grid-cols-[3rem_1fr_1fr_1fr] gap-1.5 px-4 pt-3 pb-2 text-xs text-muted-foreground sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6">
             <span>Days</span>
             <span>Price</span>
             <span>Sale price</span>
@@ -55,11 +55,18 @@ export function DayPackages({ planId, packages }: { planId: string; packages: Da
 
 function useRun() {
   const [pending, startTransition] = React.useTransition()
-  const run = (action: () => Promise<ActionResult>, onOk?: () => void) =>
+  // With a form, the fields the server names are marked invalid and the first one focused.
+  const run = (action: () => Promise<ActionResult>, onOk?: () => void, form?: HTMLFormElement | null) =>
     startTransition(async () => {
       const result = await action()
+      form?.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"))
       if (!result.ok) {
         toast.error(result.error)
+        const fields = Object.keys(result.fieldErrors ?? {})
+          .map((name) => form?.querySelector<HTMLInputElement>(`[name="${name}"]`))
+          .filter((el): el is HTMLInputElement => Boolean(el))
+        fields.forEach((el) => el.setAttribute("aria-invalid", "true"))
+        fields[0]?.focus()
         return
       }
       if (result.message) toast.success(result.message)
@@ -79,9 +86,10 @@ function PackageRow({ pkg }: { pkg: DayPackage }) {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
         formData.set("active", pkg.active ? "on" : "off")
-        run(() => updateDayPackage(pkg.id, formData), () => setDirty(false))
+        run(() => updateDayPackage(pkg.id, formData), () => setDirty(false), e.currentTarget)
       }}
-      className="grid grid-cols-[3.5rem_1fr_1fr_1fr] items-center gap-2 px-4 py-3 sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6"
+      // Phones: four narrow money fields, so less padding inside them to keep "1050.50" whole.
+      className="grid grid-cols-[3rem_1fr_1fr_1fr] items-center gap-1.5 px-4 py-3 max-sm:[&_input]:px-2 sm:grid-cols-[5rem_1fr_1fr_1fr_auto] sm:gap-3 sm:px-6"
     >
       <label>
         <span className="sr-only">Days</span>
@@ -142,10 +150,14 @@ function AddPackage({ planId, used }: { planId: string; used: Set<number> }) {
       onSubmit={(e) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        run(() => addDayPackage(planId, formData), () => {
-          formRef.current?.reset()
-          daysRef.current?.focus()
-        })
+        run(
+          () => addDayPackage(planId, formData),
+          () => {
+            formRef.current?.reset()
+            daysRef.current?.focus()
+          },
+          formRef.current
+        )
       }}
       className="border-t bg-canvas/60 p-4 sm:rounded-b-xl sm:p-6"
     >
@@ -160,7 +172,7 @@ function AddPackage({ planId, used }: { planId: string; used: Set<number> }) {
                 if (daysRef.current) daysRef.current.value = String(d)
                 priceRef.current?.focus()
               }}
-              className="h-8 rounded-full border bg-background px-3 font-mono text-xs tabular hover:border-foreground/30"
+              className="h-8 rounded-full border bg-background px-3 font-mono text-xs tabular hover:border-foreground/30 pointer-coarse:h-11 pointer-coarse:px-4"
             >
               {d}d
             </button>

@@ -30,36 +30,81 @@ type Parsed = { phone: string; iccid: string }
 let nextKey = 1
 const newLine = (): Line => ({ key: nextKey++, planId: null, packageId: null, calling: false, text: "" })
 
-/**
- * One pasted line: a US phone number and, if known, the SIM's ICCID, separated by a comma,
- * tab or space, in either order. Returns null for a line that is not a number.
- */
-function parseNumber(line: string): Parsed | null {
-  const parts = line.split(/[,;\t]+|\s{2,}/).map((p) => p.trim()).filter(Boolean)
-  const pieces = parts.length > 1 ? parts : line.trim().split(/\s+(?=\d{18,22}[Ff]?$)/)
-  let phone = ""
-  let iccid = ""
-  for (const part of pieces) {
-    const digits = part.replace(/[\s()+.-]/g, "")
-    if (/^\d{18,22}[Ff]?$/.test(digits) && !iccid) iccid = digits
-    else phone = `${phone} ${part}`.trim()
-  }
-  const phoneDigits = phone.replace(/\D/g, "")
-  if (!(phoneDigits.length === 10 || (phoneDigits.length === 11 && phoneDigits.startsWith("1")))) return null
-  if (/[^\d\s()+.-]/.test(phone)) return null
-  return { phone, iccid }
+type Problem = "not_us" | "bad_iccid" | "repeat"
+type ParsedLine = { numbers: Parsed[]; problems: { row: number; problem: Problem }[] }
+
+const ICCID = /^\d{18,22}[Ff]?$/
+
+/** The number as the database keys it: its 10 digits, without a leading 1. */
+const keyOf = (phone: string) => phone.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "")
+
+function isUsNumber(part: string) {
+  const digits = part.replace(/\D/g, "")
+  return !/[^\d\s()+.-]/.test(part) && (digits.length === 10 || (digits.length === 11 && digits.startsWith("1")))
 }
 
-function parseNumbers(text: string) {
-  const rows = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  const numbers: Parsed[] = []
-  const bad: number[] = []
-  rows.forEach((row, i) => {
-    const n = parseNumber(row)
-    if (n) numbers.push(n)
-    else bad.push(i + 1)
+/**
+ * One pasted row: a US phone number and, if known, the SIM's ICCID, separated by a comma,
+ * tab or space, in either order; or several numbers separated by commas or tabs.
+ */
+function parseRow(row: string): Parsed[] | Problem {
+  const parts = row.split(/[,;\t]+|\s{2,}/).map((p) => p.trim()).filter(Boolean)
+  const pieces = parts.length > 1 ? parts : row.trim().split(/\s+(?=\d{18,22}[Ff]?$)/)
+  const phones: string[] = []
+  const iccids: string[] = []
+  for (const part of pieces) {
+    const digits = part.replace(/[\s()+.-]/g, "")
+    if (ICCID.test(digits)) iccids.push(digits)
+    else if (isUsNumber(part)) phones.push(part)
+    // A long run of digits that is no US number is an ICCID typed wrong.
+    else if (/^\d{12,}$/.test(digits) || /^[02-9]\d{10}$/.test(digits)) return "bad_iccid"
+    else return "not_us"
+  }
+  if (!phones.length || iccids.length > 1 || (iccids.length && phones.length > 1)) return "not_us"
+  return phones.map((phone) => ({ phone, iccid: iccids[0] ?? "" }))
+}
+
+/** Every line's numbers, with each problem row named; a number already seen on any line is a repeat. */
+function parseLines(texts: string[]): ParsedLine[] {
+  const seen = new Set<string>()
+  return texts.map((text) => {
+    const out: ParsedLine = { numbers: [], problems: [] }
+    text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .forEach((row, i) => {
+        if (!row) return
+        const parsed = parseRow(row)
+        if (typeof parsed === "string") return void out.problems.push({ row: i + 1, problem: parsed })
+        for (const n of parsed) {
+          const key = keyOf(n.phone)
+          if (seen.has(key)) return void out.problems.push({ row: i + 1, problem: "repeat" })
+          seen.add(key)
+          out.numbers.push(n)
+        }
+      })
+    return out
   })
-  return { numbers, bad }
+}
+
+const rowList = (rows: number[]) => {
+  const shown = rows.slice(0, 5)
+  const list = shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : `${shown[0]}`
+  return `${rows.length > 1 ? "Rows" : "Row"} ${list}${rows.length > 5 ? ` and ${rows.length - 5} more` : ""}`
+}
+
+/** One sentence per kind of problem: "Rows 2 and 4 are not US numbers." */
+function problemText(problems: ParsedLine["problems"]) {
+  const of = (p: Problem) => problems.filter((x) => x.problem === p).map((x) => x.row)
+  const many = (rows: number[]) => rows.length > 1
+  const out: string[] = []
+  const notUs = of("not_us")
+  if (notUs.length) out.push(`${rowList(notUs)} ${many(notUs) ? "are not US numbers" : "is not a US number"}. Put one number per row, then its ICCID if you have it.`)
+  const iccid = of("bad_iccid")
+  if (iccid.length) out.push(`${rowList(iccid)} ${many(iccid) ? "have an ICCID" : "has an ICCID"} that is not 18 to 22 digits.`)
+  const repeat = of("repeat")
+  if (repeat.length) out.push(`${rowList(repeat)} ${many(repeat) ? "repeat numbers" : "repeats a number"} already in this refill.`)
+  return out.join(" ")
 }
 
 export function RefillBuilder({
@@ -92,36 +137,42 @@ export function RefillBuilder({
   const [serverError, setServerError] = React.useState<string | null>(null)
   const [pending, start] = React.useTransition()
 
-  const priced = lines.map((line) => {
+  const parsedLines = parseLines(lines.map((l) => l.text))
+  const priced = lines.map((line, i) => {
     const plan = plans.find((p) => p.id === line.planId)
     const pkg = plan?.packages.find((p) => p.id === line.packageId)
     const calling = line.calling && callingCents !== null ? callingCents : 0
-    const { numbers, bad } = parseNumbers(line.text)
+    const { numbers, problems } = parsedLines[i]
     const each = pkg ? pkg.price_cents + calling : 0
-    return { line, plan, pkg, calling, numbers, bad, each, subtotal: each * numbers.length }
+    const tooMany = numbers.length > MAX_PER_LINE
+    return { line, plan, pkg, calling, numbers, problems, tooMany, each, subtotal: each * numbers.length }
   })
   const total = priced.reduce((n, p) => n + p.subtotal, 0)
   const count = priced.reduce((n, p) => n + p.numbers.length, 0)
   const short = total > availableCents
-  const complete = priced.every((p) => p.pkg && p.numbers.length > 0 && p.numbers.length <= MAX_PER_LINE && p.bad.length === 0)
-  const canPlace = complete && !short && count <= MAX_NUMBERS && total > 0
+  const overTotal = count > MAX_NUMBERS
+  const complete = priced.every((p) => p.pkg && p.numbers.length > 0 && !p.tooMany && p.problems.length === 0)
+  const canPlace = complete && !short && !overTotal && total > 0
 
   const update = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setServerError(null)
-    const wrong = priced.find((p) => !p.pkg || !p.numbers.length || p.bad.length)
+    const wrong = priced.find((p) => !p.pkg || !p.numbers.length || p.problems.length || p.tooMany)
     if (wrong) {
       setErrors({
         [`line-${wrong.line.key}`]: !wrong.pkg
           ? "Choose a plan and a length"
-          : wrong.bad.length
-            ? `Line ${wrong.bad.join(", ")} of the list is not a US number`
-            : "Paste at least one number",
+          : wrong.problems.length
+            ? problemText(wrong.problems)
+            : wrong.tooMany
+              ? `At most ${MAX_PER_LINE} numbers per line. Move the rest to a new line.`
+              : "Paste at least one number",
       })
       return
     }
+    if (overTotal) return
     setErrors({})
     start(async () => {
       const result = await placeDealerRefill({
@@ -139,7 +190,11 @@ export function RefillBuilder({
   }
 
   const placeLabel = pending ? "Placing refill..." : "Place refill"
-  const shortNotice = short ? (
+  const shortNotice = overTotal ? (
+    <Notice tone="warning" title={`At most ${MAX_NUMBERS.toLocaleString("en-US")} numbers per refill`}>
+      This refill has {count.toLocaleString("en-US")}. Place the rest as a second refill.
+    </Notice>
+  ) : short ? (
     <Notice tone="warning" title={`You need ${formatPrice(total - availableCents)} more`}>
       <Link href="/dealer/wallet" className="font-medium underline underline-offset-3">
         Top up
@@ -160,7 +215,7 @@ export function RefillBuilder({
             </p>
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, plan, pkg, numbers, bad, each, subtotal }, i) => {
+            {priced.map(({ line, plan, pkg, numbers, problems, tooMany, each, subtotal }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -221,7 +276,7 @@ export function RefillBuilder({
                       <Select
                         items={(plan?.packages ?? []).map((p) => ({ value: p.id, label: `${formatDays(p.days)}, ${formatPrice(p.price_cents)}` }))}
                         value={line.packageId}
-                        onValueChange={(v) => update(line.key, { packageId: v ? String(v) : null })}
+                        onValueChange={(v) => v && update(line.key, { packageId: String(v) })}
                         disabled={!plan}
                       >
                         <SelectTrigger id={`days-${line.key}`} className="w-full">
@@ -240,21 +295,23 @@ export function RefillBuilder({
                       </Select>
                     </Field>
                   </div>
-                  <Field data-invalid={Boolean(err || bad.length) || undefined}>
+                  <Field data-invalid={Boolean(err || problems.length || tooMany) || undefined}>
                     <FieldLabel htmlFor={`numbers-${line.key}`}>Numbers</FieldLabel>
                     <Textarea
                       id={`numbers-${line.key}`}
                       rows={5}
                       value={line.text}
                       onChange={(e) => update(line.key, { text: e.currentTarget.value })}
-                      aria-invalid={Boolean(err || bad.length) || undefined}
+                      aria-invalid={Boolean(err || problems.length || tooMany) || undefined}
                       // Grows with the list up to a point, then scrolls: a list can be 500 numbers.
                       className="tabular max-h-72 overflow-y-auto font-mono"
                     />
                     {err ? (
                       <FieldError>{err}</FieldError>
-                    ) : bad.length ? (
-                      <FieldError>{`Line ${bad.slice(0, 5).join(", ")}${bad.length > 5 ? " and more" : ""} of the list is not a US number`}</FieldError>
+                    ) : problems.length ? (
+                      <FieldError>{problemText(problems)}</FieldError>
+                    ) : tooMany ? (
+                      <FieldError>{`${numbers.length} numbers: at most ${MAX_PER_LINE} per line. Move the rest to a new line.`}</FieldError>
                     ) : (
                       <FieldDescription>
                         One per line: the phone number, then the ICCID if you have it, for example (212) 555-0100,

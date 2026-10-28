@@ -83,7 +83,8 @@ test.describe.serial("Catalogue", () => {
     // A sale price must be below the price.
     await row30.locator('input[name="sale_price"]').fill("40.00")
     await row30.getByRole("button", { name: "Save" }).click()
-    await expectToast(page, "Check the package fields")
+    await expectToast(page, "A sale price must be below the price")
+    await expect(row30.locator('input[name="sale_price"]')).toHaveAttribute("aria-invalid", "true")
     await page.reload()
 
     const guest = await guestPage(browser)

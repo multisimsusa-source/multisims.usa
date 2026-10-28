@@ -111,7 +111,7 @@ async function Reviews({ searchParams }: Pick<PageProps<"/admin/reviews">, "sear
             label: "From",
             value: from,
             items: [
-              { value: "all", label: "Customers and dealers" },
+              { value: "all", label: "Everyone" },
               { value: "website", label: "Customers" },
               { value: "dealer", label: "Dealers" },
             ],

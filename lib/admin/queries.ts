@@ -6,7 +6,7 @@ import type { Addon, Carrier, DayPackage, Plan } from "@/lib/types"
 export type AdminCarrier = Carrier & { plan_count: number }
 export type AdminPlanRow = Plan & {
   carrier: Pick<Carrier, "id" | "name" | "slug" | "active" | "logo_path">
-  packages: Pick<DayPackage, "id" | "days" | "price_cents" | "active">[]
+  packages: Pick<DayPackage, "id" | "days" | "price_cents" | "sale_price_cents" | "active">[]
 }
 
 export async function listCarriers(): Promise<AdminCarrier[]> {
@@ -27,7 +27,7 @@ export async function listPlans(): Promise<AdminPlanRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("plans")
-    .select("*, carrier:carriers!inner(id, name, slug, active, logo_path, display_order), packages:day_packages(id, days, price_cents, active)")
+    .select("*, carrier:carriers!inner(id, name, slug, active, logo_path, display_order), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
     .order("display_order")
   if (error) throw error
   const rows = data as unknown as (AdminPlanRow & { carrier: { display_order: number } })[]

@@ -7,7 +7,8 @@ import { ProductBadge } from "@/components/site/product-mark"
 import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
 
-export function PlanCard({ plan }: { plan: CatalogPlan }) {
+/** `preview`: a picture of the card (admin), so its link never loads the plan page. */
+export function PlanCard({ plan, preview = false }: { plan: CatalogPlan; preview?: boolean }) {
   const shortest = plan.packages[0]
   const longest = plan.packages[plan.packages.length - 1]
   const hasHotspot = Boolean(plan.hotspot_gb)
@@ -26,6 +27,7 @@ export function PlanCard({ plan }: { plan: CatalogPlan }) {
         {/* The whole card is the link: the ::after covers it. */}
         <Link
           href={`/plans/${plan.slug}`}
+          prefetch={preview ? false : undefined}
           className="outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring/40"
         >
           {plan.name}

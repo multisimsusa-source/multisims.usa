@@ -59,7 +59,7 @@ async function AgentList() {
               <span className="font-mono text-foreground tabular">{done.get(a.id) ?? 0}</span> SIMs filled
             </p>
             <div className="flex items-center gap-2">
-              <ResetPasswordButton agentId={a.id} name={name} />
+              <ResetPasswordButton agentId={a.id} name={name} email={a.email} />
               <AgentActiveSwitch agentId={a.id} active={a.active} name={name} />
             </div>
           </li>

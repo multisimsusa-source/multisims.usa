@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { findDiscountCode } from "@/lib/discounts"
+import { tidyPhone } from "@/lib/format"
 import { notifyAwaitingPayment, notifyOrderPaid } from "@/lib/notify"
 import { getPaymentProvider, invoiceUrlForOrder, minimumOrderCents } from "@/lib/payments"
 import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
@@ -14,12 +15,17 @@ import { createServiceClient } from "@/lib/supabase/service"
 import type { Order } from "@/lib/types"
 
 const contact = {
-  name: z.string().trim().min(2, "Enter your full name").max(120),
-  email: z.email("Enter a valid email address").max(200),
+  name: z.string().trim().min(2, "Enter your full name").max(120, "Keep your name under 120 characters"),
+  email: z.email("Enter a valid email address").max(200, "Keep the email under 200 characters"),
   phone: z
     .string()
     .trim()
-    .regex(/^\+?[0-9 ()-]{6,24}$/, "Enter a phone number with country code, for example +94 77 123 4567"),
+    .regex(/^\+?[0-9 ()-]{6,24}$/, "Enter a phone number with country code, for example +94 77 123 4567")
+    // Real digits, not only brackets or dashes: 7 to 15, as phone numbers are.
+    .refine((v) => {
+      const digits = v.replace(/\D/g, "").length
+      return digits >= 7 && digits <= 15
+    }, "Enter a phone number with country code, for example +94 77 123 4567"),
 }
 
 const iccidRule = z
@@ -73,9 +79,6 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
     [...formData.entries()].filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v)])
   )
   if (values.company) return { status: "error", message: "Something went wrong. Please try again.", values }
-  if (!(await rateLimit(`refill:${await clientIp()}`, 8, 10 * 60_000)).ok) {
-    return { status: "error", message: "Too many orders from this connection. Please wait a few minutes.", values }
-  }
 
   const parsed = schema.safeParse({ ...values, iccid: values.iccid ?? "" })
   const fieldErrors: RefillState["fieldErrors"] = {}
@@ -95,6 +98,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   const pkg = plan?.packages.find((p) => p.active && p.days === Number(values.days))
   if (!plan || !pkg) fieldErrors.plan = "Choose a plan and a length"
   else if (!plan.published || !plan.refillable || !carrier?.active) fieldErrors.plan = "This plan is no longer offered for refills. Choose another plan."
+  else if (values.mode === "activate" && plan.product_type !== "physical") fieldErrors.plan = "Choose a SIM card plan to start a SIM card"
   if (!parsed.success || Object.keys(fieldErrors).length || !plan || !pkg || !carrier) {
     return { status: "error", message: "Please check the highlighted fields.", fieldErrors, values }
   }
@@ -107,6 +111,10 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
 
   let discount: { id: string; code: string; cents: number } | null = null
   if (values.discount_code?.trim()) {
+    // Code tries share the code check's limit, so codes cannot be guessed through this form.
+    if (!(await rateLimit(`discount:${await clientIp()}`, 20, 10 * 60_000)).ok) {
+      return { status: "error", message: "Too many code tries. Wait a few minutes, or remove the code.", values }
+    }
     const found = await findDiscountCode(values.discount_code, carrier.id)
     if (!found.ok) return { status: "error", message: `${found.error}. Remove it or try another code.`, values }
     discount = { id: found.code.id, code: found.code.code, cents: discountFor(found.code as DiscountRule, discountableCents(priceInput)) }
@@ -115,8 +123,13 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   const minimum = await minimumOrderCents(settings?.min_order_cents ?? 0)
   if (total < minimum) return { status: "error", message: minimumOrderMessage(minimum, REFILL_HINT), values }
 
+  // Counted only for orders that passed every check: typos never lock out a shared Wi-Fi.
+  if (!(await rateLimit(`refill:${await clientIp()}`, 8, 10 * 60_000)).ok) {
+    return { status: "error", message: "Too many orders from this connection. Please wait a few minutes.", values }
+  }
+
   const refill = input.mode === "refill"
-  const linePhone = refill ? input.line_phone : null
+  const linePhone = refill ? tidyPhone(input.line_phone) : null
   const iccid = input.iccid || null
   const { data: order, error } = await db
     .from("orders")
@@ -156,7 +169,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
     return { status: "error", message: "We could not place your order. Please try again.", values }
   }
 
-  const { data: match } = await db.rpc("match_line", { p_phone: linePhone, p_iccid: iccid })
+  const { data: match } = await db.rpc("match_line", { p_phone: linePhone, p_iccid: iccid, p_carrier_id: carrier.id })
   const { error: itemError } = await db.from("order_items").insert({
     order_id: order.id,
     seq: 1,

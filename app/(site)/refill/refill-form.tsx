@@ -22,6 +22,8 @@ import { placeRefill, type RefillField, type RefillState } from "./actions"
 export type RefillPlan = {
   slug: string
   name: string
+  /** A SIM card plan; only these can start a SIM card bought on its own. */
+  sim: boolean
   facts: string
   packages: { days: number; price_cents: number; regular_price_cents: number | null }[]
 }
@@ -65,12 +67,16 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
   const formRef = React.useRef<HTMLFormElement>(null)
 
   const [mode, setMode] = React.useState<"refill" | "activate">((state.values?.mode as "refill" | "activate") ?? prefill.mode)
+  // Activating a SIM card needs a SIM card plan; a refill can be any plan of the carrier.
+  const offered = (c: RefillCarrier) => (mode === "activate" ? c.plans.filter((p) => p.sim) : c.plans)
+  const shownCarriers = carriers.filter((c) => offered(c).length)
   const [carrierSlug, setCarrierSlug] = React.useState<string>(
     state.values?.carrier ?? prefill.carrier ?? (carriers.length === 1 ? carriers[0].slug : "")
   )
-  const carrier = carriers.find((c) => c.slug === carrierSlug) ?? null
+  const carrier = shownCarriers.find((c) => c.slug === carrierSlug) ?? null
+  const carrierPlans = carrier ? offered(carrier) : []
   const [planSlug, setPlanSlug] = React.useState<string>(state.values?.plan ?? "")
-  const plan = carrier?.plans.find((p) => p.slug === planSlug) ?? null
+  const plan = carrierPlans.find((p) => p.slug === planSlug) ?? null
   const [days, setDays] = React.useState<number | null>(state.values?.days ? Number(state.values.days) : null)
   const pkg = plan?.packages.find((p) => p.days === days) ?? null
   const [intl, setIntl] = React.useState(state.values?.intl === "on")
@@ -99,7 +105,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
     <Notice tone="warning" icon={false}>
       {minimumOrderMessage(fees.minimumCents, "Choose a longer plan.")}
     </Notice>
-  ) : state.status === "error" && state.message ? (
+  ) : state.status === "error" && state.message && (state.values?.mode ?? mode) === mode ? (
     <Notice tone="danger" icon={false}>
       {state.message}
     </Notice>
@@ -118,8 +124,8 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
     "Refill my number"
   )
 
-  const carrierItems = carriers.map((c) => ({ value: c.slug, label: c.name }))
-  const planItems = (carrier?.plans ?? []).map((p) => ({ value: p.slug, label: p.name }))
+  const carrierItems = shownCarriers.map((c) => ({ value: c.slug, label: c.name }))
+  const planItems = carrierPlans.map((p) => ({ value: p.slug, label: p.name }))
   const dayItems = (plan?.packages ?? []).map((p) => ({ value: String(p.days), label: `${formatDays(p.days)}, ${formatPrice(p.price_cents)}` }))
 
   return (
@@ -130,74 +136,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
       <input type="hidden" name="days" value={days ?? ""} />
       {addon ? <input type="hidden" name="intl" value={intl ? "on" : "off"} /> : null}
 
-      <aside aria-label="Your order" className="lg:sticky lg:top-24 lg:order-2">
-        <div className="rounded-xl border bg-card">
-          <div className="p-5">
-            <p className="text-sm font-medium text-muted-foreground">{activate ? "Activate a SIM card" : "Refill"}</p>
-            <p className="mt-1 font-heading text-xl font-semibold tracking-[-0.02em]">
-              {plan && carrier ? `${carrier.name} ${plan.name}` : "Choose a plan"}
-            </p>
-            {plan?.facts ? <p className="mt-1 text-sm text-muted-foreground">{plan.facts}</p> : null}
-            <p className="mt-3 text-sm text-muted-foreground">
-              {activate
-                ? "Your plan days start when the line is activated."
-                : "If your current plan is still running, the new days start the day after it ends. You keep every day you paid for."}
-            </p>
-          </div>
-
-          {addon && pkg ? (
-            <label htmlFor="intl" className="flex cursor-pointer items-center gap-3 border-t px-5 py-4">
-              <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                <PhoneIcon className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1 text-sm">
-                <span className="block font-medium">{addon.name}</span>
-                <span className="tabular font-mono text-xs text-muted-foreground">+{formatPrice(addon.price_cents)}</span>
-              </span>
-              <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
-            </label>
-          ) : null}
-          {addon && pkg && callingList ? (
-            <div className="-mt-2 px-5 pb-2">
-              <CallingDestinations />
-            </div>
-          ) : null}
-
-          <dl className="space-y-2 border-t px-5 py-4 text-sm">
-            {pkg && plan && carrier ? (
-              <Line label={`${carrier.name} ${plan.name}, ${formatDays(pkg.days)}`} value={formatPrice(unitCents)} />
-            ) : (
-              <Line label="Plan, not chosen yet" value={formatPrice(0)} />
-            )}
-            {intl && addon && pkg ? <Line label={addon.name} value={formatPrice(addonCents)} /> : null}
-            {pkg && fees.networkFeeCents > 0 ? <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} /> : null}
-            {discount && pkg ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
-            {carrier ? (
-              <DiscountCode carrierSlug={carrier.slug} applied={discount} initial={state.values?.discount_code ?? ""} onChange={setDiscount} />
-            ) : null}
-            <div className="flex items-baseline justify-between gap-4 pt-2">
-              <dt className="font-medium">Total</dt>
-              <dd aria-live="polite" className="tabular font-mono text-2xl font-medium tracking-tight">
-                {formatPrice(total)}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
-            {alert}
-            <Button type="submit" size="xl" disabled={pending || belowMinimum} className="w-full">
-              {submitLabel}
-            </Button>
-            <Agreement takesPayment={takesPayment} />
-            <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <LockSimpleIcon className="size-3.5" />
-              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
-            </p>
-          </div>
-        </div>
-      </aside>
-
-      <div key={JSON.stringify(state.values ?? {})} className="flex min-w-0 flex-col gap-6 lg:order-1">
+      <div key={JSON.stringify(state.values ?? {})} className="flex min-w-0 flex-col gap-6">
         <FormCard>
           <FormSection title="What do you need?">
             <fieldset className="sm:col-span-full">
@@ -347,7 +286,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
                 value={planSlug || null}
                 disabled={!carrier}
                 onValueChange={(v) => {
-                  const next = carrier?.plans.find((p) => p.slug === String(v ?? ""))
+                  const next = carrierPlans.find((p) => p.slug === String(v ?? ""))
                   setPlanSlug(next?.slug ?? "")
                   setDays(next && next.packages.some((p) => p.days === days) ? days : (next?.packages[0]?.days ?? null))
                 }}
@@ -385,7 +324,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
           <FormSection title="Contact" description="Your order link and updates go to this email.">
             <Field data-invalid={invalid("name")}>
               <FieldLabel htmlFor="name">Full name</FieldLabel>
-              <Input id="name" name="name" autoComplete="name" defaultValue={values.name} aria-invalid={invalid("name")} />
+              <Input id="name" name="name" autoComplete="name" maxLength={120} defaultValue={values.name} aria-invalid={invalid("name")} />
               {err("name")}
             </Field>
             <Field data-invalid={invalid("email")}>
@@ -423,9 +362,81 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
         </div>
       </div>
 
+      {/* Order summary: top on phones, right rail on desktop; after the form so the keyboard
+          reaches the form first. */}
+      <aside aria-label="Your order" className="max-lg:order-first lg:sticky lg:top-24">
+        <div className="rounded-xl border bg-card">
+          <div className="p-5">
+            <p className="text-sm font-medium text-muted-foreground">{activate ? "Activate a SIM card" : "Refill"}</p>
+            <p className="mt-1 font-heading text-xl font-semibold tracking-[-0.02em]">
+              {plan && carrier ? `${carrier.name} ${plan.name}` : "Choose a plan"}
+            </p>
+            {plan?.facts ? <p className="mt-1 text-sm text-muted-foreground">{plan.facts}</p> : null}
+            <p className="mt-3 text-sm text-muted-foreground">
+              {activate
+                ? "Your plan days start when the line is activated."
+                : "If your current plan is still running, the new days start the day after it ends. You keep every day you paid for."}
+            </p>
+          </div>
+
+          {addon && pkg ? (
+            <label htmlFor="intl" className="flex cursor-pointer items-center gap-3 border-t px-5 py-4">
+              <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                <PhoneIcon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="block font-medium">{addon.name}</span>
+                <span className="tabular font-mono text-xs text-muted-foreground">+{formatPrice(addon.price_cents)}</span>
+              </span>
+              <Switch id="intl" checked={intl} onCheckedChange={setIntl} />
+            </label>
+          ) : null}
+          {addon && pkg && callingList ? (
+            <div className="-mt-2 px-5 pb-2">
+              <CallingDestinations />
+            </div>
+          ) : null}
+
+          <dl className="space-y-2 border-t px-5 py-4 text-sm">
+            {pkg && plan && carrier ? (
+              <Line label={`${carrier.name} ${plan.name}, ${formatDays(pkg.days)}`} value={formatPrice(unitCents)} />
+            ) : (
+              <Line label="Plan, not chosen yet" value={formatPrice(0)} />
+            )}
+            {intl && addon && pkg ? <Line label={addon.name} value={formatPrice(addonCents)} /> : null}
+            {pkg && fees.networkFeeCents > 0 ? <Line label="Network fee" value={formatPrice(fees.networkFeeCents)} /> : null}
+            {discount && pkg ? <Line label={`Discount (${discount.code})`} value={`-${formatPrice(discountCents)}`} /> : null}
+            {carrier ? (
+              <DiscountCode carrierSlug={carrier.slug} applied={discount} initial={state.values?.discount_code ?? ""} onChange={setDiscount} />
+            ) : null}
+            <div className="flex items-baseline justify-between gap-4 pt-2">
+              <dt className="font-medium">Total</dt>
+              <dd aria-live="polite" className="tabular font-mono text-2xl font-medium tracking-tight">
+                {formatPrice(total)}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
+            {alert}
+            <Button type="submit" size="xl" disabled={pending || belowMinimum} className="w-full">
+              {submitLabel}
+            </Button>
+            <Agreement takesPayment={takesPayment} />
+            <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <LockSimpleIcon className="size-3.5" />
+              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
+            </p>
+          </div>
+        </div>
+      </aside>
+
       <ActionBar>
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Total</p>
+          {/* On a phone the minimum notice is far down the form: say it here, by the button. */}
+          <p className={belowMinimum ? "text-xs text-warning-ink" : "text-xs text-muted-foreground"}>
+            {belowMinimum ? `Minimum ${formatPrice(fees.minimumCents)}` : "Total"}
+          </p>
           <p aria-hidden className="tabular font-mono text-xl font-medium tracking-tight">
             {formatPrice(total)}
           </p>

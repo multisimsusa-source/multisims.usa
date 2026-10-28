@@ -215,10 +215,13 @@ export function LoginActiveSwitch({
 export function ResetPasswordButton({
   userId,
   name,
+  email,
   action,
 }: {
   userId: string
   name: string
+  /** Shown with the new password, so both can be sent together as after creating the login. */
+  email?: string
   action: (userId: string, password: string) => Promise<ActionResult>
 }) {
   const [open, setOpen] = React.useState(false)
@@ -250,7 +253,7 @@ export function ResetPasswordButton({
           <DialogDescription>Their old password stops working at once. Send them the new one yourself.</DialogDescription>
         </DialogHeader>
         {saved ? (
-          <SavedLogin name={name} password={saved} onDone={() => setOpen(false)} />
+          <SavedLogin name={name} email={email} password={saved} onDone={() => setOpen(false)} />
         ) : (
         <form
           className="flex flex-col gap-4"

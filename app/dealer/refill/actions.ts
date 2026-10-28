@@ -6,7 +6,7 @@ import { z } from "zod"
 
 import type { ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
-import { formatPrice } from "@/lib/format"
+import { formatPrice, tidyPhone } from "@/lib/format"
 import { notifyNewBatchToStaff } from "@/lib/notify"
 import { createClient } from "@/lib/supabase/server"
 
@@ -45,9 +45,20 @@ export async function placeDealerRefill(input: DealerRefillInput): Promise<Actio
     const issue = parsed.error.issues[0]
     return { ok: false, error: issue.message, fieldErrors: { [issue.path[0] === "reference" ? "reference" : "lines"]: issue.message } }
   }
+  // One number once per refill, however it was typed: a repeat would be charged twice.
+  const seen = new Set<string>()
+  for (const line of parsed.data.lines) {
+    for (const n of line.numbers) {
+      const key = n.phone.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "")
+      if (seen.has(key)) return { ok: false, error: `${n.phone} is in this refill more than once. Keep it on one row only.` }
+      seen.add(key)
+    }
+  }
+  if (seen.size > 1000) return { ok: false, error: "At most 1,000 numbers per refill. Place the rest as a second refill." }
+
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("place_dealer_refill", {
-    p_lines: parsed.data.lines,
+    p_lines: parsed.data.lines.map((l) => ({ ...l, numbers: l.numbers.map((n) => ({ ...n, phone: tidyPhone(n.phone) })) })),
     p_reference: parsed.data.reference || null,
   })
   if (error || !data) {

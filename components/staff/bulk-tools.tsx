@@ -223,7 +223,7 @@ function BulkQr({ items, total }: { items: BulkItem[]; total: number }) {
                 {failed.length ? `, ${failed.length} failed` : ""}
               </>
             ) : (
-              `${uploads.length} images ready for ${uploads.length} SIMs. Check the order above, then upload.`
+              `${uploads.length} ${uploads.length === 1 ? "image" : "images"} ready for ${uploads.length} ${uploads.length === 1 ? "SIM" : "SIMs"}. Check the order above, then upload.`
             )}
           </p>
           <div className="flex flex-wrap gap-2">

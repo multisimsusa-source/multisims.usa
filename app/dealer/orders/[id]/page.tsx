@@ -224,7 +224,7 @@ async function BatchDetail({
           <Panel title="Progress">
             {progress.total ? (
               <KeyValue
-                label="SIMs live"
+                label={batch.orders.every((o) => o.kind === "refill") ? "Numbers refilled" : "SIMs live"}
                 value={`${progress.delivered} of ${progress.total}`}
                 mono
               />
@@ -337,6 +337,7 @@ function LineCard({
             {orderTitle(order)}
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
+            {order.kind === "refill" ? "Refill · " : ""}
             {productTypeLabel[order.product_type]}
             {order.days !== null ? ` · ${formatDays(order.days)}` : " only"}
             {order.addon_name ? ` · ${order.addon_name}` : ""} &middot;{" "}
@@ -348,7 +349,7 @@ function LineCard({
             <span className="text-sm text-muted-foreground">
               <span className="tabular font-mono text-foreground">{live}</span>{" "}
               of <span className="tabular font-mono">{order.quantity}</span>{" "}
-              {cardOnly ? "shipped" : "live"}
+              {cardOnly ? "shipped" : order.kind === "refill" ? "refilled" : "live"}
             </span>
           )}
           <CustomerStatusTag status={status} />
@@ -464,7 +465,7 @@ function Value({
     <div className="flex min-w-0 items-center gap-1">
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="tabular font-mono text-sm break-all sm:break-normal sm:whitespace-nowrap">
+        <dd className="tabular font-mono text-sm break-all">
           {value ?? (
             <span className="font-sans text-muted-foreground">Not yet</span>
           )}
@@ -474,7 +475,6 @@ function Value({
         <CopyButton
           value={value}
           label={`${label} ${value}`}
-          className="size-8"
         />
       ) : null}
     </div>

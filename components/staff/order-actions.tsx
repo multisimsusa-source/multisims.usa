@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -14,11 +14,13 @@ export function ActionButton({
   children,
   pendingLabel,
   onDone,
+  onFail,
   ...props
 }: Omit<React.ComponentProps<typeof Button>, "onClick" | "action"> & {
   action: () => Promise<ActionResult>
   pendingLabel?: string
   onDone?: (result: Extract<ActionResult, { ok: true }>) => void
+  onFail?: () => void
 }) {
   const [pending, start] = React.useTransition()
   return (
@@ -30,6 +32,7 @@ export function ActionButton({
           const result = await action()
           if (!result.ok) {
             toast.error(result.error)
+            onFail?.()
             return
           }
           if (result.message) toast.success(result.message)
@@ -51,13 +54,17 @@ export function ClaimButton({
   className?: string
 }) {
   const router = useRouter()
+  // The owner claims from admin screens and stays in admin; agents work in their portal.
+  const base = usePathname().startsWith("/admin") ? "/admin" : "/agent"
   return (
     <ActionButton
       action={() => claimOrder(orderId)}
       pendingLabel="Claiming..."
       size="lg"
       className={className}
-      onDone={() => router.push(`/agent/orders/${orderId}`)}
+      onDone={() => router.push(`${base}/orders/${orderId}`)}
+      // Someone else was quicker: show the order as it is now, with who holds it.
+      onFail={() => router.refresh()}
     >
       Claim
     </ActionButton>

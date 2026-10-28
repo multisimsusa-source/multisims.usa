@@ -30,6 +30,7 @@ import { RowActions } from "@/components/patterns/row-actions"
 import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletMeter } from "@/components/dealer/wallet-meter"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
+import { PortalNotFound } from "@/components/staff/portal-not-found"
 import { DemoFormSection, DemoQuantityStepper, DemoRating, DemoSelect, DemoSwitch } from "./demos"
 
 export const metadata: Metadata = { title: "Design system" }
@@ -441,6 +442,13 @@ export default function DesignSystemPage() {
           <EmptyState icon={<ReceiptIcon />} title="No orders yet">
             Orders appear here as soon as customers check out.
           </EmptyState>
+        </Block>
+
+        <Block
+          title="Missing page in a portal"
+          note="PortalNotFound is each portal's not-found page: an unknown id, or an order on another account. It stays inside the portal and points back to the list. The public site's 404 keeps the site header and footer. After a create or delete that redirects, FlashToast shows the toast once from a ?created=1 marker and removes it from the URL."
+        >
+          <PortalNotFound href="/admin/orders" label="Back to orders" />
         </Block>
 
         <Block

@@ -113,7 +113,7 @@ export function CarrierDialog(props: Props) {
             <FieldLabel>Fulfilment</FieldLabel>
             <div className="flex items-center justify-between rounded-md border px-3 py-2.5 text-sm">
               <span>Manual, by agents</span>
-              <span className="text-xs text-muted-foreground">Carrier API: later phase</span>
+              <span className="text-xs text-muted-foreground">Automatic activation is not available yet</span>
             </div>
           </Field>
 

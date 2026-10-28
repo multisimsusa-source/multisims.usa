@@ -18,8 +18,8 @@ import { JsonLd } from "@/components/json-ld"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
 import { ProductBadge } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
-import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublishedPlans, getSimCards } from "@/lib/catalog"
-import { dataLabel, formatPrice, hotspotLabel, productTypeLabel, slowdownLabel } from "@/lib/format"
+import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublicFees, getPublishedPlans, getSimCardPrices, getSimCards } from "@/lib/catalog"
+import { dataLabel, formatPrice, hotspotLabel, planFullName, productTypeLabel, slowdownLabel } from "@/lib/format"
 import { absoluteUrl } from "@/lib/site"
 import type { CatalogPlan } from "@/lib/types"
 
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: PageProps<"/plans/[slug]">): 
   const plan = await getPlanBySlug(slug)
   if (!plan) return { title: "Plan not found", robots: { index: false } }
 
-  const title = `${plan.carrier.name} ${plan.name} ${productTypeLabel[plan.product_type]}`
+  const title = planFullName(plan)
   const description = `${plan.carrier.name} ${productTypeLabel[plan.product_type]} for the US: ${lowerFirst(dataLabel(plan))}, ${lowerFirst(hotspotLabel(plan))}, ${lowerFirst(plan.talk)}. ${plan.packages.length} day packages from ${plan.packages[0].days} to ${plan.packages[plan.packages.length - 1].days} days.`
   return {
     title,
@@ -62,7 +62,14 @@ export default function PlanPage({ params }: PageProps<"/plans/[slug]">) {
 
 async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params">) {
   const { slug } = await params
-  const [plan, addon, destinations, simCards] = await Promise.all([getPlanBySlug(slug), getIntlCallingAddon(), getCallingDestinations(), getSimCards()])
+  const [plan, addon, destinations, simCards, fees, cardPrices] = await Promise.all([
+    getPlanBySlug(slug),
+    getIntlCallingAddon(),
+    getCallingDestinations(),
+    getSimCards(),
+    getPublicFees(),
+    getSimCardPrices(),
+  ])
   if (!plan) notFound()
   const card = plan.product_type === "physical" ? simCards.find((c) => c.carrier.id === plan.carrier.id) : undefined
 
@@ -149,7 +156,7 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
               {plan.carrier.name} {productTypeLabel[plan.product_type]}
             </p>
             <p className="font-heading text-2xl font-semibold tracking-[-0.02em]">{plan.name}</p>
-            <PlanConfigurator plan={plan} addon={addon} callingList={destinations.length > 0} className="mt-6" />
+            <PlanConfigurator plan={plan} addon={addon} callingList={destinations.length > 0} extras={checkoutExtras(plan, fees, cardPrices)} className="mt-6" />
           </div>
         </aside>
       </div>
@@ -200,7 +207,7 @@ function productJsonLd(plan: CatalogPlan) {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `${plan.carrier.name} ${plan.name} ${productTypeLabel[plan.product_type]}`,
+    name: planFullName(plan),
     description: plan.summary || plan.description,
     category: plan.product_type === "esim" ? "eSIM" : "SIM card",
     brand: { "@type": "Brand", name: plan.carrier.name },
@@ -226,4 +233,21 @@ function productJsonLd(plan: CatalogPlan) {
 
 function lowerFirst(text: string) {
   return text.charAt(0).toLowerCase() + text.slice(1)
+}
+
+/** What checkout adds to the plan's price, in words, so the total on this page is never a surprise. */
+function checkoutExtras(
+  plan: CatalogPlan,
+  fees: { shippingCents: number; simCardCents: number; networkFeeCents: number },
+  cardPrices: Record<string, number>
+) {
+  const parts: string[] = []
+  if (plan.product_type === "physical") {
+    parts.push(`the SIM card (${formatPrice(cardPrices[plan.carrier.id] ?? fees.simCardCents)})`)
+    if (fees.shippingCents) parts.push(`shipping (${formatPrice(fees.shippingCents)})`)
+  }
+  if (fees.networkFeeCents) parts.push(`the ${formatPrice(fees.networkFeeCents)} network fee`)
+  if (!parts.length) return undefined
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]
+  return `Plus ${list} at checkout.`
 }

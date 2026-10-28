@@ -150,7 +150,8 @@ export function OrderBuilder({
   const sims = lines.reduce((n, l) => n + l.quantity, 0)
   const complete = priced.every((p) => p.pkg || p.card)
   const short = total > availableCents
-  const canPlace = complete && !short && sims <= MAX_SIMS && total > 0
+  const overTotal = sims > MAX_SIMS
+  const canPlace = complete && !short && !overTotal && total > 0
 
   const update = (key: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
@@ -199,7 +200,11 @@ export function OrderBuilder({
   }
 
   const placeLabel = pending ? "Placing order..." : "Place order"
-  const shortNotice = short ? (
+  const shortNotice = overTotal ? (
+    <Notice tone="warning" title={`At most ${MAX_SIMS.toLocaleString("en-US")} SIMs per order`}>
+      This order has {sims.toLocaleString("en-US")}. Place the rest as a second order.
+    </Notice>
+  ) : short ? (
     <Notice
       tone="warning"
       title={`You need ${formatPrice(total - availableCents)} more`}
@@ -227,7 +232,7 @@ export function OrderBuilder({
             <p className="mt-1 text-sm text-muted-foreground">
               Up to {MAX_PER_LINE} SIMs per line and {MAX_SIMS} per order.
               Prices are yours, per SIM. SIM cards on their own are at the top
-              of the Plan list; type any quantity.
+              of the Plan list; type the quantity, up to {MAX_PER_LINE} per line.
             </p>
             {cards.length === 0 ? (
               <Notice tone="info" className="mt-4">
@@ -236,7 +241,7 @@ export function OrderBuilder({
             ) : null}
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, card, plan, pkg, each, subtotal }, i) => {
+            {priced.map(({ line, card, plan, pkg, sim, each, subtotal }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -355,11 +360,12 @@ export function OrderBuilder({
                       <Select
                         items={(plan?.packages ?? []).map((p) => ({
                           value: p.id,
-                          label: `${formatDays(p.days)}, ${formatPrice(p.price_cents)}`,
+                          label: `${formatDays(p.days)}, ${formatPrice(p.price_cents + sim)}`,
                         }))}
                         value={line.packageId}
+                        // Ignore the empty value sent while the options change with the plan.
                         onValueChange={(v) =>
-                          update(line.key, { packageId: v ? String(v) : null })
+                          v && update(line.key, { packageId: String(v) })
                         }
                         disabled={!plan}
                       >
@@ -380,7 +386,7 @@ export function OrderBuilder({
                               <span className="flex w-full justify-between gap-4">
                                 {formatDays(p.days)}
                                 <span className="tabular font-mono">
-                                  {formatPrice(p.price_cents)}
+                                  {formatPrice(p.price_cents + sim)}
                                 </span>
                               </span>
                             </SelectItem>
@@ -651,8 +657,8 @@ export function OrderBuilder({
               {placeLabel}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Funds are held now and taken as each SIM is delivered. Anything
-              not delivered is returned.
+              Funds are held now and taken as each SIM is delivered or shipped.
+              Anything not done is returned.
             </p>
           </div>
         </div>

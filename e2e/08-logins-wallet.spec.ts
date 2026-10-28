@@ -103,7 +103,7 @@ test.describe.serial("Dealer logins and wallet", () => {
     await page.waitForURL(/\/dealer/)
     await page.goto("/dealer/wallet")
     await expect(page.getByText("Total money in your wallet")).toBeVisible()
-    await expect(page.getByText("Reserved for orders and refills not delivered yet. Taken as each SIM is delivered, and returned if cancelled.")).toBeVisible()
+    await expect(page.getByText("Reserved for orders and refills not done yet. Taken as each SIM is delivered, shipped or refilled, and returned if cancelled.")).toBeVisible()
     await expect(page.getByText("Balance minus held", { exact: true })).toBeVisible()
     await expect(page.getByText("Credit limit", { exact: true })).toBeVisible()
     await expect(page.getByText("Extra amount you can spend beyond your balance (0 unless agreed)")).toBeVisible()

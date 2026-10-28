@@ -108,7 +108,7 @@ export async function TicketsList({
                   {formatDateTime(t.created_at)}
                 </p>
               </div>
-              <TicketStatusTag status={t.status} />
+              <TicketStatusTag status={t.status} className="self-start sm:self-auto" />
             </li>
           ))}
         </ul>
@@ -147,8 +147,9 @@ export async function TicketView({
   } = data
   const unit = t.order.product_type === "esim" ? "eSIM" : "SIM"
 
-  // Delivered SIMs this ticket can replace: the original's, and delivered replacements.
-  const replaceable = [
+  // Delivered SIMs this ticket can replace: the original's, and delivered replacements. A
+  // refill sends no SIM, so it has none.
+  const replaceable = t.order.kind === "refill" ? [] : [
     ...items
       .filter((i) => i.status === "fulfilled")
       .map((i) => ({ ...i, label: `${unit} ${i.seq}` })),

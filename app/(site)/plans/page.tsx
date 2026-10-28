@@ -36,10 +36,12 @@ export default function PlansPage({ searchParams }: PageProps<"/plans">) {
 async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchParams">) {
   const params = await searchParams
   const type = parseType(params.type)
-  const carrier = typeof params.carrier === "string" ? params.carrier : undefined
   const sort = parseSort(params.sort)
 
   const [allPlans, carriers, simCards] = await Promise.all([getPublishedPlans(), getActiveCarriers(), getSimCards()])
+  // An unknown or hidden carrier in the URL (an old link) means all carriers.
+  const asked = typeof params.carrier === "string" ? params.carrier : undefined
+  const carrier = carriers.some((c) => c.slug === asked) ? asked : undefined
   // Cards on their own sit with the SIM card plans, filtered by carrier like them.
   const cards = type === "esim" ? [] : simCards.filter((c) => !carrier || c.carrier.slug === carrier)
 
