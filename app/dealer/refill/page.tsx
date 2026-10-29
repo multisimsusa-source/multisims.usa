@@ -44,16 +44,20 @@ async function Builder() {
 
   if (!plans.length) {
     return (
+      // Two different reasons, two different messages: refills are not open at all yet, or
+      // they are but this dealer has no price for those plans.
       <EmptyState
         icon={<ArrowsClockwiseIcon />}
-        title="No refill plans are priced for you yet"
+        title={ids.size ? "No refill plans are priced for you yet" : "Refills open soon"}
         action={
           <Link href="/dealer" className={buttonVariants({ variant: "outline", size: "lg" })}>
             Back to overview
           </Link>
         }
       >
-        Contact us and we will let you know when you can refill numbers here.
+        {ids.size
+          ? "Refills are open, but your account has no price for those plans yet. Contact us and we will set your prices."
+          : "Refilling numbers here is not open yet. Contact us and we will let you know when it is."}
       </EmptyState>
     )
   }

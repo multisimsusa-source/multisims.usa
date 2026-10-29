@@ -146,6 +146,8 @@ test.describe.serial("QA fixes", () => {
   })
 
   test("a SIM card on its own asks for no ZIP; activating a card offers only SIM card plans", async ({ browser }) => {
+    // On sale on its own (09-sim-cards does this too; set here so this file runs alone).
+    await db().from("sim_cards").upsert({ carrier_id: await carrier("E2E Mobile"), price_cents: 600, wholesale_price_cents: 450, active: true })
     const page = await guestPage(browser, PHONE)
     await page.goto("/checkout?card=e2e-mobile")
     await expect(page.getByLabel("US ZIP code")).toHaveCount(0)
