@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MultiSims USA Product Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500&family=Funnel+Display:wght@500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 18mm 20mm; }
+  @page :first { margin: 0; }
+  :root {
+    --plum: oklch(0.25 0.097 324);
+    --plum-soft: oklch(0.948 0.022 324);
+    --copper: oklch(0.61 0.066 61);
+    --ink: oklch(0.22 0.025 322);
+    --muted: oklch(0.45 0.018 315);
+    --line: oklch(0.912 0.007 300);
+    --canvas: oklch(0.972 0.005 295);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Geist", "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.6; margin: 0; }
+  h1, h2, h3 { font-family: "Funnel Display", "Geist", sans-serif; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0 0 2.6mm; }
+  b { font-weight: 600; }
+  ol, ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.3mm; }
+  li::marker { color: var(--copper); }
+  .mono { font-family: "Geist Mono", monospace; font-size: 0.92em; }
+  .path { font-weight: 600; color: var(--plum); }
+
+  /* Cover */
+  .cover { height: 297mm; padding: 26mm 22mm 22mm; display: flex; flex-direction: column; justify-content: space-between; background: var(--canvas); page-break-after: always; }
+  .logo { font-family: "Bodoni Moda", Didot, Georgia, serif; color: var(--plum); font-size: 34pt; font-weight: 500; line-height: 1; }
+  .logo small { display: block; font-family: "Geist", sans-serif; font-size: 7.5pt; letter-spacing: 0.34em; color: var(--copper); margin-top: 3mm; font-weight: 500; }
+  .cover h1 { font-size: 44pt; font-weight: 600; color: var(--ink); letter-spacing: -0.03em; }
+  .cover .lead { font-size: 13.5pt; color: var(--muted); max-width: 135mm; margin-top: 7mm; line-height: 1.5; }
+  .cover .rule { width: 18mm; height: 1.2mm; background: var(--copper); border-radius: 1mm; margin-bottom: 8mm; }
+  .cover .meta { display: flex; justify-content: space-between; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 4mm; }
+
+  /* Sections */
+  .chapter { page-break-before: always; }
+  .kicker { font-size: 8pt; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--copper); margin-bottom: 2mm; }
+  h2 { font-size: 24pt; font-weight: 600; color: var(--plum); margin-bottom: 3mm; }
+  .intro { font-size: 11pt; color: var(--muted); max-width: 150mm; margin-bottom: 5mm; line-height: 1.5; }
+  h3 { font-size: 12.5pt; font-weight: 600; color: var(--ink); margin: 5.5mm 0 1.8mm; }
+  h3 .n { color: var(--copper); margin-right: 2.5mm; font-family: "Geist Mono", monospace; font-size: 10pt; font-weight: 500; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  li, .box, figure, tr, table, .roles, .flow { break-inside: avoid; page-break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+
+  /* Boxes */
+  .box { background: var(--canvas); border: 1px solid var(--line); border-radius: 2.5mm; padding: 4mm 5mm; margin: 3mm 0 5mm; }
+  .box h4 { font-family: "Geist", sans-serif; font-size: 8pt; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--plum); margin: 0 0 2mm; }
+  .box ul { margin: 0; }
+  .box.plum { background: var(--plum-soft); border-color: transparent; }
+  .note { border-left: 2px solid var(--copper); padding: 1mm 0 1mm 4mm; margin: 3mm 0 4mm; color: var(--ink); }
+  .note b { color: var(--plum); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9.5pt; }
+  th { text-align: left; font-weight: 600; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); border-bottom: 1px solid var(--ink); padding: 0 3mm 1.8mm 0; }
+  td { border-bottom: 1px solid var(--line); padding: 1.8mm 3mm 1.8mm 0; vertical-align: top; }
+  td:first-child { font-weight: 600; color: var(--plum); white-space: nowrap; }
+
+  /* Role cards on the overview */
+  .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; margin: 3mm 0 4mm; }
+  .role { border: 1px solid var(--line); border-radius: 2.5mm; padding: 3.2mm 4.5mm; break-inside: avoid; }
+  .role .who { font-family: "Funnel Display", sans-serif; font-size: 13pt; font-weight: 600; color: var(--plum); }
+  .role .where { font-size: 8.5pt; color: var(--copper); font-weight: 600; letter-spacing: 0.04em; margin: 0.5mm 0 2mm; }
+  .role p { margin: 0; font-size: 9.5pt; color: var(--muted); }
+
+  /* Flow strip */
+  .flow { display: flex; align-items: stretch; gap: 0; margin: 4mm 0 6mm; break-inside: avoid; }
+  .flow .step { flex: 1; border: 1px solid var(--line); border-radius: 2mm; padding: 3mm; font-size: 8.8pt; line-height: 1.45; background: #fff; }
+  .flow .step b { display: block; color: var(--plum); font-size: 9.2pt; margin-bottom: 1mm; }
+  .flow .step span { color: var(--muted); }
+  .flow .arrow { width: 5mm; display: flex; align-items: center; justify-content: center; color: var(--copper); font-size: 11pt; }
+
+  /* Statuses strip */
+  .statuses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 4mm; break-inside: avoid; }
+  .statuses div { border-top: 2px solid var(--plum); padding-top: 2mm; font-size: 9pt; line-height: 1.45; }
+  .statuses b { display: block; color: var(--plum); margin-bottom: 0.5mm; }
+  .statuses span { color: var(--muted); }
+
+  /* Screens */
+  figure { margin: 3mm 0 5mm; }
+  figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 2mm; }
+  section > figure { width: 88%; }
+  figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 2mm; }
+  .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin: 4mm 0 6mm; break-inside: avoid; }
+  .phones.two { grid-template-columns: repeat(2, 1fr); max-width: 115mm; }
+  .phones figure { margin: 0; }
+  .phones img { border-radius: 3mm; }
+
+  /* Contents */
+  .toc { list-style: none; padding: 0; margin: 6mm 0 0; counter-reset: toc; }
+  .toc li { counter-increment: toc; display: flex; gap: 4mm; padding: 3mm 0; border-bottom: 1px solid var(--line); font-size: 11pt; margin: 0; }
+  .toc li::before { content: counter(toc, decimal-leading-zero); font-family: "Geist Mono", monospace; color: var(--copper); font-size: 10pt; padding-top: 0.6mm; }
+  .toc span { color: var(--muted); font-size: 9.5pt; margin-left: auto; }
+  .two-col { columns: 2; column-gap: 8mm; }
+  .two-col li { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<section class="cover">
+  <div class="logo">MSU<small>MULTISIMS.USA</small></div>
+  <div>
+    <div class="rule"></div>
+    <h1>Product guide</h1>
+    <p class="lead">How MultiSims USA works for everyone who uses it: your customers, your agents, your dealers and you. What each of them is responsible for, and every step they take.</p>
+  </div>
+  <div class="meta"><span>MultiSims USA</span><span>Version 1, October 2026</span></div>
+</section>
+
+<!-- Contents -->
+<section>
+  <div class="kicker">Inside</div>
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li>MultiSims USA in one page <span>Who uses it and what they buy</span></li>
+    <li>How an order moves <span>From payment to a working line</span></li>
+    <li>Customers <span>Buying, refilling and getting help</span></li>
+    <li>Agents <span>Filling orders from the queue</span></li>
+    <li>Dealers <span>Bulk orders paid from a wallet</span></li>
+    <li>You, the owner <span>Running the business from admin</span></li>
+    <li>Before you open <span>A short setup checklist</span></li>
+    <li>Good to know <span>Payments, wording, times and support</span></li>
+  </ol>
+  <p class="note" style="margin-top:9mm">The screens in this guide come from a test copy of the site with example names and prices. Your live site looks the same with your own plans and prices.</p>
+</section>
+
+<!-- 1. Overview -->
+<section class="chapter">
+  <div class="kicker">01</div>
+  <h2>MultiSims USA in one page</h2>
+  <p class="intro">MultiSims USA sells US phone lines to people who need one: travellers, students and anyone moving to the US. A line is a plan from a US carrier, sold in day packages, and it comes as an eSIM or as a physical SIM card. Customers pay in crypto. Your team fills every order by hand from a shared queue.</p>
+
+  <h3>Four kinds of people use it</h3>
+  <div class="roles">
+    <div class="role">
+      <div class="who">Customer</div>
+      <div class="where">multisimsusa.com, no account</div>
+      <p>Picks a plan, pays in crypto and gets the line on a private order page and by email. Can refill the number later, activate a SIM card, rate the order and report a problem.</p>
+    </div>
+    <div class="role">
+      <div class="who">Agent</div>
+      <div class="where">Agent portal, signs in</div>
+      <p>Takes paid orders from the queue and fills them on the carrier's side: QR codes, phone numbers, ICCIDs, tracking, refills. Answers support tickets.</p>
+    </div>
+    <div class="role">
+      <div class="who">Dealer</div>
+      <div class="where">Dealer portal, signs in</div>
+      <p>A shop or reseller that buys in bulk at its own prices. Pays from a prepaid wallet, orders many SIMs at once and refills its customers' numbers.</p>
+    </div>
+    <div class="role">
+      <div class="who">Owner</div>
+      <div class="where">Admin portal, signs in</div>
+      <p>You. Sets carriers, plans and prices, manages agents and dealers, adds dealer funds, decides on problems and follows the numbers.</p>
+    </div>
+  </div>
+
+  <h3>What can be bought</h3>
+  <table>
+    <tr><th>Product</th><th>What the customer gets</th></tr>
+    <tr><td>eSIM</td><td>A QR code to scan with the phone, plus the phone number. Nothing is posted.</td></tr>
+    <tr><td>SIM card with a plan</td><td>A physical SIM card posted by USPS with tracking. The plan starts when it arrives, or on a date the customer chooses.</td></tr>
+    <tr><td>SIM card on its own</td><td>Just the card, with no plan and no days. It can be activated later with any plan.</td></tr>
+    <tr><td>Refill</td><td>More days on a number that is already active. Same SIM, same number.</td></tr>
+    <tr><td>Activation</td><td>A plan started on a SIM card that was bought on its own.</td></tr>
+  </table>
+
+  <h3>What customers and dealers see</h3>
+  <p>However much happens behind the scenes, customers and dealers only ever see four simple statuses. Nothing on the site says a person fills the order.</p>
+  <div class="statuses">
+    <div><b>Processing</b><span>Paid and being prepared.</span></div>
+    <div><b>Shipped</b><span>A SIM card is in the post, with tracking.</span></div>
+    <div><b>Delivered</b><span>The line is ready, or the refill is done.</span></div>
+    <div><b>Cancelled</b><span>The order was stopped.</span></div>
+  </div>
+</section>
+
+<!-- 2. Order flow -->
+<section class="chapter">
+  <div class="kicker">02</div>
+  <h2>How an order moves</h2>
+  <p class="intro">Every order follows the same path, whoever places it. Only the start and the work in the middle change.</p>
+
+  <h3>A website order</h3>
+  <div class="flow">
+    <div class="step"><b>Order</b><span>The customer picks a plan and checks out.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Payment</b><span>Paid in crypto through NOWPayments.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Queue</b><span>Once paid, it appears in the agent queue with an alert.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Filled</b><span>An agent claims it and gets the line from the carrier.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Delivered</b><span>The customer gets it by email and on the order page.</span></div>
+  </div>
+
+  <h3>A dealer order</h3>
+  <div class="flow">
+    <div class="step"><b>Order</b><span>The dealer adds lines in the portal.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Held</b><span>The total is held on the dealer's wallet.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Queue</b><span>Each line goes to the agent queue.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Filled</b><span>Each SIM is charged as it is delivered or shipped.</span></div>
+    <div class="arrow">›</div>
+    <div class="step"><b>Settled</b><span>Anything cancelled goes back to the wallet.</span></div>
+  </div>
+
+  <h3>What the agent does for each product</h3>
+  <table>
+    <tr><th>Product</th><th>Agent's work</th><th>Customer sees</th></tr>
+    <tr><td>eSIM</td><td>Uploads the QR code, adds the phone number and ICCID, delivers.</td><td>Processing, then Delivered</td></tr>
+    <tr><td>SIM card with a plan</td><td>Adds ICCIDs and the tracking number and ships. When the card arrives, adds the phone number and activates.</td><td>Processing, Shipped, then Delivered</td></tr>
+    <tr><td>SIM card on its own</td><td>Adds ICCIDs and tracking and ships. The order is done.</td><td>Processing, then Shipped</td></tr>
+    <tr><td>Refill</td><td>Adds the days on the carrier's side, checks the dates, delivers.</td><td>Processing, then Delivered</td></tr>
+    <tr><td>Activation</td><td>Starts the plan on the customer's card, adds the phone number, delivers.</td><td>Processing, then Delivered</td></tr>
+  </table>
+
+  <h3>The plan timer</h3>
+  <p>Every active line knows when its plan ends. Customers, dealers, agents and you all see it in the same words, for example <b>Active until Nov 27, 2026, 30 days left</b>. When a refill is bought while a plan is still running, the new days start the day after it ends, and the line shows <b>Next plan starts Nov 28, 2026, until Dec 27, 2026</b>. Plan days are counted in US Eastern time.</p>
+</section>
+
+<!-- 3. Customers -->
+<section class="chapter">
+  <div class="kicker">03 · Role</div>
+  <h2>Customers</h2>
+  <p class="intro">Customers never make an account. They buy on the website, pay in crypto and keep a private link to their order. Most of them arrive on a phone, so every screen is made for a phone first.</p>
+
+  <div class="box plum">
+    <h4>What a customer can do</h4>
+    <ul class="two-col">
+      <li>Browse and compare plans</li>
+      <li>Buy an eSIM or a SIM card with a plan</li>
+      <li>Buy a SIM card on its own</li>
+      <li>Add international calling and use a discount code</li>
+      <li>Follow the order on its private page</li>
+      <li>Refill a number and activate a SIM card</li>
+      <li>Rate the order and each SIM</li>
+      <li>Report a problem and get an answer</li>
+    </ul>
+  </div>
+
+  <div class="phones">
+    <figure><img src="img/c1-home.jpg"><figcaption>Home page</figcaption></figure>
+    <figure><img src="img/c3-plan.jpg"><figcaption>Choosing the days on a plan</figcaption></figure>
+    <figure><img src="img/c4-checkout.jpg"><figcaption>Checkout, total held at the bottom</figcaption></figure>
+  </div>
+
+  <h3><span class="n">3.1</span>Finding a plan</h3>
+  <ol>
+    <li>The home page and <span class="path">Plans</span> list every plan. They can be filtered by eSIM or SIM card and by carrier, and sorted by price or data. The search at the top finds a plan by carrier or name.</li>
+    <li>A plan page shows the data, hotspot, talk and text, and the countries covered. The customer picks how many days they need, and can switch on international calling and see where they can call.</li>
+    <li>Under the price the page says what checkout adds, for example the SIM card, shipping and the network fee, so the total is never a surprise.</li>
+  </ol>
+
+  <h3><span class="n">3.2</span>Buying an eSIM</h3>
+  <ol>
+    <li>On <b>Buy now</b> the customer comes to checkout with the plan and days already chosen. They can change the number of eSIMs.</li>
+    <li>They enter their name, email, phone or WhatsApp and the US ZIP code where they will use the line. An area code is optional.</li>
+    <li>A discount code goes under <b>Have a discount code?</b>.</li>
+    <li>If the order is under the minimum, the button stays off and says why, next to the button.</li>
+    <li>They pay in USDT or Bitcoin on the payment page, then come back to their order page. The order page link is also emailed.</li>
+  </ol>
+
+  <h3><span class="n">3.3</span>Buying a SIM card with a plan</h3>
+  <p>The same checkout, with a US delivery address and one choice more: start the plan <b>when the SIM arrives</b>, or <b>on a date</b> at least three days away. Shipping is charged once per order, however many cards.</p>
+  <ol>
+    <li>The agent posts the card. The customer gets the USPS tracking number by email and on the order page.</li>
+    <li>When the card arrives, the customer presses <b>My SIM has arrived</b> on the order page. If they chose a date, nothing is needed: the plan starts that day.</li>
+    <li>The agent activates the line and the customer gets the phone number.</li>
+  </ol>
+
+  <h3><span class="n">3.4</span>Buying a SIM card on its own</h3>
+  <p>Under <b>SIM cards on their own</b> on the Plans page, each carrier's card is listed with its price and no length. At checkout the plan is set to <b>No plan, SIM card only</b>, and no ZIP code is asked. The card is posted with tracking. When the customer is ready to use it, they press <b>Activate this SIM</b> on the order page.</p>
+</section>
+
+<section>
+  <div class="phones">
+    <figure><img src="img/c5-order-processing.jpg"><figcaption>The private order page after paying</figcaption></figure>
+    <figure><img src="img/c8-timer.jpg"><figcaption>A delivered eSIM with its plan timer</figcaption></figure>
+    <figure><img src="img/c7-refill.jpg"><figcaption>Refilling a number</figcaption></figure>
+  </div>
+
+  <h3><span class="n">3.5</span>The order page</h3>
+  <p>Each order has its own private page. It is the only way back to the order, so the link is emailed and the page tells the customer to bookmark it. The page updates on its own and shows:</p>
+  <ul>
+    <li>The status as Placed, Processing, Shipped and Delivered, with dates.</li>
+    <li>For an eSIM, the QR code with installation steps for iPhone and Android, the phone number and ICCID with copy buttons.</li>
+    <li>For a SIM card, the tracking number with a Track button, and then the phone number.</li>
+    <li>The plan timer on every active line, and the order details with every price.</li>
+  </ul>
+
+  <h3><span class="n">3.6</span>Refilling a number</h3>
+  <p>A refill adds days to a number without changing the SIM. There are two ways in:</p>
+  <ul>
+    <li><b>Refill this number</b> on a delivered line. The form opens already filled in.</li>
+    <li><span class="path">Refill</span> in the menu, at <span class="path">multisimsusa.com/refill</span>. This also works for a number bought somewhere else: the customer picks the carrier and types the number, and the ICCID if they have it.</li>
+  </ul>
+  <p>They choose the plan and the days and pay. If the current plan is still running, the new days start the day after it ends, so no day is lost. Only plans you offer for refills appear here.</p>
+
+  <h3><span class="n">3.7</span>Activating a SIM card</h3>
+  <p>On the same page, <b>Activate a new SIM card</b> starts a plan on a card bought on its own. The customer gives the ICCID printed on the card, the ZIP code and an optional area code, and picks a SIM card plan. The agent activates it and the customer gets the number.</p>
+
+  <h3><span class="n">3.8</span>Ratings and problems</h3>
+  <ul>
+    <li><b>Rating.</b> Once the line works, the customer can rate the order and each SIM from 1 to 5 stars with a comment, and change it later. Nothing is shown on the website until you feature it.</li>
+    <li><b>Report a problem.</b> On a delivered order the customer picks what is wrong, how urgent it is, describes it and can add a screenshot. Your team answers on the order page and by email.</li>
+    <li><b>Taking longer than usual.</b> If an order waits a while, a <b>Contact us</b> box appears on the order page so the customer can reach you.</li>
+  </ul>
+
+  <h3><span class="n">3.9</span>Emails a customer gets</h3>
+  <p>Order received, payment confirmed, SIM card shipped with tracking, line delivered with the QR code or number and the plan dates, and every answer to a problem they reported.</p>
+</section>
+
+<!-- 4. Agents -->
+<section class="chapter">
+  <div class="kicker">04 · Role</div>
+  <h2>Agents</h2>
+  <p class="intro">Agents fill the orders. They work from one shared queue, take an order, get the line from the carrier and deliver it. While an order is theirs, nobody else can touch it.</p>
+
+  <div class="box plum">
+    <h4>An agent is responsible for</h4>
+    <ul>
+      <li>Claiming paid orders quickly, oldest first, and filling them correctly.</li>
+      <li>Entering exactly what the carrier gives: QR code, phone number, ICCID, tracking number, plan dates.</li>
+      <li>Flagging an order to you when it cannot be filled as ordered, instead of guessing.</li>
+      <li>Answering support tickets and issuing replacements when a SIM does not work.</li>
+    </ul>
+  </div>
+
+  <figure><img src="img/a1-queue.jpg"><figcaption>The queue: what is waiting, what is yours, what needs the owner</figcaption></figure>
+
+  <h3><span class="n">4.1</span>The queue</h3>
+  <p>Agents sign in at <span class="path">multisimsusa.com/portal/login</span> and land on the queue. At the top they see how many orders are waiting, how many are theirs, the oldest wait and what is waiting for you. Below that:</p>
+  <ul>
+    <li><b>Yours</b>: orders this agent claimed and has not finished.</li>
+    <li><b>Waiting</b>: paid orders nobody has taken, oldest first, each with a <b>Claim</b> button. Tags show <b>Refill</b>, <b>Activate SIM</b> or <b>SIM cards only</b>.</li>
+    <li><b>Needs the owner</b>: orders an agent flagged, waiting for your decision.</li>
+    <li><b>Scheduled activations</b>: SIM cards that start on a chosen date.</li>
+  </ul>
+  <p>New orders appear on their own with a sound (switched on from the bar at the top) and a notification. Every agent also gets an email for each new order.</p>
+
+  <h3><span class="n">4.2</span>Claiming and filling an order</h3>
+  <ol>
+    <li>Press <b>Claim</b>. The order opens and is now yours. If another agent was faster, the page says so and shows who has it.</li>
+    <li>The panel on the right, <b>Line to get</b>, says exactly what to order from the carrier: carrier and plan, days, quantity, ZIP code and area code, and international calling if bought.</li>
+    <li>Fill each SIM: drop or paste the QR image, type the phone number and ICCID, and press Save. For many SIMs, the bulk tools take a column of numbers and ICCIDs pasted from a spreadsheet, and several QR images at once.</li>
+    <li>When every SIM is ready, press the main button and confirm. The customer is told straight away.</li>
+  </ol>
+</section>
+
+<section>
+  <figure><img src="img/a2-workspace-esim.jpg"><figcaption>Filling an eSIM: QR code, phone number and ICCID</figcaption></figure>
+
+  <h3><span class="n">4.3</span>Each kind of order</h3>
+  <table>
+    <tr><th>Order</th><th>Steps</th><th>Button</th></tr>
+    <tr><td>eSIM</td><td>QR code, phone number and ICCID for each SIM.</td><td>Mark complete and deliver</td></tr>
+    <tr><td>SIM card, posting</td><td>One USPS tracking number for the parcel, an ICCID for each card.</td><td>Mark shipped</td></tr>
+    <tr><td>SIM card, activating</td><td>Comes back to the queue when the card arrives. Add the phone number for each SIM.</td><td>Mark active and deliver</td></tr>
+    <tr><td>SIM card only</td><td>Tracking and ICCIDs only. These cards have no number yet.</td><td>Mark shipped</td></tr>
+    <tr><td>Refill</td><td>Add the days on the carrier's side. Check the dates below.</td><td>Mark refilled and deliver</td></tr>
+    <tr><td>Activation</td><td>The customer's ICCID is given. Start the plan and add the phone number.</td><td>Mark active and deliver</td></tr>
+  </table>
+
+  <figure><img src="img/a3-workspace-refill.jpg"><figcaption>A refill: when the current plan ends, and the dates for the new days</figcaption></figure>
+
+  <h3><span class="n">4.4</span>Refill dates</h3>
+  <p>On a refill the agent sees when the number's current plan ends, if we sold or refilled it before, and the proposed dates for the new days: the day after the current plan ends if it is still running, otherwise the day it is completed. If the number is not in our records, the page says so and the agent checks it in the carrier's portal. The dates can be changed before delivering. A date in the past is refused, and an overlap with the current plan shows a warning.</p>
+
+  <h3><span class="n">4.5</span>When something is wrong</h3>
+  <ul>
+    <li><b>Needs attention</b> sends the order to you with a reason, for example "Area code 212 is not available today". It waits under Needs the owner until you decide.</li>
+    <li><b>Release</b> puts the order back in the queue for someone else.</li>
+    <li><b>Tickets</b> lists problems reported by customers and dealers, the most urgent first. The agent writes one clear answer and sets the status. The customer sees it on the order page and by email.</li>
+    <li><b>Issue replacement</b> creates a free new order for a SIM that does not work. It goes straight to the queue, or waits for your approval if you chose that in Settings.</li>
+  </ul>
+</section>
+
+<!-- 5. Dealers -->
+<section class="chapter">
+  <div class="kicker">05 · Role</div>
+  <h2>Dealers</h2>
+  <p class="intro">Dealers are shops and resellers that buy in bulk at their own prices. They never pay at checkout. They keep a balance with you, and each order is paid from it.</p>
+
+  <div class="box plum">
+    <h4>A dealer is responsible for</h4>
+    <ul>
+      <li>Keeping enough money in the wallet for the orders they want to place.</li>
+      <li>Ordering the right plan, length and quantity, with a US address for SIM cards.</li>
+      <li>Sending correct numbers and ICCIDs for refills.</li>
+      <li>Telling you about a problem through a ticket, with the SIM it concerns.</li>
+    </ul>
+  </div>
+
+  <h3><span class="n">5.1</span>The wallet</h3>
+  <p>The wallet shows four figures, each with a short explanation on screen:</p>
+  <table>
+    <tr><th>Figure</th><th>Meaning</th></tr>
+    <tr><td>Available to spend</td><td>Balance minus what is held, plus any credit limit.</td></tr>
+    <tr><td>Balance</td><td>All the money in the wallet.</td></tr>
+    <tr><td>Held for orders</td><td>Reserved for orders and refills not done yet. Taken as each SIM is delivered, shipped or refilled, and returned if cancelled.</td></tr>
+    <tr><td>Credit limit</td><td>How far the dealer may spend beyond the balance. Zero unless you agree otherwise.</td></tr>
+  </table>
+  <p>Money comes in two ways: a crypto top up from the Wallet page, or funds you add by hand after a bank transfer or a payment on WhatsApp. Every movement is listed in the history with its note, and none can be edited or deleted.</p>
+
+  <figure><img src="img/d1-overview.jpg"><figcaption>The dealer's overview: money first, then recent orders</figcaption></figure>
+</section>
+
+<section>
+  <figure><img src="img/d2-new-order.jpg"><figcaption>A new bulk order, with the wallet shown beside the total</figcaption></figure>
+
+  <h3><span class="n">5.2</span>Placing an order</h3>
+  <ol>
+    <li>Open <span class="path">New order</span> and add lines. Each line is one plan and length with its own quantity, up to 500 SIMs a line and 1,000 an order. Prices are the dealer's own.</li>
+    <li>SIM cards on their own are at the top of the plan list. A dealer with no SIM card price yet is told to contact you.</li>
+    <li>International calling can be added per line. A reference, such as a shop or purchase order, helps the dealer find the order later.</li>
+    <li>For SIM cards, a US delivery address. All cards in the order ship together with one tracking number.</li>
+    <li>The summary shows what is available, the order total and what is left after. If the money is not enough, it says how much more is needed.</li>
+  </ol>
+
+  <h3><span class="n">5.3</span>Following an order</h3>
+  <p><span class="path">Orders</span> lists every bulk order with its status and progress, for example 7 of 10 SIMs live. Inside an order the dealer sees each SIM with its phone number, ICCID, QR code link and plan timer, how much was taken and how much is still held. <b>Download CSV</b> exports every SIM for the dealer's own system. <span class="path">Activations</span> lists every line the dealer has received, searchable by phone number, ICCID or order number, and also exports to CSV.</p>
+
+  <figure><img src="img/d4-refill.jpg"><figcaption>Refilling many numbers at once</figcaption></figure>
+
+  <h3><span class="n">5.4</span>Refilling numbers</h3>
+  <ol>
+    <li>Open <span class="path">Refill</span> and choose the plan and length for a line.</li>
+    <li>Paste the numbers, one per row, with the ICCID after a comma if known. Numbers can be written in any common way.</li>
+    <li>Each wrong row is named: not a US number, an ICCID of the wrong length, or a number already in this refill. A number is never charged twice.</li>
+    <li>Place the refill. The money is held and taken as each number is refilled. Numbers still running start their new days the day after the current plan ends.</li>
+  </ol>
+  <p>The Refill section only lists plans you offer for refills and that have a price for this dealer. Otherwise the page says refills are not open yet, or that this dealer has no price for those plans.</p>
+
+  <h3><span class="n">5.5</span>Support and ratings</h3>
+  <p>From an order the dealer can report a problem on a line or a single SIM, and rate a line or a SIM. Dealer ratings are for you only and never appear on the website. Under <span class="path">Login</span> the dealer can change their password.</p>
+</section>
+
+<!-- 6. Owner -->
+<section class="chapter">
+  <div class="kicker">06 · Role</div>
+  <h2>You, the owner</h2>
+  <p class="intro">You run the business from the admin portal. You decide what is sold and at what price, who works and who buys in bulk, and you step in when something needs a decision. The separate Admin guide goes through every setting in detail.</p>
+
+  <div class="box plum">
+    <h4>The owner is responsible for</h4>
+    <ul class="two-col">
+      <li>Carriers, plans, day packages and prices</li>
+      <li>SIM card prices and discount codes</li>
+      <li>Which plans can be refilled</li>
+      <li>Agents and their logins</li>
+      <li>Dealers, their prices and their funds</li>
+      <li>Decisions on flagged orders and refunds</li>
+      <li>Which reviews appear on the website</li>
+      <li>Fees, the minimum order and alerts</li>
+    </ul>
+  </div>
+
+  <figure><img src="img/o1-overview.jpg"><figcaption>Overview: sales, orders, deliveries and what needs you</figcaption></figure>
+
+  <h3><span class="n">6.1</span>Your day at a glance</h3>
+  <p><span class="path">Overview</span> shows sales, orders paid, SIMs delivered, orders waiting now and dealer funds received, each compared with the period before. <b>Needs attention</b> appears only when something needs you, such as a flagged order. The bell lists new orders, flagged orders, tickets and dealer top ups as they happen, and you get an email when an order waits too long.</p>
+
+  <h3><span class="n">6.2</span>Your catalogue</h3>
+  <ul>
+    <li><b>Carriers</b>: add a network with its logo and show or hide it. Hiding a carrier hides all its plans at once.</li>
+    <li><b>SIM cards</b>: one row per carrier with the website price, the dealer price and whether the card is sold on its own.</li>
+    <li><b>Plans</b>: the plan details, then day packages, each with a price, an optional sale price and a wholesale price for dealers. A plan is on the website when it is published, its carrier is shown and at least one package is on sale.</li>
+    <li><b>Offer for refills</b>: switch it on for every plan customers and dealers may refill with.</li>
+    <li><b>Add-ons</b> sets international calling, and <b>Discounts</b> creates codes by percentage or amount, for one carrier or all, with dates and a use limit.</li>
+  </ul>
+  <p>Every change shows on the website within seconds. There is nothing to publish separately.</p>
+</section>
+
+<section>
+  <figure><img src="img/o3-plan.jpg"><figcaption>A plan: its day packages, prices, sale and wholesale, and how it looks on the site</figcaption></figure>
+
+  <h3><span class="n">6.3</span>Orders and support</h3>
+  <p><span class="path">Orders</span> lists every order with filters for status, product, agent, website or dealer, and a search by order number, name, email, phone number or ICCID. On an order you can fill it yourself, reassign it, send a flagged order back with an instruction, cancel it with a reason only your team sees, mark it paid or record a refund. <span class="path">Tickets</span>, <span class="path">Activations</span> and <span class="path">Customers</span> sit next to it. Customers can be exported for your records.</p>
+
+  <h3><span class="n">6.4</span>Agents</h3>
+  <p>Create an agent with a name and email. A password is suggested and shown once with copy buttons, so you can send the email and password together. You can reset a password or switch a login off when someone leaves; their claimed orders go back to the queue.</p>
+
+  <figure><img src="img/o5-dealer.jpg"><figcaption>A dealer: wallet, funds, corrections and recent orders</figcaption></figure>
+
+  <h3><span class="n">6.5</span>Dealers and their money</h3>
+  <ol>
+    <li>Create the dealer with company, contact name and email, and send them the login.</li>
+    <li>Set their prices. Leave a box empty to use your normal wholesale price. SIM card prices can be set per carrier.</li>
+    <li>Set a credit limit if you allow one. Zero means they pay first.</li>
+    <li>Add funds when they pay you. To fix a mistake use <b>Correction</b>, add or take, with a note the dealer sees. A correction can never take more than the money in the wallet.</li>
+  </ol>
+  <p>Suspending a dealer stops new orders and sign ins. Orders already in progress are still filled.</p>
+
+  <h3><span class="n">6.6</span>Reviews, reports and settings</h3>
+  <ul>
+    <li><b>Reviews</b>: nothing appears on the website until you switch on <b>Featured</b>. A review that is changed later comes off until you feature it again.</li>
+    <li><b>Reports</b>: sales, deliveries, tickets and replacements for any dates, by carrier, dealer, agent or channel, each table with a CSV download.</li>
+    <li><b>Settings</b>: your alert email and waiting time, the minimum order, shipping and network fees, how replacements work and the problem types customers can choose.</li>
+  </ul>
+</section>
+
+<!-- 7. Checklist -->
+<section class="chapter">
+  <div class="kicker">07</div>
+  <h2>Before you open</h2>
+  <p class="intro">A few settings only you can decide. Until they are set, some parts of the site stay closed on purpose.</p>
+
+  <table>
+    <tr><th>Setting</th><th>Where</th><th>Why it matters</th></tr>
+    <tr><td>Offer for refills</td><td>Plans, each plan, Refill</td><td>Until at least one plan is switched on, the Refill page says "Refills open soon" and dealers cannot refill.</td></tr>
+    <tr><td>Dealer prices</td><td>Plans, Wholesale column, or each dealer's Prices</td><td>A plan with no dealer price is not offered to dealers, for orders or refills.</td></tr>
+    <tr><td>SIM card prices</td><td>Carriers, SIM cards</td><td>The payment provider needs at least $20 per order. A single $5 card with shipping and the network fee is under that, so a customer has to buy several cards or add a plan.</td></tr>
+    <tr><td>Alert email</td><td>Settings</td><td>Where unclaimed orders, customer messages and tickets are sent.</td></tr>
+    <tr><td>Agents</td><td>Agents</td><td>Every active agent gets new order emails. Switch off anyone who should not.</td></tr>
+    <tr><td>Reviews</td><td>Reviews</td><td>Feature a few real reviews once they come in. The site never shows made up reviews or totals.</td></tr>
+  </table>
+</section>
+
+<!-- 8. Good to know -->
+<section>
+  <div class="kicker" style="margin-top:6mm">08</div>
+  <h2>Good to know</h2>
+  <ul>
+    <li><b>Payments</b> are in crypto, USDT on TRC-20 or Bitcoin, through NOWPayments. An order only reaches the queue once the payment is confirmed. If a customer pays too little, nothing is filled and you are told.</li>
+    <li><b>The minimum order</b> is checked before payment, after any discount. Discount codes never reduce shipping or the network fee.</li>
+    <li><b>Times and plan days</b> are shown in US Eastern time everywhere, in one date style.</li>
+    <li><b>Privacy</b>: an order page only shows that customer's own order. A refill never shows anything about a number until the refill is done.</li>
+    <li><b>Wording</b>: customers and dealers see Processing, Shipped and Delivered. The site never says a person fills the order.</li>
+    <li><b>Phones and dark mode</b>: every page, including the portals, works on a phone and follows the light or dark setting of the device.</li>
+  </ul>
+  <p class="note" style="margin-top:5mm"><b>Need help?</b> If something looks wrong, take a screenshot, note the order number and send it to us on WhatsApp. We will look at it the same day.</p>
+</section>
+
+</body>
+</html>
