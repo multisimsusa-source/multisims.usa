@@ -25,6 +25,9 @@ import type { CatalogPlan } from "@/lib/types"
 
 export async function generateStaticParams() {
   const plans = await getPublishedPlans()
+  // Cache Components needs at least one param to build; an empty catalogue gets a
+  // placeholder, which matches no plan and so renders the 404.
+  if (plans.length === 0) return [{ slug: "__placeholder__" }]
   return plans.map((p) => ({ slug: p.slug }))
 }
 
