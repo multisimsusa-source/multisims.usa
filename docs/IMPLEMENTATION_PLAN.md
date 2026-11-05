@@ -184,7 +184,7 @@ Deadlines: Milestone 2 on 16 or 17 Oct 2026, Milestone 3 about a week later.
 | Change | Built |
 |---|---|
 | **(new)** SIM card priced separately, per physical SIM | `settings.sim_card_price_cents` (default $5), stored per order |
-| **(new)** Network fee, once per order (our own line, not NOWPayments' "fee paid by user") | `settings.network_fee_cents` (default $3), stored per order |
+| **(new)** Network fee, once per order (our own line, not NOWPayments' "fee paid by user") | `settings.network_fee_cents`, stored per order. **Set to $0 on 5 Nov (Zafir, Option B):** NOWPayments adds the coin's network fee on its own page, so ours would charge it twice. Kept as a setting in case that changes |
 | Shipping | Flat per physical order, `shipping_fee_cents` set to $1.00 as a test placeholder until Zafir sets it |
 | **(new)** Minimum order | `settings.min_order_cents` (default $15). Checkout blocks below `max(setting, NOWPayments live minimum)`, rounded up to whole dollars. Live minimum = higher of USDT TRC-20 and BTC same-coin pairs at fixed rate (`GET /v1/min-amount`), cached 5 minutes, falls back to the setting. Blocked in the browser and again on the server before any order or invoice exists |
 | Price breakdown | `lib/pricing.ts`: plan, international calling, SIM cards, shipping, network fee, total. Same lines at checkout, on the order page and in the confirmation email |
@@ -276,7 +276,7 @@ Built in three phases, each tested in a real browser and deployed before the nex
 
 ### 3. SIM card on its own (changes the earlier rule that a SIM card always has a plan)
 - [x] SIM cards per carrier (AT&T SIM card, T-Mobile SIM card...): retail price in admin, dealer price per dealer.
-- [x] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee; minimum check applies.
+- [x] Website and dealer portal: SIM card only, any quantity; plan optional ("No plan, SIM card only"). Card-only total = card price x quantity + shipping + network fee (now $0); minimum check applies.
 - [x] SIM cards shown with a price and no duration everywhere (no "1 day").
 - [x] Shipped card-only orders show "Activate this SIM", which opens `/refill` in "Activate a new SIM card" mode (ICCID pre-filled, plan, length, ZIP, area code), paid and fulfilled the same way.
 - [x] Dealers without a SIM card price see "No SIM card prices set for your account yet. Contact us."; bulk quantities are typed in one field; all cards in an order ship together with one tracking number.
@@ -285,7 +285,7 @@ Built in three phases, each tested in a real browser and deployed before the nex
 - [x] Dealer login "incorrect password": the production accounts were checked (all confirmed, active, not suspended, both dealers had signed in). The cause was the password hand-off: the welcome email spoke of "the password we sent you" though nothing sends one, and the suggested password changed every time the dialog opened. Now: after Create login or Change password the dialog shows the saved email and password to copy; passwords with spaces at either end are refused; the welcome email says "the password the MultiSims USA team gave you"; sign-in ignores email capitals; a switched-off login says "This account is switched off" instead of "wrong password".
 - [x] Admin password reset tested end to end: the new password works, the old one stops at once.
 - [x] Wallet: one line of help under each figure (Balance, Held for orders, Available to spend, Credit limit).
-- [x] Crypto top-ups below the payment partner's live minimum are blocked in the form and refused on the server. No network fee on top-ups (undecided).
+- [x] Crypto top-ups below the payment partner's live minimum are blocked in the form and refused on the server. No network fee of our own on top-ups; the payment partner adds the coin's network fee on its page and the balance goes up by the full amount entered.
 
 Phase 2 notes: migration `20261027000001_sim_cards.sql` adds `sim_cards` (per carrier: retail, default dealer price, on sale), `dealer_sim_card_prices`, `orders.kind` (`line`, `card_only`, later `refill`, `activation`) and lets a card-only order have no plan or days. Existing prices were copied in: every carrier with SIM card plans got a card at the old Settings price; per-dealer card prices were copied to every carrier. The old Settings and dealer card price columns are kept but no longer read. Card-only orders end at Shipped and do not appear in Activations. The fake "SIM card, 1 day" plans the owner made earlier should be unpublished now that cards sell on their own.
 

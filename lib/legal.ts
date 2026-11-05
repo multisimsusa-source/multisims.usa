@@ -37,7 +37,7 @@ export const refundPolicy: LegalDocument = {
     },
     {
       heading: "Fees",
-      body: ["The network fee and shipping are not refundable once your order has been sent to you."],
+      body: ["Shipping is not refundable once your order has been sent to you. The network fee charged by our payment partner is not refundable."],
     },
     {
       heading: "Plans and days",
@@ -89,9 +89,8 @@ export const terms: LegalDocument = {
           "international calling, if you add it",
           "the SIM card price, for each physical SIM",
           "shipping, once per SIM card order",
-          "a network fee, once per order",
         ],
-        "You pay in USDT on the TRC-20 network or in Bitcoin, through our payment partner. Your order starts once the payment is confirmed on the network. Orders below our minimum order amount cannot be placed.",
+        "You pay in USDT on the TRC-20 network or in Bitcoin, through our payment partner. Our payment partner adds the network fee for the coin you choose on its payment page, so the crypto amount you pay is higher than your order total. Your order starts once the payment is confirmed on the network. Orders below our minimum order amount cannot be placed.",
       ],
     },
     {

@@ -169,7 +169,7 @@ test.describe.serial("Refill and the plan timer", () => {
   })
 
   test("Refill this number opens the form filled in; below the minimum is blocked", async ({ browser }) => {
-    const { data: original } = await db().from("orders").select("public_token").eq("customer_email", ESIM_BUYER).eq("kind", "line").single()
+    const { data: original } = await db().from("orders").select("id, public_token").eq("customer_email", ESIM_BUYER).eq("kind", "line").single()
     const page = await guestPage(browser)
     await page.goto(`/order/${original!.public_token}`)
     await page.getByRole("link", { name: "Refill this number" }).click()
@@ -197,7 +197,7 @@ test.describe.serial("Refill and the plan timer", () => {
 
     const refill = await latestOrder(ESIM_BUYER, "refill")
     expect(refill.total_cents).toBe(pays(unlimited.packages.find((p) => p.days === 30)!) + settings!.network_fee_cents)
-    const { data: originalItem } = await db().from("order_items").select("id").eq("phone_number", "+1 (646) 555-0144").eq("status", "fulfilled").single()
+    const { data: originalItem } = await db().from("order_items").select("id").eq("order_id", original!.id).eq("status", "fulfilled").single()
     const [item] = await itemsOf(refill.id)
     expect(item).toMatchObject({ phone_number: "+1 (646) 555-0144", refill_of_item: originalItem!.id, status: "pending" })
   })

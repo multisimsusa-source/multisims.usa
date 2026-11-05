@@ -11,7 +11,7 @@ import { DESKTOP, expectToast, guestPage, pageAs, PHONE } from "./support/helper
  */
 
 const EMAIL = testEmail("login-dealer")
-const COMPANY = "Harbor Mobile"
+const COMPANY = "E2E Harbor Mobile"
 const SHOTS = process.env.E2E_SHOTS ?? "test-results/shots"
 
 async function signInAs(page: Page, email: string, password: string) {

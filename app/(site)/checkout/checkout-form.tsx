@@ -694,7 +694,7 @@ function NextSteps({
   className?: string
 }) {
   const first = takesPayment
-    ? "Pay in crypto on our payment partner's secure page. Your private order page follows."
+    ? "Pay in crypto on our payment partner's secure page. It adds the network fee for the coin you choose. Your private order page follows."
     : "Your private order page opens straight away."
   const steps = cardOnly
     ? [

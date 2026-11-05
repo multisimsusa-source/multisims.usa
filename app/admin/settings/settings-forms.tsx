@@ -75,7 +75,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           label="Network fee (USD)"
           cents={settings.network_fee_cents}
           error={errors.network_fee}
-          help="Charged once on every order, eSIM and SIM card, to cover the crypto network cost."
+          help="Leave at 0. Our payment partner already adds the crypto network fee on its payment page."
         />
         <MoneyField
           name="min_order"

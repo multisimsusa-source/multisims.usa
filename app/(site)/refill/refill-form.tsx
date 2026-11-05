@@ -416,6 +416,12 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
               </dd>
             </div>
           </dl>
+          {takesPayment ? (
+            <p className="-mt-2 px-5 pb-4 text-xs text-muted-foreground">
+              Our payment partner adds the network fee for the coin you choose, so the amount you pay there is higher than
+              this total.
+            </p>
+          ) : null}
 
           <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
             {alert}

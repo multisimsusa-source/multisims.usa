@@ -82,7 +82,8 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
         ) : (
           <FieldDescription>
             From {formatPrice(minimumCents)}. You pay in USDT (TRC-20) or
-            Bitcoin on our payment partner&apos;s page.
+            Bitcoin on our payment partner&apos;s page, which adds the network
+            fee. Your balance goes up by the full amount you enter.
           </FieldDescription>
         )}
       </Field>
