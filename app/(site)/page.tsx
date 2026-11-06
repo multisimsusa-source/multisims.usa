@@ -548,7 +548,7 @@ export default async function HomePage() {
               },
               {
                 title: "Pay",
-                body: "Pay in USDT or Bitcoin. Add international calling if you need it.",
+                body: "Pay in Bitcoin, Ethereum, USDT or USDC. Add international calling if you need it.",
               },
               {
                 title: "Connect",

@@ -17,7 +17,7 @@ export const refundPolicy: LegalDocument = {
     {
       heading: "How payments and refunds work",
       body: [
-        "We take payment in cryptocurrency: USDT on the TRC-20 network, and Bitcoin. Crypto payments cannot be reversed by the network or by your wallet provider.",
+        "We take payment in cryptocurrency: Bitcoin, Ethereum, USDT on the TRC-20 network and USDC on the Ethereum network (ERC-20). Crypto payments cannot be reversed by the network or by your wallet provider.",
         "When a refund is due, we send it by hand in crypto to a wallet address you give us. We refund in the coin you paid with, for the US dollar amount of the order, unless we agree otherwise with you by email.",
       ],
     },
@@ -90,7 +90,7 @@ export const terms: LegalDocument = {
           "the SIM card price, for each physical SIM",
           "shipping, once per SIM card order",
         ],
-        "You pay in USDT on the TRC-20 network or in Bitcoin, through our payment partner. Our payment partner adds the network fee for the coin you choose on its payment page, so the crypto amount you pay is higher than your order total. Your order starts once the payment is confirmed on the network. Orders below our minimum order amount cannot be placed.",
+        "You pay in Bitcoin, Ethereum, USDT on the TRC-20 network or USDC on the Ethereum network (ERC-20), through our payment partner. Our payment partner adds the network fee for the coin you choose on its payment page, so the crypto amount you pay is higher than your order total. Your order starts once the payment is confirmed on the network. Orders below our minimum order amount cannot be placed.",
       ],
     },
     {

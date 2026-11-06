@@ -652,7 +652,7 @@ export function CheckoutForm({
             {agreement}
             <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <LockSimpleIcon className="size-3.5" />
-              {takesPayment ? "Pay with USDT (TRC-20) or Bitcoin" : "No account needed"}
+              {takesPayment ? "Pay with Bitcoin, Ethereum, USDT or USDC" : "No account needed"}
             </p>
           </div>
         </div>

@@ -25,7 +25,7 @@ A US-only SIM and eSIM shop run by a seller with about 15 years in the trade, se
 
 - No carrier APIs yet. Every order is filled manually by an agent; the customer must never be able to tell. Customer-facing statuses are only "Processing", "Delivered" and "Shipped".
 - eSIMs are delivered as a QR code image. Physical SIMs are posted by USPS from the US and carry a tracking number.
-- Payment is crypto only in version one (USDT TRC-20 and Bitcoin, provider not chosen yet).
+- Payment is crypto only in version one (Bitcoin, Ethereum, USDT TRC-20 and USDC ERC-20, through NOWPayments).
 - Carriers change often; admin must add, rename, remove and reorder them and change logos at any time.
 
 ## Capabilities and Constraints

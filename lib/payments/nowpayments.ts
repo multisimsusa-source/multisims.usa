@@ -9,8 +9,8 @@ import type { Invoice, InvoiceRequest, PaymentEvent, PaymentProvider } from "./p
  * NOWPayments hosted invoices (https://documenter.getpostman.com/view/7907941/S1a32n38).
  *
  * - Checkout: POST /invoice with a fixed rate, so the crypto amount holds while the buyer
- *   pays. The buyer picks the coin on NOWPayments' page; the account allows only BTC and
- *   USDT TRC-20, and pays out straight to the client's own wallets (custody off).
+ *   pays. The buyer picks the coin on NOWPayments' page; the account allows only BTC, ETH,
+ *   USDT TRC-20 and USDC ERC-20, and pays out straight to the client's own wallets (custody off).
  * - Webhooks (IPN): header x-nowpayments-sig is the hex HMAC-SHA512, keyed with the IPN
  *   secret, of the body re-serialised with its keys sorted. The body is then only a
  *   trigger: GET /payment/{id} is the answer we record.
@@ -78,11 +78,11 @@ export class NowPaymentsProvider implements PaymentProvider {
 
   /**
    * The live minimum for the coins we take, each paid out in the same coin, at a fixed
-   * rate (as our invoices are). The buyer picks the coin after checkout, so the higher
-   * of the two applies.
+   * rate (as our invoices are). The buyer picks the coin after checkout, so the highest
+   * applies.
    */
   async minimumCents(): Promise<number | null> {
-    const pairs = ["usdttrc20", "btc"]
+    const pairs = ["usdttrc20", "btc", "eth", "usdc"]
     const results = await Promise.all(
       pairs.map((coin) =>
         this.call<{ fiat_equivalent?: number }>(

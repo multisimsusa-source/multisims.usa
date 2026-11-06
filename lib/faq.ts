@@ -28,7 +28,7 @@ export const faqs: Faq[] = [
   },
   {
     q: "How do I pay?",
-    a: "We accept cryptocurrency: USDT on the TRC-20 network, and Bitcoin. Your order starts as soon as the payment is confirmed on the network.",
+    a: "We accept cryptocurrency: Bitcoin, Ethereum, USDT on the TRC-20 network and USDC on the Ethereum network (ERC-20). Your order starts as soon as the payment is confirmed on the network.",
   },
   {
     q: "What happens if my eSIM does not work?",

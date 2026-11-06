@@ -164,7 +164,7 @@ Admin order page shows every payment. Provider code: `lib/payments/` (`provider.
 2. Vault secrets (SQL editor): `select vault.create_secret('https://fucecskubggngxqgdzyo.supabase.co', 'project_url');` and `select vault.create_secret('<random 32+ chars>', 'cron_secret');`
 3. `supabase secrets set CRON_SECRET=<same> RESEND_API_KEY=<key> ORDERS_FROM_EMAIL="MultiSims USA <orders@multisimsusa.com>" SITE_URL=https://multisimsusa.com` then `supabase functions deploy unclaimed-alert`.
 4. In admin Settings, set the owner alert email. Create agent logins under Agents.
-5. NOWPayments (client account, custody off, payout wallets for BTC and USDT TRC-20, only those coins enabled): set `NOWPAYMENTS_API_KEY` and `NOWPAYMENTS_IPN_SECRET` in Vercel and redeploy. The webhook URL is sent with each invoice; nothing to set in their dashboard. Test with one small real payment of each coin (their sandbox is unmaintained).
+5. NOWPayments (client account, custody off, payout wallets for BTC, ETH, USDT TRC-20 and USDC ERC-20, only those coins enabled; ETH and USDC added 6 Nov): set `NOWPAYMENTS_API_KEY` and `NOWPAYMENTS_IPN_SECRET` in Vercel and redeploy. The webhook URL is sent with each invoice; nothing to set in their dashboard. Test with one small real payment of each coin (their sandbox is unmaintained).
 
 ### Client decisions (answered 11 Oct 2026, all configurable)
 | Question | Client's answer | Built |

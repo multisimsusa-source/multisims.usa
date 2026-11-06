@@ -838,8 +838,8 @@ function PaymentPanel({
         </p>
         <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
           Your order starts as soon as the network confirms the payment. That
-          usually takes a few minutes for USDT and can take up to an hour for
-          Bitcoin. This page updates on its own, and we email{" "}
+          usually takes a few minutes for USDT, USDC and Ethereum, and can take
+          up to an hour for Bitcoin. This page updates on its own, and we email{" "}
           {order.customer_email} once it is confirmed.
         </p>
         {order.payment_status === "awaiting" ? (
@@ -881,7 +881,7 @@ function PaymentPanel({
           }
         : {
             title: "Pay to start your order",
-            body: "Pay with USDT on the TRC-20 network, or with Bitcoin, on our payment partner's secure page. It adds the network fee for the coin you choose, so the amount there is higher than your order total. Your order starts as soon as the payment is confirmed.",
+            body: "Pay with Bitcoin, Ethereum, USDT on the TRC-20 network or USDC on the Ethereum network, on our payment partner's secure page. It adds the network fee for the coin you choose, so the amount there is higher than your order total. Your order starts as soon as the payment is confirmed.",
           }
   return (
     <div className="rounded-xl border bg-card p-5 sm:p-6">
@@ -895,7 +895,7 @@ function PaymentPanel({
       >
         <PayButton label={`Pay ${total}`} />
         <span className="text-sm text-muted-foreground">
-          USDT (TRC-20) or Bitcoin
+          Bitcoin, Ethereum, USDT or USDC
         </span>
       </form>
     </div>

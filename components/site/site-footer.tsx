@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { cacheLife } from "next/cache"
-import { ArrowRightIcon, ArrowUpIcon, CurrencyBtcIcon, CurrencyDollarIcon } from "@phosphor-icons/react/ssr"
+import { ArrowRightIcon, ArrowUpIcon, CurrencyBtcIcon, CurrencyCircleDollarIcon, CurrencyDollarIcon, CurrencyEthIcon } from "@phosphor-icons/react/ssr"
 
 import { Wordmark } from "@/components/site/wordmark"
 import { getActiveCarriers, getPublishedPlans } from "@/lib/catalog"
@@ -61,6 +61,8 @@ export function SiteFooter() {
           <ul aria-label="Payment methods" className="flex flex-wrap gap-2">
             <PaymentTag icon={<CurrencyDollarIcon weight="bold" className="size-4" />} label="USDT" note="TRC-20" />
             <PaymentTag icon={<CurrencyBtcIcon weight="bold" className="size-4" />} label="Bitcoin" />
+            <PaymentTag icon={<CurrencyEthIcon weight="bold" className="size-4" />} label="Ethereum" />
+            <PaymentTag icon={<CurrencyCircleDollarIcon weight="bold" className="size-4" />} label="USDC" note="ERC-20" />
           </ul>
         </div>
       </div>
