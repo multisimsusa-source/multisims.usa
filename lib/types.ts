@@ -203,6 +203,10 @@ export type Payment = {
   pay_currency: string | null
   pay_amount: string | null
   actually_paid: string | null
+  outcome_amount: string | null
+  outcome_currency: string | null
+  /** US cents that reached the owner's wallet after the provider's fees; null when unknown. */
+  received_cents: number | null
   overpaid: boolean
   created_at: string
 }

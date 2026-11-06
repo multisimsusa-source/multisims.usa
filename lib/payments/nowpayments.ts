@@ -42,6 +42,28 @@ type NowPayment = {
   pay_currency?: string | null
   pay_amount?: number | string | null
   actually_paid?: number | string | null
+  actually_paid_at_fiat?: number | string | null
+  outcome_amount?: number | string | null
+  outcome_currency?: string | null
+}
+
+/** Dollar stablecoins: one unit is one US dollar for our purposes. */
+const STABLECOIN = /^(usdt|usdc)/
+
+/**
+ * The payout that reached the owner's wallet, in US cents, rounded down. A stablecoin payout
+ * counts at face value; a payout in the coin that was paid is valued at the dollar rate the
+ * provider gave that payment. Anything else (a converted payout) is left to the owner.
+ */
+export function payoutCents(p: Pick<NowPayment, "pay_currency" | "actually_paid" | "actually_paid_at_fiat" | "outcome_amount" | "outcome_currency">): number | null {
+  const outcome = toNumber(p.outcome_amount)
+  const coin = p.outcome_currency?.toLowerCase() ?? ""
+  if (outcome === null || outcome < 0 || !coin) return null
+  if (STABLECOIN.test(coin)) return Math.floor(outcome * 100 + 1e-6)
+  const paid = toNumber(p.actually_paid)
+  const fiat = toNumber(p.actually_paid_at_fiat)
+  if (coin !== p.pay_currency?.toLowerCase() || !paid || paid <= 0 || !fiat || fiat <= 0) return null
+  return Math.floor(((outcome * fiat) / paid) * 100 + 1e-6)
 }
 
 export class NowPaymentsProvider implements PaymentProvider {
@@ -136,6 +158,10 @@ export class NowPaymentsProvider implements PaymentProvider {
       payCurrency: p.pay_currency ?? null,
       payAmount,
       actuallyPaid,
+      outcomeAmount: toNumber(p.outcome_amount),
+      outcomeCurrency: p.outcome_currency ?? null,
+      // Before money arrives the outcome is only an estimate, so it counts once something was paid.
+      receivedCents: status === "paid" || status === "partially_paid" ? payoutCents(p) : null,
       overpaid: status === "paid" && payAmount !== null && actuallyPaid !== null && actuallyPaid > payAmount,
       body: { webhook: hint, payment: p },
     }

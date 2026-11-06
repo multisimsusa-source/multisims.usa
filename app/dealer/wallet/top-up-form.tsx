@@ -10,6 +10,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
 import { parseMoney } from "@/lib/admin/result"
 import { formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -82,11 +83,12 @@ export function TopUpForm({ minimumCents }: { minimumCents: number }) {
         ) : (
           <FieldDescription>
             From {formatPrice(minimumCents)}. You pay in Bitcoin, Ethereum, USDT (TRC-20) or
-            USDC (ERC-20) on our payment partner&apos;s page, which adds the network
-            fee. Your balance goes up by the full amount you enter.
+            USDC (ERC-20) on our payment partner&apos;s page. Your balance goes up by
+            the full amount you enter.
           </FieldDescription>
         )}
       </Field>
+      <ExactAmountNotice topUp />
       <Button
         type="submit"
         size="lg"

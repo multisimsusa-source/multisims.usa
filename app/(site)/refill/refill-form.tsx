@@ -14,6 +14,7 @@ import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { Notice } from "@/components/patterns/notice"
 import { CallingDestinations } from "@/components/site/calling-destinations"
 import { DiscountCode } from "@/components/site/discount-code"
+import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
 import { formatDays, formatPrice } from "@/lib/format"
 import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
@@ -416,12 +417,7 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
               </dd>
             </div>
           </dl>
-          {takesPayment ? (
-            <p className="-mt-2 px-5 pb-4 text-xs text-muted-foreground">
-              Our payment partner adds the network fee for the coin you choose, so the amount you pay there is higher than
-              this total.
-            </p>
-          ) : null}
+          {takesPayment ? <ExactAmountNotice className="mx-5 mb-5" /> : null}
 
           <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
             {alert}

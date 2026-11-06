@@ -10,7 +10,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import type { Order, Payment, PaymentStatus } from "@/lib/types"
 import { NowPaymentsProvider } from "./nowpayments"
 import { paymentRank, statusesBelow, type PaymentEvent, type PaymentProvider } from "./provider"
-import { orderTitle } from "@/lib/format"
+import { coinName, formatPrice, orderTitle } from "@/lib/format"
 
 /**
  * The configured provider, or null when none is set up. With none, checkout takes no
@@ -137,21 +137,46 @@ export async function invoiceUrlForTopUp(provider: PaymentProvider, dealerId: st
   }
 }
 
-/** A top-up moved on: credit the wallet once when paid; tell the owner when it is short or long. */
+/** "50 USDT of 59.56 asked": the coin amounts behind a short payment. */
+export function shortPaymentText(event: Pick<PaymentEvent, "actuallyPaid" | "payAmount" | "payCurrency">) {
+  if (event.actuallyPaid === null || event.payAmount === null) return null
+  return `${event.actuallyPaid} ${coinName(event.payCurrency)} of ${event.payAmount} asked`
+}
+
+/**
+ * A top-up moved on. Paid: the wallet gets the full top-up (or the rest of it, after a short
+ * credit). Short: the wallet gets what reached the owner's wallet after the provider's fees, so
+ * nobody waits on the owner and the owner never pays for the fees. The owner hears about both.
+ */
 async function applyTopUpEvent(payment: Payment, event: PaymentEvent) {
   const db = createServiceClient()
-  if (event.status === "paid") {
-    const { data, error } = await db.rpc("credit_wallet_topup", { p_payment_id: payment.id })
+  const credit = async (target: number | null, note: string | null) => {
+    const { data, error } = await db.rpc("credit_wallet_topup", { p_payment_id: payment.id, p_target_cents: target, p_note: note })
     if (error) throw new Error(`Could not credit top-up ${payment.id}: ${error.message}`)
-    const credited = data as { id: number } | null
-    if (credited?.id && payment.dealer_id) {
+    const row = data as { id: number | null; amount_cents: number | null } | null
+    if (row?.id && row.amount_cents && payment.dealer_id) {
       const dealerId = payment.dealer_id
-      after(() => notifyDealerFunds(dealerId, payment.price_cents, "topup", null, `topup-${payment.id}`))
+      const amount = row.amount_cents
+      after(() => notifyDealerFunds(dealerId, amount, "topup", note, `topup-${payment.id}-${row.id}`))
     }
-    if (event.overpaid) after(() => notifyTopupIssue(payment, "overpaid", event))
+    return row?.id ? row.amount_cents : null
+  }
+
+  if (event.status === "paid") {
+    const coin = event.payCurrency ? ` (${coinName(event.payCurrency)})` : ""
+    const { count } = await db.from("wallet_ledger").select("id", { count: "exact", head: true }).eq("payment_id", payment.id).eq("kind", "topup")
+    await credit(null, count ? `Rest of crypto top-up${coin}` : null)
+    if (event.overpaid) after(() => notifyTopupIssue(payment, "overpaid", event, null))
     return
   }
-  if (event.status === "partially_paid") after(() => notifyTopupIssue(payment, "underpaid", event))
+  if (event.status === "partially_paid") {
+    let added: number | null = null
+    if (event.receivedCents !== null && event.receivedCents > 0) {
+      const short = shortPaymentText(event)
+      added = await credit(event.receivedCents, `Short crypto top-up: sent ${short ?? "less than asked"}. ${formatPrice(event.receivedCents)} arrived after the payment partner's fees`)
+    }
+    after(() => notifyTopupIssue(payment, "underpaid", event, added))
+  }
 }
 
 /**
@@ -193,6 +218,9 @@ export async function applyPaymentEvent(provider: PaymentProvider, event: Paymen
       pay_currency: event.payCurrency,
       pay_amount: event.payAmount,
       actually_paid: event.actuallyPaid,
+      outcome_amount: event.outcomeAmount,
+      outcome_currency: event.outcomeCurrency,
+      received_cents: event.receivedCents,
       overpaid: event.overpaid,
     })
     .eq("id", payment.id)

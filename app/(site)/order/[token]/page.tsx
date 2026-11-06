@@ -40,6 +40,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import type { Order } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { RatingDialog } from "@/components/patterns/rating-form"
+import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
 import {
   CUSTOMER_CONSENT,
   itemRateable,
@@ -862,8 +863,10 @@ function PaymentPanel({
         <p className="text-lg font-semibold">We received less than the total</p>
         <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
           Your payment arrived but was below the order total of {total}, so your
-          order has not started yet. We will email {order.customer_email} about
-          the difference. Please do not send another payment until we do.
+          order has not started yet. The payment page asks for more than the
+          total because it includes the network fee. We will email{" "}
+          {order.customer_email} about the difference. Please do not send
+          another payment until we do.
         </p>
       </div>
     )
@@ -881,7 +884,7 @@ function PaymentPanel({
           }
         : {
             title: "Pay to start your order",
-            body: "Pay with Bitcoin, Ethereum, USDT on the TRC-20 network or USDC on the Ethereum network, on our payment partner's secure page. It adds the network fee for the coin you choose, so the amount there is higher than your order total. Your order starts as soon as the payment is confirmed.",
+            body: "Pay with Bitcoin, Ethereum, USDT on the TRC-20 network or USDC on the Ethereum network, on our payment partner's secure page. Your order starts as soon as the payment is confirmed.",
           }
   return (
     <div className="rounded-xl border bg-card p-5 sm:p-6">
@@ -889,6 +892,7 @@ function PaymentPanel({
       <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">
         {copy.body}
       </p>
+      <ExactAmountNotice className="mt-4" />
       <form
         action={startPayment.bind(null, order.public_token)}
         className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3"

@@ -39,6 +39,7 @@ import { usStates } from "@/lib/us-states"
 import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { CallingDestinations } from "@/components/site/calling-destinations"
 import { DiscountCode } from "@/components/site/discount-code"
+import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
 import { placeOrder, type CheckoutField, type CheckoutState } from "./actions"
 
 /** A plan the buyer can pick here, with its lengths. */
@@ -638,6 +639,7 @@ export function CheckoutForm({
               </dd>
             </div>
           </dl>
+          {takesPayment ? <ExactAmountNotice className="mx-5 mb-5" /> : null}
 
           <div className="hidden flex-col gap-3 border-t p-5 lg:flex">
             {alert}

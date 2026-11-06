@@ -122,13 +122,14 @@ export function paymentPendingEmail(order: Order, orderUrl: string): Rendered {
   const pairs = orderRows(order)
   return {
     subject: `Order ${orderLabel(order)}: finish your payment`,
-    text: `Hi ${order.customer_name},\n\nWe have your order. It starts as soon as your crypto payment is confirmed.\n\n${textRows(pairs)}\n\nIf you closed the payment page, open your order page to pay: ${orderUrl}\n\nKeep this link to yourself: anyone with it can see your order.`,
+    text: `Hi ${order.customer_name},\n\nWe have your order. It starts as soon as your crypto payment is confirmed.\n\nSend the exact amount the payment page shows. It includes the network fee for your coin, so it is more than your order total.\n\n${textRows(pairs)}\n\nIf you closed the payment page, open your order page to pay: ${orderUrl}\n\nKeep this link to yourself: anyone with it can see your order.`,
     html: layout({
       preheader: `Order ${orderLabel(order)} starts once your payment is confirmed.`,
       heading: "Finish your payment",
       body:
         p(`Hi ${esc(order.customer_name)}, we have your order. It starts as soon as your crypto payment is confirmed.`) +
         rows(pairs) +
+        p("Send the exact amount the payment page shows. It includes the network fee for your coin, so it is more than your order total.") +
         p("If you closed the payment page, open your order page to pay. If you have already paid, there is nothing more to do: we email you once the payment is confirmed.") +
         p(`<span style="color:${muted};font-size:13px;">Keep your order link to yourself: anyone with it can see your order.</span>`),
       cta: { label: "Open your order page", url: orderUrl },
@@ -449,7 +450,9 @@ export function dealerFundsAddedEmail(amountCents: number, how: "topup" | "owner
   const heading = how === "topup" ? "Top-up received" : "Funds added"
   const lead =
     how === "topup"
-      ? `Your crypto top-up of ${formatPrice(amountCents)} is confirmed and on your balance.`
+      ? note
+        ? `${formatPrice(amountCents)} from your crypto top-up is on your balance. ${note.replace(/\.?$/, ".")}${note.startsWith("Short") ? " Next time, send the exact amount shown on the payment page." : ""}`
+        : `Your crypto top-up of ${formatPrice(amountCents)} is confirmed and on your balance.`
       : `${formatPrice(amountCents)} was added to your balance.${note ? ` Note: ${note}` : ""}`
   return {
     subject: `${heading}: ${formatPrice(amountCents)}`,
@@ -459,11 +462,20 @@ export function dealerFundsAddedEmail(amountCents: number, how: "topup" | "owner
 }
 
 /** A dealer top-up arrived short or long. The owner decides; short ones are not credited. */
-export function staffTopupIssueEmail(company: string, issue: "underpaid" | "overpaid", invoiceCents: number, detail: [string, string][], adminUrl: string): Rendered {
+export function staffTopupIssueEmail(
+  company: string,
+  issue: "underpaid" | "overpaid",
+  invoiceCents: number,
+  detail: [string, string][],
+  adminUrl: string,
+  addedCents: number | null = null
+): Rendered {
   const heading = issue === "underpaid" ? "Top-up underpaid" : "Top-up overpaid"
   const body =
     issue === "underpaid"
-      ? `${company} sent less than their ${formatPrice(invoiceCents)} top-up, so nothing was added to their balance. Check what arrived and use Add funds on their page for that amount.`
+      ? addedCents
+        ? `${company} sent less than their ${formatPrice(invoiceCents)} top-up. ${formatPrice(addedCents)} reached your wallet after the payment partner's fees, and we added that to their balance. Nothing else to do unless you want to add more.`
+        : `${company} sent less than their ${formatPrice(invoiceCents)} top-up, so nothing was added to their balance. Check what reached your wallet in NOWPayments (Outcome price) and use Add funds on their page for that amount.`
       : `${company} sent more than their ${formatPrice(invoiceCents)} top-up. ${formatPrice(invoiceCents)} was added to their balance. Add the difference with Add funds if you want to keep it as credit.`
   const pairs: [string, string][] = [["Dealer", company], ["Top-up", formatPrice(invoiceCents)], ...detail]
   return {

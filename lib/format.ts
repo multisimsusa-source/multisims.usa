@@ -72,3 +72,12 @@ export function slugify(value: string) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80)
 }
+
+/** A payment coin by its short name: usdttrc20 is USDT, usdc is USDC, btc is BTC. */
+export function coinName(code: string | null | undefined) {
+  if (!code) return ""
+  const c = code.toLowerCase()
+  if (c.startsWith("usdt")) return "USDT"
+  if (c.startsWith("usdc")) return "USDC"
+  return c.toUpperCase()
+}

@@ -42,6 +42,11 @@ export type PaymentEvent = {
   payCurrency: string | null
   payAmount: number | null
   actuallyPaid: number | null
+  /** What the provider paid out to the owner's wallet, after its fees, in outcomeCurrency. */
+  outcomeAmount: number | null
+  outcomeCurrency: string | null
+  /** That payout in US cents, valued at this payment's own rate; null when it cannot be told. */
+  receivedCents: number | null
   overpaid: boolean
   body: unknown
 }

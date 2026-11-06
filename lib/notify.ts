@@ -18,6 +18,7 @@ import {
   type DeliveredItem,
   type PaymentIssue,
 } from "@/lib/emails"
+import { formatPrice } from "@/lib/format"
 import type { PaymentEvent } from "@/lib/payments/provider"
 import { absoluteUrl } from "@/lib/site"
 import { createServiceClient } from "@/lib/supabase/service"
@@ -89,6 +90,7 @@ export async function notifyPaymentIssue(orderId: string, issue: PaymentIssue, e
   const detail: [string, string][] = [
     ["Expected", event.payAmount !== null ? `${event.payAmount} ${coin}` : "Unknown"],
     ["Received", event.actuallyPaid !== null ? `${event.actuallyPaid} ${coin}` : "Unknown"],
+    ["Reached your wallet", event.receivedCents !== null ? formatPrice(event.receivedCents) : "Check NOWPayments"],
     ["Payment reference", event.providerPaymentId ?? "Unknown"],
   ]
   const mail = staffPaymentIssueEmail(order, issue, detail, absoluteUrl(`/admin/orders/${order.id}`))
@@ -232,7 +234,12 @@ export async function notifyDealerFunds(dealerId: string, amountCents: number, h
 }
 
 /** A top-up arrived short or long: the owner only. */
-export async function notifyTopupIssue(payment: Pick<Payment, "id" | "dealer_id" | "price_cents">, issue: "underpaid" | "overpaid", event: PaymentEvent) {
+export async function notifyTopupIssue(
+  payment: Pick<Payment, "id" | "dealer_id" | "price_cents">,
+  issue: "underpaid" | "overpaid",
+  event: PaymentEvent,
+  addedCents: number | null
+) {
   if (!payment.dealer_id) return
   const db = createServiceClient()
   const { data: dealer } = await db.from("dealers").select("company").eq("profile_id", payment.dealer_id).maybeSingle()
@@ -242,8 +249,9 @@ export async function notifyTopupIssue(payment: Pick<Payment, "id" | "dealer_id"
   const detail: [string, string][] = [
     ["Expected", event.payAmount !== null ? `${event.payAmount} ${coin}` : "Unknown"],
     ["Received", event.actuallyPaid !== null ? `${event.actuallyPaid} ${coin}` : "Unknown"],
+    ["Reached your wallet", event.receivedCents !== null ? formatPrice(event.receivedCents) : "Check NOWPayments"],
     ["Payment reference", event.providerPaymentId ?? "Unknown"],
   ]
-  const mail = staffTopupIssueEmail(dealer?.company ?? "A dealer", issue, payment.price_cents, detail, absoluteUrl(`/admin/dealers/${payment.dealer_id}`))
+  const mail = staffTopupIssueEmail(dealer?.company ?? "A dealer", issue, payment.price_cents, detail, absoluteUrl(`/admin/dealers/${payment.dealer_id}`), addedCents)
   await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `topup-${issue}-${payment.id}-${address}` })))
 }

@@ -27,7 +27,7 @@ import {
   WorkControls,
 } from "@/components/staff/work-controls"
 import type { Profile } from "@/lib/types"
-import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
+import { coinName, formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import {
   formatDateTime,
   orderLabel,
@@ -104,6 +104,13 @@ export async function OrderWorkspace({
     getLineTimers(supabase, items.filter((i) => i.status === "fulfilled")),
   ])
 
+  // A short crypto payment: the order waits for the owner, who accepts it or cancels and refunds.
+  const shortPayment = isAdmin ? [...payments].reverse().find((p) => p.status === "partially_paid") ?? null : null
+  const shortText = shortPayment
+    ? `The customer sent ${shortPayment.actually_paid ?? "less"} ${coinName(shortPayment.pay_currency)} of ${shortPayment.pay_amount ?? "the"} asked` +
+      (shortPayment.received_cents !== null ? `, and ${formatPrice(shortPayment.received_cents)} reached your wallet after the payment partner's fees.` : ".")
+    : ""
+
   return (
     <div className={cn("flex flex-col gap-6", canWork && "max-sm:pb-28")}>
       <header className="flex flex-col gap-4">
@@ -158,6 +165,17 @@ export async function OrderWorkspace({
         ) : null}
       </header>
 
+      {shortPayment && order.status === "awaiting_payment" ? (
+        <Notice tone="warning" title={`Paid short of the ${formatPrice(order.total_cents)} total`}>
+          {shortText} The order is not in the queue. Contact the customer, then use Mark as paid if you
+          accept it or they send you the rest, or cancel the order and refund what arrived.
+        </Notice>
+      ) : null}
+      {shortPayment && order.status === "cancelled" && !order.refunded_at ? (
+        <Notice tone="warning" title="Refund the short payment">
+          {shortText} Send it back from your own wallet, then use Record refund.
+        </Notice>
+      ) : null}
       {order.status === "needs_attention" && order.attention_reason ? (
         <Notice tone="danger" title="Needs attention">
           {order.attention_reason}
@@ -326,7 +344,7 @@ export async function OrderWorkspace({
               agents={staff
                 .filter((s) => s.active)
                 .map((s) => ({ id: s.id, name: s.full_name || s.email }))}
-              paid={Boolean(order.paid_at)}
+              paid={Boolean(order.paid_at || shortPayment)}
               refunded={Boolean(order.refunded_at)}
             />
           ) : null}
@@ -519,6 +537,13 @@ export async function OrderWorkspace({
                         value={p.actually_paid}
                         mono
                         strong
+                      />
+                    ) : null}
+                    {p.received_cents !== null ? (
+                      <KeyValue
+                        label="Reached your wallet"
+                        value={formatPrice(p.received_cents)}
+                        mono
                       />
                     ) : null}
                     {p.provider_payment_id ? (

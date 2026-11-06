@@ -23,7 +23,7 @@ import { TopUpForm } from "./top-up-form"
 function listOpenTopUps(supabase: Awaited<ReturnType<typeof createClient>>) {
   return supabase
     .from("payments")
-    .select("id, price_cents, status, created_at")
+    .select("id, price_cents, status, received_cents, created_at")
     .eq("kind", "wallet_topup")
     .in("status", ["awaiting", "confirming", "partially_paid"])
     .gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString())
@@ -141,7 +141,9 @@ async function Wallet({
                           ? "Not paid"
                           : p.status === "confirming"
                             ? "Confirming"
-                            : "Short, we will check"}
+                            : p.received_cents
+                              ? `Short, ${formatPrice(p.received_cents)} added`
+                              : "Short, we will check"}
                       </Tag>
                     </span>
                   </li>
