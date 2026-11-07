@@ -47,6 +47,9 @@ type Line = {
   cardCarrierId: string | null
   calling: boolean
   quantity: number
+  /** Where the numbers should be from, as on the website. Optional. */
+  zip: string
+  area: string
 }
 type PlanOption = {
   id: string
@@ -65,7 +68,12 @@ const newLine = (): Line => ({
   cardCarrierId: null,
   calling: false,
   quantity: 1,
+  zip: "",
+  area: "",
 })
+
+const ZIP = /^(\d{5})?$/
+const AREA = /^([2-9]\d{2})?$/
 
 const CARD = "card:"
 
@@ -167,6 +175,15 @@ export function OrderBuilder({
       document.getElementById(`plan-${lines[missing].key}`)?.focus()
       return
     }
+    const badPlace = lines.find((l) => !ZIP.test(l.zip.trim()) || !AREA.test(l.area.trim()))
+    if (badPlace) {
+      const zipBad = !ZIP.test(badPlace.zip.trim())
+      setErrors({
+        [`${zipBad ? "zip" : "area"}-${badPlace.key}`]: zipBad ? "A ZIP code is 5 digits, for example 10001" : "An area code is 3 digits, for example 212",
+      })
+      document.getElementById(`${zipBad ? "zip" : "area"}-${badPlace.key}`)?.focus()
+      return
+    }
     const addressErrors = physical ? checkAddress(address) : {}
     if (Object.keys(addressErrors).length) {
       setErrors(addressErrors)
@@ -183,6 +200,8 @@ export function OrderBuilder({
                 day_package_id: p.pkg!.id,
                 quantity: p.line.quantity,
                 intl_calling: p.calling > 0,
+                zip_code: p.line.zip.trim(),
+                area_code: p.line.area.trim(),
               }
         ),
         address: physical ? address : null,
@@ -443,6 +462,59 @@ export function OrderBuilder({
                       />
                     </div>
                   </div>
+
+                  {line.planId && !card ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field data-invalid={Boolean(errors[`zip-${line.key}`]) || undefined}>
+                        <FieldLabel htmlFor={`zip-${line.key}`}>
+                          ZIP for the number{" "}
+                          <span className="font-normal text-muted-foreground">(optional)</span>
+                        </FieldLabel>
+                        <Input
+                          id={`zip-${line.key}`}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={5}
+                          value={line.zip}
+                          aria-invalid={Boolean(errors[`zip-${line.key}`]) || undefined}
+                          onChange={(e) => {
+                            update(line.key, { zip: e.currentTarget.value.replace(/\D/g, "") })
+                            setErrors((x) => ({ ...x, [`zip-${line.key}`]: "" }))
+                          }}
+                          className="tabular font-mono"
+                        />
+                        {errors[`zip-${line.key}`] ? (
+                          <FieldError>{errors[`zip-${line.key}`]}</FieldError>
+                        ) : (
+                          <FieldDescription>Where the lines will mostly be used, for example 10001.</FieldDescription>
+                        )}
+                      </Field>
+                      <Field data-invalid={Boolean(errors[`area-${line.key}`]) || undefined}>
+                        <FieldLabel htmlFor={`area-${line.key}`}>
+                          Area code{" "}
+                          <span className="font-normal text-muted-foreground">(optional)</span>
+                        </FieldLabel>
+                        <Input
+                          id={`area-${line.key}`}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={3}
+                          value={line.area}
+                          aria-invalid={Boolean(errors[`area-${line.key}`]) || undefined}
+                          onChange={(e) => {
+                            update(line.key, { area: e.currentTarget.value.replace(/\D/g, "") })
+                            setErrors((x) => ({ ...x, [`area-${line.key}`]: "" }))
+                          }}
+                          className="tabular font-mono"
+                        />
+                        {errors[`area-${line.key}`] ? (
+                          <FieldError>{errors[`area-${line.key}`]}</FieldError>
+                        ) : (
+                          <FieldDescription>For numbers that start with it, like 212. If it is not available, you get the nearest one.</FieldDescription>
+                        )}
+                      </Field>
+                    </div>
+                  ) : null}
                 </li>
               )
             })}

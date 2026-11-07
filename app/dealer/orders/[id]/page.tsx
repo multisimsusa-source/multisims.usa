@@ -343,6 +343,13 @@ function LineCard({
             {order.addon_name ? ` · ${order.addon_name}` : ""} &middot;{" "}
             <span className="tabular font-mono">{orderLabel(order)}</span>
           </p>
+          {order.zip_code || order.area_code ? (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {order.zip_code ? <>ZIP <span className="tabular font-mono">{order.zip_code}</span></> : null}
+              {order.zip_code && order.area_code ? " · " : null}
+              {order.area_code ? <>Area code <span className="tabular font-mono">{order.area_code}</span></> : null}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           {replacement ? null : (

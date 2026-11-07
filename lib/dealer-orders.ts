@@ -62,6 +62,8 @@ export async function getOrderingTerms(dealerId: string): Promise<OrderingTerms>
 export type BatchOrder = Pick<
   Order,
   | "id"
+  | "zip_code"
+  | "area_code"
   | "kind"
   | "number"
   | "status"
@@ -97,7 +99,7 @@ export type Batch = {
 export type BatchProgress = { delivered: number; total: number; cards: number; cardsShipped: number; status: CustomerStatus }
 
 const orderColumns =
-  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at"
+  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at, zip_code, area_code"
 
 /** The dealer's batches, newest first, with their orders. RLS keeps it to their own. */
 export async function listBatches(db: SupabaseClient, dealerId: string, limit = 50): Promise<Batch[]> {
