@@ -113,7 +113,7 @@ async function BatchDetail({
 
   // QR codes are private; signed for an hour, read with the service role once ownership is known.
   const qrPaths = items
-    .filter((i) => i.qr_path && i.status !== "cancelled")
+    .filter((i) => i.qr_path && (i.status === "fulfilled" || i.status === "replaced"))
     .map((i) => i.qr_path!)
   const qrUrl = new Map<string, string>()
   if (qrPaths.length) {
@@ -417,6 +417,8 @@ function LineCard({
                     QR code
                     <ArrowSquareOutIcon data-icon="inline-end" />
                   </a>
+                ) : esim && item.status === "fulfilled" && !replaced ? (
+                  <span className="text-sm text-muted-foreground">QR code on its way</span>
                 ) : null}
               </div>
             </li>

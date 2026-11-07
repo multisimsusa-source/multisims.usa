@@ -8,6 +8,8 @@ import {
   staffCustomerMessageEmail,
   dealerFundsAddedEmail,
   dealerLineEmail,
+  dealerQrReadyEmail,
+  qrReadyEmail,
   staffNewBatchEmail,
   staffNewOrderEmail,
   staffNewTicketEmail,
@@ -121,10 +123,14 @@ export async function notifyOrderDelivered(orderId: string) {
   const order = await loadOrder(orderId)
   const kind = order?.product_type === "physical" && order.status === "fulfilled" && order.phase === "activate" ? "activated" : "delivered"
   if (!order || !(await once(orderId, kind))) return
-  if (order.channel === "dealer") return notifyDealerLine(order, kind)
   const db = createServiceClient()
   const { data: rows } = await db.from("order_items").select("*").eq("order_id", orderId).order("seq")
   const items = (rows ?? []) as OrderItem[]
+  // QR codes going out now are never sent again by notifyQrReady.
+  if (order.product_type === "esim") {
+    await Promise.all(items.filter((i) => i.qr_path).map((i) => once(orderId, `qr-${i.seq}`)))
+  }
+  if (order.channel === "dealer") return notifyDealerLine(order, kind)
 
   // A replacement is shown on the original order's page.
   let pageOrder: Pick<Order, "public_token"> = order
@@ -162,6 +168,56 @@ export async function notifyOrderDelivered(orderId: string) {
 
   const mail = orderDeliveredEmail(order, delivered, orderPageUrl(pageOrder), { replacement: Boolean(order.replacement_of) })
   await sendEmail({ sender: "orders", to: order.customer_email, ...mail, attachments, idempotencyKey: `${kind}-${order.id}` })
+}
+
+/**
+ * An eSIM delivered without its QR code got one later: the customer gets it by email (the
+ * dealer gets a short note pointing to the portal). Once per SIM.
+ */
+export async function notifyQrReady(itemId: string) {
+  const db = createServiceClient()
+  const { data: row } = await db.from("order_items").select("*").eq("id", itemId).maybeSingle()
+  const item = row as OrderItem | null
+  if (!item?.qr_path || item.status !== "fulfilled") return
+  const order = await loadOrder(item.order_id)
+  if (!order || order.product_type !== "esim" || !(await once(order.id, `qr-${item.seq}`))) return
+
+  if (order.channel === "dealer") {
+    if (!order.batch_id) return
+    const { data: batch } = await db.from("order_batches").select("id, number").eq("id", order.batch_id).single()
+    if (!batch) return
+    const mail = dealerQrReadyEmail(order, batch.number, item.seq, absoluteUrl(`/dealer/orders/${batch.id}`))
+    await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `qr-${item.id}` })
+    return
+  }
+
+  const { data: file } = await db.storage.from("esim-qr").download(item.qr_path)
+  if (!file) return
+  let pageOrder: Pick<Order, "public_token"> = order
+  if (order.replacement_of) {
+    const original = await loadOrder(order.replacement_of)
+    if (original) pageOrder = original
+  }
+  const qrCid = `qr-${item.seq}`
+  const mail = qrReadyEmail(
+    order,
+    { seq: item.seq, phone_number: item.phone_number, iccid: item.iccid, tracking_number: null, plan_starts_on: item.plan_starts_on, plan_ends_on: item.plan_ends_on, qrCid },
+    orderPageUrl(pageOrder)
+  )
+  await sendEmail({
+    sender: "orders",
+    to: order.customer_email,
+    ...mail,
+    attachments: [
+      {
+        filename: `esim-${order.number}-${item.seq}.${extension(file.type)}`,
+        content: Buffer.from(await file.arrayBuffer()).toString("base64"),
+        contentType: file.type || "image/png",
+        contentId: qrCid,
+      },
+    ],
+    idempotencyKey: `qr-${item.id}`,
+  })
 }
 
 /** The contact button on a slow order page. Owner and every agent. */

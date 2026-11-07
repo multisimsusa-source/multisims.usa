@@ -49,6 +49,8 @@ type WorkProps = {
   canClaim: boolean
   canWork: boolean
   missing: number
+  /** eSIMs without a QR code yet: they can still be delivered, the QR follows. */
+  noQr?: number
   /** SIM cards with no plan: done once shipped, nothing to activate. */
   cardOnly?: boolean
 }
@@ -67,7 +69,7 @@ const completeCopy: Record<
     button: "Mark complete and deliver",
     title: "Deliver to the customer now?",
     description:
-      "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. This cannot be undone.",
+      "The QR codes, numbers and ICCIDs go to the customer by email and show on their order page straight away. A QR code you have not added yet can be added after delivering: the customer gets it by email then. This cannot be undone.",
     confirm: "Deliver now",
     missing: "a QR code",
   },
@@ -105,8 +107,10 @@ export function WorkControls({
   canClaim,
   canWork,
   missing,
+  noQr = 0,
   cardOnly,
 }: WorkProps) {
+  const qrHint = noQr > 0 ? `${noQr} eSIM${noQr === 1 ? " has" : "s have"} no QR code yet. You can deliver now and add ${noQr === 1 ? "it" : "them"} after.` : null
   const copy = cardOnly
     ? {
         ...completeCopy.ship,
@@ -149,6 +153,8 @@ export function WorkControls({
               {missing} SIM{missing === 1 ? "" : "s"} still need
               {missing === 1 ? "s" : ""} {copy.missing}
             </p>
+          ) : qrHint ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground">{qrHint}</p>
           ) : null}
         </div>
       </ActionBar>
@@ -189,6 +195,8 @@ export function WorkControls({
           {missing} SIM{missing === 1 ? "" : "s"} still need
           {missing === 1 ? "s" : ""} {copy.missing} before you can complete.
         </p>
+      ) : qrHint ? (
+        <p className="w-full text-sm text-muted-foreground max-sm:hidden">{qrHint}</p>
       ) : null}
     </div>
   )

@@ -89,6 +89,8 @@ export async function OrderWorkspace({
     activation ? i.status === "fulfilled" : i.status === "pending"
   )
   const missing = working.filter((i) => !itemReady(i, need)).length
+  // eSIMs may go out before their QR code; the agent is told, not stopped.
+  const noQr = esim ? working.filter((i) => !i.qr_path).length : 0
   const base = isAdmin ? "/admin" : "/agent"
   const unit = esim ? "eSIM" : "SIM"
   const tracking = items.find((i) => i.tracking_number)?.tracking_number ?? null
@@ -151,6 +153,7 @@ export async function OrderWorkspace({
           canClaim={canClaim}
           canWork={canWork}
           missing={missing}
+          noQr={noQr}
           cardOnly={order.kind === "card_only"}
         />
         {order.claimed_by && !holder && order.status === "claimed" ? (
@@ -287,6 +290,7 @@ export async function OrderWorkspace({
                   need={need}
                   cardOnly={order.kind === "card_only"}
                   done={order.status === "fulfilled" || order.status === "cancelled"}
+                  addQr={esim && order.status === "fulfilled" && item.status === "fulfilled" && !item.qr_path}
                   editable={
                     canWork &&
                     (activation

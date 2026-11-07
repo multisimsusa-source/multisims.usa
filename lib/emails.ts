@@ -184,16 +184,21 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     return { title, pairs, qrCid: item.qrCid }
   })
 
+  // An eSIM's QR code can follow after delivery: it is then emailed on its own.
+  const anyQr = itemBlocks.some((b) => b.qrCid)
+  const qrToCome = esim && itemBlocks.some((b) => !b.qrCid)
   const install = refill
     ? "Nothing to do on your phone: the days are added to the same SIM and number. If your plan was still running, the new days start the day after it ends."
     : esim
-    ? "To install: on your phone open Settings, then Cellular (iPhone) or Connections (Android), choose Add eSIM, and scan the QR code. Install it while you have Wi-Fi, and keep the line switched off until you land in the US if your plan starts on first use."
+    ? anyQr
+      ? `${ESIM_INSTALL}${qrToCome ? " QR codes still to come are emailed to you as soon as they are ready." : ""}`
+      : "Your line is set up. Your QR code is on its way: we email it to you as soon as it is ready, and it shows on your order page."
     : active
       ? "Insert the SIM, restart your phone, and turn on the line. Your plan days count from today."
       : `Tracking can take a few hours to show movement after the label is created. ${shippedNext}`
 
   const html = layout({
-    preheader: esim ? "Scan the QR code to install your line." : active ? "Your phone number is inside." : "Your tracking number is inside.",
+    preheader: esim ? (anyQr ? "Scan the QR code to install your line." : "Your QR code follows by email.") : active ? "Your phone number is inside." : "Your tracking number is inside.",
     heading,
     body:
       p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${refill ? "done" : esim ? "delivered" : active ? "active" : "on its way"}.`) +
@@ -202,8 +207,10 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
           (b) =>
             `${b.title ? `<p style="margin:18px 0 6px;font-size:13px;font-weight:600;color:${muted};text-transform:uppercase;letter-spacing:1px;">${esc(b.title)}</p>` : ""}` +
             (b.qrCid
-              ? `<p style="margin:8px 0;"><img src="cid:${esc(b.qrCid)}" alt="eSIM QR code${b.title ? ` for ${esc(b.title)}` : ""}" width="220" height="220" style="display:block;width:220px;height:220px;border:1px solid ${line};border-radius:8px;"></p>`
-              : "") +
+              ? qrImage(b.qrCid, b.title)
+              : esim
+                ? `<p style="margin:8px 0;color:${muted};font-size:14px;">QR code on its way. We email it as soon as it is ready.</p>`
+                : "") +
             (b.pairs.length ? rows(b.pairs) : "")
         )
         .join("") +
@@ -218,7 +225,7 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     "",
     `${heading}. Order ${orderLabel(order)}.`,
     "",
-    ...itemBlocks.flatMap((b) => [b.title, textRows(b.pairs), esim ? "QR code: attached, and on your order page." : "", ""].filter(Boolean)),
+    ...itemBlocks.flatMap((b) => [b.title, textRows(b.pairs), esim ? (b.qrCid ? "QR code: attached, and on your order page." : "QR code: on its way, we email it as soon as it is ready.") : "", ""].filter(Boolean)),
     install,
     "",
     ...(rateable ? [`How was it? Rate your order: ${orderUrl}#rate`, ""] : []),
@@ -226,6 +233,57 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
   ].join("\n")
 
   return { subject: `${heading} (${orderLabel(order)})`, text, html }
+}
+
+const ESIM_INSTALL =
+  "To install: on your phone open Settings, then Cellular (iPhone) or Connections (Android), choose Add eSIM, and scan the QR code. Install it while you have Wi-Fi, and keep the line switched off until you land in the US if your plan starts on first use."
+
+function qrImage(cid: string, title: string) {
+  return `<p style="margin:8px 0;"><img src="cid:${esc(cid)}" alt="eSIM QR code${title ? ` for ${esc(title)}` : ""}" width="220" height="220" style="display:block;width:220px;height:220px;border:1px solid ${line};border-radius:8px;"></p>`
+}
+
+/** An eSIM delivered before its QR code: the QR, once it is ready. */
+export function qrReadyEmail(order: Order, item: DeliveredItem, orderUrl: string): Rendered {
+  const title = order.quantity > 1 ? `eSIM ${item.seq}` : ""
+  const heading = title ? `Your QR code for ${title} is ready` : "Your eSIM QR code is ready"
+  const pairs: [string, string][] = []
+  if (item.phone_number) pairs.push(["Phone number", item.phone_number])
+  if (item.iccid) pairs.push(["ICCID", item.iccid])
+  if (item.plan_ends_on) pairs.push(["Active until", formatPlanDate(item.plan_ends_on)])
+  const html = layout({
+    preheader: "Scan the QR code to install your line.",
+    heading,
+    body:
+      p(`Hi ${esc(order.customer_name)}, here is the QR code for order ${esc(orderLabel(order))}.`) +
+      (item.qrCid ? qrImage(item.qrCid, title) : "") +
+      (pairs.length ? rows(pairs) : "") +
+      p(esc(ESIM_INSTALL)) +
+      p(`<span style="color:${muted};font-size:13px;">Never share your QR code: anyone who scans it can install your line.</span>`),
+    cta: { label: "Open your order page", url: orderUrl },
+  })
+  const text = [
+    `Hi ${order.customer_name},`,
+    "",
+    `${heading}. Order ${orderLabel(order)}.`,
+    "",
+    textRows(pairs),
+    "QR code: attached, and on your order page.",
+    "",
+    ESIM_INSTALL,
+    "",
+    `Your order page: ${orderUrl}`,
+  ].join("\n")
+  return { subject: `${heading} (${orderLabel(order)})`, text, html }
+}
+
+/** A dealer's eSIM delivered before its QR code: the QR is now on the order page. */
+export function dealerQrReadyEmail(order: Order, batchNumber: number, seq: number, portalUrl: string): Rendered {
+  const lead = `The QR code for SIM ${seq} of ${order.quantity} x ${orderTitle(order)} is ready on your order page.`
+  return {
+    subject: `B-${batchNumber}: QR code ready (${orderLabel(order)}, SIM ${seq})`,
+    text: `${lead}\n\nOpen your order: ${portalUrl}`,
+    html: layout({ preheader: lead, heading: "QR code ready", body: p(esc(lead)), cta: { label: "Open your order", url: portalUrl } }),
+  }
 }
 
 export function ticketAnsweredEmail(order: Order, ticket: Ticket, orderUrl: string): Rendered {
@@ -431,7 +489,7 @@ export function dealerLineEmail(order: Order, batchNumber: number, event: "deliv
         ? `The SIM cards for ${what} are in the post. The tracking number is on your order page. They come without a plan.`
         : `The SIM cards for ${what} are in the post. The tracking number is on your order page. Press "The cards arrived" there once you have them, and the lines start.`
       : order.product_type === "esim"
-        ? `The QR codes for ${what} are ready on your order page.`
+        ? `The eSIMs for ${what} are ready. Their QR codes are on your order page; any still to come are emailed to you as soon as they are ready.`
         : `The lines for ${what} are active. Their phone numbers are on your order page.`
   return {
     subject: `B-${batchNumber}: ${heading} (${orderLabel(order)})`,

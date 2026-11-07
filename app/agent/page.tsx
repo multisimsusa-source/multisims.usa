@@ -14,7 +14,7 @@ import { ClaimButton } from "@/components/staff/order-actions"
 import { getSessionProfile } from "@/lib/auth"
 import { formatDays, orderTitle } from "@/lib/format"
 import { elapsed, orderLabel, planStartLabel } from "@/lib/orders"
-import { getSettings, listOpenOrders, type QueueOrder } from "@/lib/staff/queries"
+import { getSettings, listOpenOrders, listQrToAdd, type QueueOrder } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Queue" }
@@ -34,7 +34,7 @@ export default function QueuePage() {
 }
 
 async function Queue() {
-  const [profile, orders, settings] = await Promise.all([getSessionProfile(), listOpenOrders(), getSettings()])
+  const [profile, orders, settings, qrToAdd] = await Promise.all([getSessionProfile(), listOpenOrders(), getSettings(), listQrToAdd()])
   const me = profile?.id
   const isAdmin = profile?.role === "admin"
   const warn = settings.unclaimed_alert_minutes
@@ -103,6 +103,20 @@ async function Queue() {
         <Group title="With other agents" count={others.length}>
           {others.map((o) => (
             <Row key={o.id} order={o} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={isAdmin ? <OpenLink id={o.id} admin label="Open" /> : <Holder order={o} />} />
+          ))}
+        </Group>
+      ) : null}
+
+      {qrToAdd.length ? (
+        <Group title="QR to add" count={qrToAdd.reduce((n, q) => n + q.missing, 0)}>
+          {qrToAdd.map(({ order: o, missing }) => (
+            <Row
+              key={o.id}
+              order={o}
+              warn={warn}
+              href={isAdmin ? `/admin/orders/${o.id}` : `/agent/orders/${o.id}`}
+              action={<OpenLink id={o.id} admin={isAdmin} label={`Add ${missing} QR`} />}
+            />
           ))}
         </Group>
       ) : null}

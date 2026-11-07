@@ -37,6 +37,31 @@ export async function listOpenOrders(): Promise<QueueOrder[]> {
   return data as unknown as QueueOrder[]
 }
 
+export type QrToAdd = { order: QueueOrder; missing: number; deliveredAt: string }
+
+/** Delivered eSIM orders with SIMs whose QR code has not been added yet, oldest first. */
+export async function listQrToAdd(): Promise<QrToAdd[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("order_items")
+    .select(`fulfilled_at, order:orders!order_items_order_id_fkey!inner(${QUEUE_SELECT})`)
+    .eq("status", "fulfilled")
+    .is("qr_path", null)
+    .eq("order.product_type", "esim")
+    .eq("order.status", "fulfilled")
+    .not("order.kind", "in", "(refill,activation)")
+    .order("fulfilled_at", { ascending: true })
+    .limit(1000)
+  if (error) throw error
+  const byOrder = new Map<string, QrToAdd>()
+  for (const row of (data ?? []) as unknown as { fulfilled_at: string; order: QueueOrder }[]) {
+    const found = byOrder.get(row.order.id)
+    if (found) found.missing += 1
+    else byOrder.set(row.order.id, { order: row.order, missing: 1, deliveredAt: row.fulfilled_at })
+  }
+  return [...byOrder.values()]
+}
+
 export type OrderFilters = {
   status?: OrderStatus | "open" | "all"
   q?: string

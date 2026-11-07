@@ -8,7 +8,7 @@ import { z } from "zod"
 import type { ActionResult } from "@/lib/admin/result"
 import { requireStaff } from "@/lib/auth"
 import { isPhoneLike, tidyPhone } from "@/lib/format"
-import { notifyNewOrderToStaff, notifyOrderDelivered, notifyTicketAnswered } from "@/lib/notify"
+import { notifyNewOrderToStaff, notifyOrderDelivered, notifyQrReady, notifyTicketAnswered } from "@/lib/notify"
 import { usToday } from "@/lib/plan-dates"
 import { createClient } from "@/lib/supabase/server"
 import type { Order, Ticket, TicketStatus } from "@/lib/types"
@@ -27,7 +27,7 @@ function fail(error: { message?: string } | null, fallback = "That did not work.
   if (/claim the order first/.test(msg)) return { ok: false, error: "Claim the order first. It may have been released or reassigned." }
   if (/missing details on (\d+)/.test(msg)) {
     const n = msg.match(/missing details on (\d+)/)?.[1]
-    return { ok: false, error: `${n} SIM${n === "1" ? " is" : "s are"} still missing a QR code or tracking number.` }
+    return { ok: false, error: `${n} SIM${n === "1" ? " is" : "s are"} still missing a tracking number, ICCID or phone number.` }
   }
   if (/not allowed/.test(msg)) return { ok: false, error: "Your account cannot do that." }
   if (msg && !/violates|syntax|relation/.test(msg)) return { ok: false, error: msg.charAt(0).toUpperCase() + msg.slice(1) + "." }
@@ -126,6 +126,38 @@ export async function saveItem(itemId: string, formData: FormData): Promise<Acti
   if (error) return fail(error)
   refresh()
   return { ok: true, message: qrPath ? "QR code saved" : "Saved" }
+}
+
+/**
+ * A QR code for an eSIM that was delivered without one. The customer (or dealer) is
+ * emailed it once. Agents add a missing QR; only the owner replaces one.
+ */
+export async function addItemQr(itemId: string, formData: FormData): Promise<ActionResult> {
+  await requireStaff()
+  if (!id.safeParse(itemId).success) return { ok: false, error: "Unknown SIM" }
+  const file = formData.get("qr")
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose the QR image", fieldErrors: { qr: "Choose the QR image" } }
+  const ext = QR_TYPES[file.type]
+  if (!ext) return { ok: false, error: "Use a PNG, JPG or WebP image", fieldErrors: { qr: "Use a PNG, JPG or WebP image" } }
+  if (file.size > QR_MAX) return { ok: false, error: "The image is over 2 MB", fieldErrors: { qr: "The image is over 2 MB" } }
+
+  const supabase = await createClient()
+  const { data: item } = await supabase.from("order_items").select("id, order_id").eq("id", itemId).maybeSingle()
+  if (!item) return { ok: false, error: "Unknown SIM" }
+  const path = `${item.order_id}/${item.id}-${randomUUID().slice(0, 8)}.${ext}`
+  const { error: uploadError } = await supabase.storage.from("esim-qr").upload(path, file, { contentType: file.type })
+  if (uploadError) {
+    console.error("[agent] QR upload failed", uploadError)
+    return { ok: false, error: "The QR image did not upload. Try again." }
+  }
+  const { error } = await supabase.rpc("add_item_qr", { p_item_id: itemId, p_qr_path: path })
+  if (error) {
+    await supabase.storage.from("esim-qr").remove([path])
+    return fail(error)
+  }
+  after(() => notifyQrReady(itemId))
+  refresh()
+  return { ok: true, message: "QR code saved and sent" }
 }
 
 /**

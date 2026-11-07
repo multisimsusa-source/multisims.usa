@@ -14,6 +14,7 @@ import { StatGrid } from "@/components/patterns/stat-grid"
 import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
 import { byAgent, byCarrier, byDealer, loadReport, perDay, previousRange, resolveRange, salesByDay, salesTotals, waitingNow } from "@/lib/admin/reports"
 import { formatPrice } from "@/lib/format"
+import { listQrToAdd } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Overview" }
@@ -45,7 +46,8 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
   const params = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "string")) as Record<string, string>
   const range = resolveRange(params)
   const before = previousRange(range)
-  const [data, prior, carriers, plans] = await Promise.all([loadReport(range), loadReport(before), listCarriers(), listPlans()])
+  const [data, prior, carriers, plans, qrToAdd] = await Promise.all([loadReport(range), loadReport(before), listCarriers(), listPlans(), listQrToAdd()])
+  const qrMissing = qrToAdd.reduce((n, q) => n + q.missing, 0)
 
   const sales = salesTotals(data)
   const priorSales = salesTotals(prior)
@@ -61,6 +63,9 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
   const attention = [
     ...(waiting.attention
       ? [{ key: "orders", href: "/admin/orders?status=needs_attention", title: `${waiting.attention} ${waiting.attention === 1 ? "order needs" : "orders need"} you`, detail: "Flagged by an agent", tag: "Needs attention" }]
+      : []),
+    ...(qrMissing
+      ? [{ key: "qr", href: "/agent", title: `${qrMissing} ${qrMissing === 1 ? "eSIM is" : "eSIMs are"} waiting for a QR code`, detail: "Delivered without one; add it from the queue", tag: "QR to add" }]
       : []),
     ...plans
       .filter((p) => p.published && hiddenReason(p))

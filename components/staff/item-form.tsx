@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Tag } from "@/components/patterns/tag"
-import { saveItem } from "@/app/agent/actions"
+import { addItemQr, saveItem } from "@/app/agent/actions"
 import { itemStatusLabel } from "@/lib/orders"
 import type { ProductType } from "@/lib/types"
 import { itemReady, type ItemNeed } from "@/lib/staff/item-need"
@@ -32,18 +32,20 @@ type Props = {
   cardOnly?: boolean
   /** The order is fulfilled or cancelled: nothing left to do on this SIM. */
   done?: boolean
+  /** A delivered eSIM still without its QR code: only the QR can be added. */
+  addQr?: boolean
 }
 
 const needLabel: Record<ItemNeed, string> = {
   refill: "Refill",
-  qr: "Needs QR",
+  qr: "No QR yet",
   ship: "Needs ICCID and tracking",
   activate: "Needs phone number",
 }
 
 /**
- * One SIM on the fulfilment screen. eSIM: the QR image (required) plus phone number
- * and ICCID. Physical: phone number and ICCID; the tracking number is set once for the
+ * One SIM on the fulfilment screen. eSIM: the QR image (it can also follow after
+ * delivery) plus phone number and ICCID. Physical: phone number and ICCID; the tracking number is set once for the
  * parcel. QR images can be dropped, picked, or pasted straight from WhatsApp.
  */
 export function ItemForm({
@@ -54,7 +56,10 @@ export function ItemForm({
   title,
   cardOnly = false,
   done = false,
+  addQr = false,
 }: Props) {
+  // The QR box takes an image while the SIM is being worked, or after delivery when missing.
+  const qrEditable = editable || addQr
   const esim = productType === "esim"
   const [file, setFile] = React.useState<File | null>(null)
   const preview = React.useMemo(
@@ -82,7 +87,7 @@ export function ItemForm({
     setErrors((e) => ({ ...e, qr: "" }))
   }
 
-  const ready = itemReady(item, need)
+  const ready = need === "qr" ? Boolean(item.qr_path) : itemReady(item, need)
   // Still to do: an activation-stage SIM is "fulfilled" (shipped) until its order is done;
   // once the order is done the SIM shows its own status.
   const working =
@@ -100,7 +105,7 @@ export function ItemForm({
         if (file) fd.set("qr", file)
         fd.set("tracking_number", item.tracking_number ?? "")
         start(async () => {
-          const result = await saveItem(item.id, fd)
+          const result = addQr ? await addItemQr(item.id, fd) : await saveItem(item.id, fd)
           if (!result.ok) {
             setErrors(result.fieldErrors ?? {})
             toast.error(result.error)
@@ -117,14 +122,16 @@ export function ItemForm({
         <h3 className="font-sans text-base font-semibold tracking-normal">
           {title}
         </h3>
-        {working ? (
+        {addQr ? (
+          <Tag tone="warning">QR to add</Tag>
+        ) : working ? (
           ready ? (
             <Tag tone="success">
               <CheckCircleIcon weight="fill" className="mr-1 size-3" />
               Ready
             </Tag>
           ) : (
-            <Tag tone="warning">{needLabel[need]}</Tag>
+            <Tag tone={need === "qr" ? "neutral" : "warning"}>{needLabel[need]}</Tag>
           )
         ) : (
           <Tag tone={item.status === "fulfilled" ? "success" : "neutral"}>
@@ -136,7 +143,7 @@ export function ItemForm({
       <div className="flex flex-col gap-5 p-4 sm:flex-row sm:p-5">
         {esim ? (
           <div className="w-full shrink-0 sm:w-auto">
-            {editable ? (
+            {qrEditable ? (
               <label
                 htmlFor={inputId}
                 tabIndex={0}
@@ -207,10 +214,10 @@ export function ItemForm({
               type="file"
               accept={ACCEPT.join(",")}
               className="sr-only"
-              disabled={!editable}
+              disabled={!qrEditable}
               onChange={(e) => pick(e.currentTarget.files?.[0])}
             />
-            {editable ? (
+            {qrEditable ? (
               <p className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground sm:justify-start pointer-coarse:hidden">
                 <ClipboardTextIcon className="size-3.5" /> Ctrl/Cmd+V after
                 clicking the box
@@ -260,7 +267,16 @@ export function ItemForm({
               </span>
             </p>
           ) : null}
-          {editable ? (
+          {addQr ? (
+            <div className="sm:col-span-2">
+              <p className="mb-3 text-sm text-muted-foreground">
+                Delivered without its QR code. Add it here and the customer gets it by email.
+              </p>
+              <Button type="submit" size="lg" disabled={pending || !file}>
+                {pending ? "Sending..." : "Save and send QR code"}
+              </Button>
+            </div>
+          ) : editable ? (
             <div className="sm:col-span-2">
               <Button
                 type="submit"

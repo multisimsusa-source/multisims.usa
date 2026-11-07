@@ -117,6 +117,9 @@ async function OrderView({
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
   )
+  // An eSIM can be delivered before its QR code: the page keeps checking until it arrives.
+  const withQr = esim ? items.filter((i) => i.status === "fulfilled" && i.qr_url) : []
+  const qrToCome = esim && items.some((i) => i.status === "fulfilled" && !i.qr_url)
   const availableAt = order.paid_at
     ? new Date(order.paid_at).getTime() +
       (settings?.unclaimed_alert_minutes ?? 5) * 60_000
@@ -139,7 +142,7 @@ async function OrderView({
     <>
       <LiveRefresh
         active={
-          processing || unpaid || activating || pendingReplacements.length > 0
+          processing || unpaid || activating || pendingReplacements.length > 0 || qrToCome
         }
       />
 
@@ -218,7 +221,11 @@ async function OrderView({
                   ? `Your ${order.quantity > 1 ? "QR codes appear" : "QR code appears"} here as soon as ${order.quantity > 1 ? "they are" : "it is"} ready, and we email ${order.quantity > 1 ? "them" : "it"} to ${order.customer_email}. This page updates on its own.`
                   : `Your tracking number appears here as soon as your ${order.quantity > 1 ? "SIM cards ship" : "SIM card ships"}, and we email it to ${order.customer_email}. This page updates on its own.`
                 : esim
-                  ? "Scan the QR code below with the phone you will use in the US. We also emailed it to you."
+                  ? withQr.length === 0
+                    ? `Your line is set up. Your ${order.quantity > 1 ? "QR codes are" : "QR code is"} on the way: ${order.quantity > 1 ? "they appear" : "it appears"} below as soon as ${order.quantity > 1 ? "they are" : "it is"} ready, and we email ${order.quantity > 1 ? "them" : "it"} to you.`
+                    : qrToCome
+                      ? "Scan each QR code below with the phone you will use in the US. QR codes still to come appear here as soon as they are ready, and we email them to you."
+                      : "Scan the QR code below with the phone you will use in the US. We also emailed it to you."
                   : status === "Delivered"
                     ? "Your line is active. Your phone number is below, and we emailed it to you."
                     : order.quantity > 1
@@ -323,7 +330,7 @@ async function OrderView({
         </section>
       ) : null}
 
-      {esim && delivered.length > 0 ? <InstallSteps /> : null}
+      {esim && withQr.length > 0 ? <InstallSteps /> : null}
 
       <section aria-labelledby="summary" className="mt-10">
         <h2 id="summary" className="text-xl font-semibold">
@@ -672,6 +679,11 @@ function ItemCard({
                 Open full size <ArrowSquareOutIcon className="size-3" />
               </a>
             </div>
+          ) : item.status === "fulfilled" ? (
+            <div className="flex w-full shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground sm:size-52">
+              <QrCodeIcon className="size-5" />
+              <span>Your QR code is on its way. We email it to you as soon as it is ready.</span>
+            </div>
           ) : null
         ) : (
           <span
@@ -724,7 +736,7 @@ function ItemCard({
           <p className="mt-3 text-xs text-muted-foreground">
             {replaced
               ? "This line was replaced. Use the replacement above."
-              : esim
+              : esim && item.qr_url
                 ? "Keep this QR code private: anyone who scans it can install your line."
                 : null}
           </p>
