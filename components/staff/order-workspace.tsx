@@ -42,6 +42,11 @@ import { createClient } from "@/lib/supabase/server"
 import { getLineTimers } from "@/lib/line-timers"
 import { PlanTimer } from "@/components/patterns/plan-timer"
 import { RefillDates } from "@/components/staff/refill-dates"
+import { CopyButton } from "@/components/patterns/copy-button"
+import { PhotoUpload } from "@/components/patterns/photo-upload"
+import { deviceShortLabel, tidyDevice, type DeviceField } from "@/lib/device"
+import { listOrderPhotos, MAX_ORDER_PHOTOS } from "@/lib/order-photos"
+import type { OrderItem } from "@/lib/types"
 
 /**
  * The fulfilment screen. Agents fill SIMs here; the owner sees the same screen with
@@ -97,14 +102,18 @@ export async function OrderWorkspace({
   const canReplace = allowance.used < allowance.limit
   const supabase = await createClient()
   // A refill's proposed dates, and every delivered line's timer.
-  const [refillDates, timers] = await Promise.all([
+  const [refillDates, timers, photoMap] = await Promise.all([
     refill && order.status !== "fulfilled" && order.status !== "cancelled"
       ? supabase.rpc("refill_dates_for_order", { p_order_id: order.id }).then(({ data }) =>
           new Map(((data ?? []) as { item_id: string; current_ends_on: string | null; starts_on: string; ends_on: string }[]).map((r) => [r.item_id, r]))
         )
       : Promise.resolve(new Map<string, { item_id: string; current_ends_on: string | null; starts_on: string; ends_on: string }>()),
     getLineTimers(supabase, items.filter((i) => i.status === "fulfilled")),
+    // Photos the buyer added; a replacement shows the original order's.
+    listOrderPhotos([order.replacement_of ?? order.id]),
   ])
+  const photos = photoMap.get(order.replacement_of ?? order.id) ?? []
+  const asksDevice = order.kind === "line" || order.kind === "activation"
 
   // A short crypto payment: the order waits for the owner, who accepts it or cancels and refunds.
   const shortPayment = isAdmin ? [...payments].reverse().find((p) => p.status === "partially_paid") ?? null : null
@@ -303,6 +312,7 @@ export async function OrderWorkspace({
                       : unit
                   }
                 />
+                {asksDevice ? <BuyerDevice item={item} open={order.status !== "fulfilled" && order.status !== "cancelled"} /> : null}
                 {refill && item.status === "pending" && refillDates.get(item.id) ? (
                   <div className="mt-2">
                     <RefillDates
@@ -620,6 +630,12 @@ export async function OrderWorkspace({
             </Panel>
           ) : null}
 
+          {photos.length ? (
+            <Panel title="Buyer's photos">
+              <PhotoUpload photos={photos} max={MAX_ORDER_PHOTOS} canAdd={false} />
+            </Panel>
+          ) : null}
+
           <Panel title="Record">
             {/* In time order: a SIM card is claimed again for activation after it ships. */}
             {[
@@ -674,6 +690,34 @@ export async function OrderWorkspace({
           </Panel>
         </aside>
       </div>
+    </div>
+  )
+}
+
+/** The buyer's phone details for one SIM, to copy into the carrier portal. */
+function BuyerDevice({ item, open }: { item: Pick<OrderItem, "imei" | "eid" | "buyer_iccid" | "iccid">; open: boolean }) {
+  const given = (["imei", "eid", "buyer_iccid"] as DeviceField[]).filter((f) => item[f])
+  const mismatch = Boolean(item.buyer_iccid && item.iccid && tidyDevice(item.buyer_iccid).toLowerCase() !== tidyDevice(item.iccid).toLowerCase())
+  if (!given.length) {
+    return open ? <p className="mt-2 px-1 text-sm text-muted-foreground">Buyer&apos;s phone details: not given.</p> : null
+  }
+  return (
+    <div className="mt-2 rounded-xl border bg-background px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">Buyer&apos;s phone</p>
+        {mismatch ? <Tag tone="warning">ICCID differs from the buyer&apos;s</Tag> : null}
+      </div>
+      <dl className="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        {given.map((f) => (
+          <div key={f} className="flex min-w-0 items-center gap-1">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">{f === "buyer_iccid" ? "Buyer's ICCID" : deviceShortLabel[f]}</dt>
+              <dd className="tabular font-mono text-sm break-all">{item[f]}</dd>
+            </div>
+            <CopyButton value={item[f]!} label={`${deviceShortLabel[f]} ${item[f]}`} />
+          </div>
+        ))}
+      </dl>
     </div>
   )
 }

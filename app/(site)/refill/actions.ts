@@ -1,5 +1,6 @@
 "use server"
 
+import { checkDevice, checkoutDeviceFields, tidyDevice, type DeviceValues, type PlanType } from "@/lib/device"
 import { after } from "next/server"
 import { redirect } from "next/navigation"
 import { z } from "zod"
@@ -60,7 +61,7 @@ const schema = z.discriminatedUnion("mode", [
 // One number per refill, so only the length can grow.
 const REFILL_HINT = "Choose a longer plan."
 
-export type RefillField = "line_phone" | "iccid" | "zip" | "area_code" | "name" | "email" | "phone" | "plan"
+export type RefillField = "line_phone" | "iccid" | "zip" | "area_code" | "name" | "email" | "phone" | "plan" | "imei" | "eid"
 
 export type RefillState = {
   status: "idle" | "error"
@@ -88,7 +89,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   const [{ data: plan }, { data: settings }, { data: addon }] = await Promise.all([
     db
       .from("plans")
-      .select("id, name, product_type, published, refillable, carrier:carriers!inner(id, name, slug, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
+      .select("id, name, product_type, plan_type, published, refillable, carrier:carriers!inner(id, name, slug, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
       .eq("slug", (values.plan ?? "").slice(0, 120))
       .maybeSingle(),
     db.from("settings").select("network_fee_cents, min_order_cents").maybeSingle(),
@@ -99,6 +100,16 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   if (!plan || !pkg) fieldErrors.plan = "Choose a plan and a length"
   else if (!plan.published || !plan.refillable || !carrier?.active) fieldErrors.plan = "This plan is no longer offered for refills. Choose another plan."
   else if (values.mode === "activate" && plan.product_type !== "physical") fieldErrors.plan = "Choose a SIM card plan to start a SIM card"
+  // Activating a card: the phone's details for the plan type (the card's ICCID is asked above).
+  const device: DeviceValues = {}
+  if (values.mode === "activate" && plan) {
+    for (const f of checkoutDeviceFields(plan.plan_type as PlanType, "physical")) {
+      const value = tidyDevice(values[f] ?? "")
+      const problem = checkDevice(f, value)
+      if (problem) fieldErrors[f as RefillField] = problem
+      else if (value) device[f] = value
+    }
+  }
   if (!parsed.success || Object.keys(fieldErrors).length || !plan || !pkg || !carrier) {
     return { status: "error", message: "Please check the highlighted fields.", fieldErrors, values }
   }
@@ -176,6 +187,8 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
     phone_number: linePhone,
     iccid,
     refill_of_item: (match as string | null) ?? null,
+    imei: device.imei ?? null,
+    eid: device.eid ?? null,
   })
   if (itemError) {
     console.error("[refill] item insert failed", itemError)

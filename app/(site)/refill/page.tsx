@@ -57,6 +57,7 @@ async function Refill({ searchParams }: Params) {
       slug: p.slug,
       name: p.name,
       sim: p.product_type === "physical",
+      planType: p.plan_type,
       facts: [dataLabel(p), p.hotspot_gb ? hotspotLabel(p) : null].filter(Boolean).join(", "),
       packages: p.packages.map(({ days, price_cents, regular_price_cents }) => ({ days, price_cents, regular_price_cents })),
     })

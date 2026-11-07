@@ -5,7 +5,10 @@ import { refresh } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 
+import type { ActionResult } from "@/lib/admin/result"
 import { isOrderToken } from "@/lib/customer-order"
+import { checkDevice, tidyDevice, type DeviceField } from "@/lib/device"
+import { addOrderPhoto } from "@/lib/order-photos"
 import {
   notifyActivationRequested,
   notifyCustomerMessage,
@@ -305,4 +308,59 @@ export async function saveReview(
     status: "success",
     message: result === "created" ? "Thanks for your rating" : "Rating updated",
   }
+}
+
+/** Database messages a buyer may read, as sentences. */
+function sentence(message: string) {
+  return message.charAt(0).toUpperCase() + message.slice(1) + (message.endsWith(".") ? "" : ".")
+}
+
+/**
+ * A buyer adds or fixes their phone details on a SIM not delivered yet. The order link is
+ * the proof; the item must belong to it.
+ */
+export async function saveDeviceDetails(token: string, itemId: string, formData: FormData): Promise<ActionResult> {
+  const order = await loadOrder(token)
+  if (!order) return { ok: false, error: "This order link is not valid." }
+  if (!z.uuid().safeParse(itemId).success) return { ok: false, error: "Unknown SIM." }
+  if (!(await rateLimit(`device:${token.slice(0, 16)}`, 30, 10 * 60_000)).ok) {
+    return { ok: false, error: "Too many changes. Wait a few minutes and try again." }
+  }
+  const db = createServiceClient()
+  const { data: item } = await db.from("order_items").select("id, buyer_iccid").eq("id", itemId).eq("order_id", order.id).maybeSingle()
+  if (!item) return { ok: false, error: "Unknown SIM." }
+
+  const fieldErrors: Record<string, string> = {}
+  const value = (f: DeviceField) => tidyDevice(String(formData.get(f) ?? ""))
+  for (const f of ["imei", "eid"] as const) {
+    const problem = checkDevice(f, value(f))
+    if (problem) fieldErrors[f] = problem
+  }
+  if (Object.keys(fieldErrors).length) return { ok: false, error: "Check the highlighted fields.", fieldErrors }
+
+  const { error } = await db.rpc("set_item_device", {
+    p_item_id: itemId,
+    p_imei: value("imei"),
+    p_eid: value("eid"),
+    p_buyer_iccid: item.buyer_iccid ?? "",
+  })
+  if (error) return { ok: false, error: error.code === "P0001" ? sentence(error.message) : "That did not save. Try again." }
+  refresh()
+  return { ok: true, message: "Saved" }
+}
+
+/** A photo of the phone's IMEI or EID screen, for the agent, while the order is still open. */
+export async function addCustomerPhoto(token: string, formData: FormData): Promise<ActionResult> {
+  const order = await loadOrder(token)
+  if (!order) return { ok: false, error: "This order link is not valid." }
+  if (order.status === "fulfilled" || order.status === "cancelled") return { ok: false, error: "This order is already done." }
+  if (!(await rateLimit(`photo:${await clientIp()}`, 20, 60 * 60_000)).ok) {
+    return { ok: false, error: "Too many photos. Wait a little and try again." }
+  }
+  const file = formData.get("photo")
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a photo." }
+  const added = await addOrderPhoto(order.id, file, null)
+  if (!added.ok) return { ok: false, error: added.error }
+  refresh()
+  return { ok: true, message: "Photo added" }
 }

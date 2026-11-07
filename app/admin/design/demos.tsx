@@ -9,6 +9,9 @@ import { Switch } from "@/components/ui/switch"
 import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { QuantityStepper } from "@/components/patterns/quantity-stepper"
 import { RatingDialog, RatingForm } from "@/components/patterns/rating-form"
+import { DeviceDetails } from "@/components/patterns/device-details"
+import { PhotoUpload } from "@/components/patterns/photo-upload"
+import type { ActionResult } from "@/lib/admin/result"
 import type { FormState } from "@/lib/form-state"
 
 const states = [
@@ -137,6 +140,32 @@ export function DemoRating() {
           description="How is eSIM 3 working for you?"
           consent="We may show your rating, comment and first name on our website."
         />
+      </div>
+    </div>
+  )
+}
+
+/** Saves nothing: answers like the real device action after a short wait. */
+async function demoDevice(): Promise<ActionResult> {
+  await new Promise((r) => setTimeout(r, 400))
+  return { ok: true, message: "Saved" }
+}
+
+export function DemoDeviceDetails() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="rounded-xl border bg-card p-5">
+        <DeviceDetails
+          sims={[
+            { id: "demo-1", title: "eSIM 1", values: { imei: "356938035643809" } },
+            { id: "demo-2", title: "eSIM 2", values: {} },
+          ]}
+          fields={["imei", "eid"]}
+          save={demoDevice}
+        />
+      </div>
+      <div className="rounded-xl border bg-card p-5">
+        <PhotoUpload photos={[]} max={10} canAdd upload={demoDevice} />
       </div>
     </div>
   )

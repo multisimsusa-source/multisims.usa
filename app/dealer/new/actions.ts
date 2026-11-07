@@ -25,6 +25,17 @@ const schema = z.object({
           // Where the numbers should be from, as on the website. Optional.
           zip_code: z.string().trim().regex(/^(\d{5})?$/, "A ZIP code is 5 digits, for example 10001").default(""),
           area_code: z.string().trim().regex(/^([2-9]\d{2})?$/, "An area code is 3 digits, for example 212").default(""),
+          // Device details for the line's SIMs, in order. Optional; checked again in the database.
+          devices: z
+            .array(
+              z.object({
+                imei: z.string().regex(/^(\d{15})?$/, "An IMEI is 15 digits"),
+                eid: z.string().regex(/^(\d{32})?$/, "An EID is 32 digits"),
+                buyer_iccid: z.string().regex(/^(\d{18,22}[Ff]?)?$/, "An ICCID is 18 to 22 digits"),
+              })
+            )
+            .max(500, "At most 500 rows of device details per line")
+            .default([]),
         }),
         // SIM cards on their own, no plan.
         z.object({

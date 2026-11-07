@@ -99,6 +99,7 @@ async function Checkout({
             slug: p.slug,
             name: p.name,
             facts: [dataLabel(p), p.hotspot_gb ? hotspotLabel(p) : null].filter(Boolean).join(", "),
+            planType: p.plan_type,
             packages: p.packages.map(({ days, price_cents, regular_price_cents }) => ({ days, price_cents, regular_price_cents })),
           }))}
           initialPlan={plan?.slug ?? null}

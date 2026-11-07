@@ -37,6 +37,10 @@ import {
   type CustomerStatus,
 } from "@/lib/orders"
 import { createServiceClient } from "@/lib/supabase/service"
+import { DeviceDetails } from "@/components/patterns/device-details"
+import { PhotoUpload } from "@/components/patterns/photo-upload"
+import { checkoutDeviceFields, type PlanType } from "@/lib/device"
+import { listOrderPhotos, MAX_ORDER_PHOTOS } from "@/lib/order-photos"
 import type { Order } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { RatingDialog } from "@/components/patterns/rating-form"
@@ -47,8 +51,10 @@ import {
   orderRateable,
 } from "@/lib/review-rules"
 import {
+  addCustomerPhoto,
   createTicket,
   requestActivation,
+  saveDeviceDetails,
   saveReview,
   startPayment,
 } from "./actions"
@@ -114,6 +120,13 @@ async function OrderView({
   // Only delivered SIMs: a refill still in progress must not show what we know about a number
   // someone typed (another customer's line, its end date).
   const timers = await getLineTimers(createServiceClient(), items.filter((i) => i.status === "fulfilled"))
+  // The buyer's phone details, while their SIMs are still to be delivered (not refills).
+  const pendingOwn = order.kind === "line" && order.status !== "cancelled" ? items.filter((i) => i.order_id === order.id && i.status === "pending") : []
+  const { data: planRow } = pendingOwn.length && order.plan_id
+    ? await createServiceClient().from("plans").select("plan_type").eq("id", order.plan_id).maybeSingle()
+    : { data: null }
+  const phoneFields = pendingOwn.length ? checkoutDeviceFields((planRow?.plan_type as PlanType | undefined) ?? "daily", order.product_type) : []
+  const photos = pendingOwn.length ? ((await listOrderPhotos([order.id])).get(order.id) ?? []) : []
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
   )
@@ -262,6 +275,33 @@ async function OrderView({
           </div>
         ) : null}
       </section>
+
+      {pendingOwn.length && phoneFields.length ? (
+        <section aria-labelledby="phone" className="mt-10">
+          <h2 id="phone" className="text-xl font-semibold">
+            Your phone details
+          </h2>
+          <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">
+            Optional, but it helps us activate your line straight away. Dial *#06# on the phone you will use to see its IMEI and EID. You can change them until your {unit} {order.quantity > 1 ? "are" : "is"} delivered.
+          </p>
+          <div className="mt-4 rounded-xl border bg-card p-5">
+            <DeviceDetails
+              sims={pendingOwn.map((i) => ({
+                id: i.id,
+                title: order.quantity > 1 ? `${unit} ${i.seq}` : `Your ${unit}`,
+                values: { imei: i.imei ?? undefined, eid: i.eid ?? undefined },
+              }))}
+              fields={phoneFields}
+              save={saveDeviceDetails.bind(null, order.public_token)}
+            />
+          </div>
+          <div className="mt-4 rounded-xl border bg-card p-5">
+            <p className="text-sm font-medium">Photos</p>
+            <p className="mt-1 mb-3 text-sm text-muted-foreground">A screenshot of the *#06# screen works too.</p>
+            <PhotoUpload photos={photos} max={MAX_ORDER_PHOTOS} canAdd upload={addCustomerPhoto.bind(null, order.public_token)} />
+          </div>
+        </section>
+      ) : null}
 
       {shown.length > 0 ? (
         <section aria-labelledby="sims" className="mt-10">

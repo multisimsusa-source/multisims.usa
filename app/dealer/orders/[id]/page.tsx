@@ -1,3 +1,7 @@
+import { DeviceDetails } from "@/components/patterns/device-details"
+import { PhotoUpload } from "@/components/patterns/photo-upload"
+import { deviceFields, deviceShortLabel, type PlanType } from "@/lib/device"
+import { listOrderPhotos, MAX_ORDER_PHOTOS, type OrderPhoto } from "@/lib/order-photos"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -44,7 +48,7 @@ import {
   orderRateable,
   type GivenReview,
 } from "@/lib/review-rules"
-import { saveDealerReview } from "../actions"
+import { addDealerPhoto, saveDealerDevice, saveDealerReview } from "../actions"
 import { ActivateCardsButton } from "./activate-button"
 import { PlanTimer } from "@/components/patterns/plan-timer"
 import { getLineTimers } from "@/lib/line-timers"
@@ -107,6 +111,13 @@ async function BatchDetail({
           batch.orders.map((o) => o.id)
         ),
     ])
+  // Device details: which fields each plan asks for, and the lines' photos.
+  const planIds = [...new Set(batch.orders.map((o) => o.plan_id).filter((x): x is string => Boolean(x)))]
+  const [{ data: planRows }, photosByOrder] = await Promise.all([
+    planIds.length ? createServiceClient().from("plans").select("id, plan_type").in("id", planIds) : Promise.resolve({ data: [] as { id: string; plan_type: string }[] }),
+    listOrderPhotos(batch.orders.map((o) => o.id)),
+  ])
+  const planTypes = new Map((planRows ?? []).map((p) => [p.id, p.plan_type as PlanType]))
   const reviews = new Map<string, GivenReview>()
   for (const r of reviewRows ?? [])
     reviews.set(r.order_item_id ?? `line:${r.order_id}`, r)
@@ -194,6 +205,8 @@ async function BatchDetail({
               ticketTypes={ticketTypes ?? []}
               reviews={reviews}
               timers={timers}
+              planType={order.plan_id ? (planTypes.get(order.plan_id) ?? "daily") : null}
+              photos={photosByOrder.get(order.id) ?? []}
             />
           ))}
 
@@ -309,6 +322,8 @@ function LineCard({
   ticketTypes = [],
   reviews,
   timers,
+  planType = null,
+  photos = [],
 }: {
   order: BatchOrder
   items: BatchItem[]
@@ -318,7 +333,14 @@ function LineCard({
   /** The dealer's ratings, by SIM id, and by "line:<order id>" for whole lines. */
   reviews: Map<string, GivenReview>
   timers: Map<string, LineTimer>
+  /** The plan's type, for which device details to ask; null for SIM cards on their own. */
+  planType?: PlanType | null
+  photos?: OrderPhoto[]
 }) {
+  // Device details and photos while the line's SIMs are still to be delivered.
+  const fields = planType && order.kind === "line" ? deviceFields(planType, order.product_type) : []
+  const pendingSims = order.status === "cancelled" ? [] : items.filter((i) => i.status === "pending")
+  const open = order.status !== "fulfilled" && order.status !== "cancelled"
   const delivered = items.filter(
     (i) => i.status === "fulfilled" || i.status === "replaced"
   )
@@ -390,6 +412,9 @@ function LineCard({
                 {order.kind === "refill" && !item.iccid ? null : (
                   <Value label="ICCID" value={item.iccid} copy={!replaced} />
                 )}
+                {item.imei ? <Value label="IMEI" value={item.imei} copy={!replaced} /> : null}
+                {item.eid ? <Value label="EID" value={item.eid} copy={!replaced} /> : null}
+                {item.buyer_iccid ? <Value label="Your ICCID" value={item.buyer_iccid} copy={!replaced} /> : null}
                 {!replaced && timers.get(item.id) ? (
                   <PlanTimer timer={timers.get(item.id)!} className="sm:col-span-full" />
                 ) : null}
@@ -432,6 +457,38 @@ function LineCard({
           )
         })}
       </ul>
+      {fields.length && (pendingSims.length || photos.length) ? (
+        <div className="flex flex-col gap-4 border-t p-4 sm:px-5">
+          {pendingSims.length ? (
+            <details className="group">
+              <summary className="flex min-h-10 cursor-pointer items-center text-sm font-medium">
+                Device details for {pendingSims.length} {pendingSims.length === 1 ? "SIM" : "SIMs"} not delivered yet
+              </summary>
+              <p className="mt-1 mb-4 text-sm text-muted-foreground">
+                {fields.map((f) => deviceShortLabel[f]).join(" and ")} for each SIM. Optional; change them until the SIM is delivered.
+              </p>
+              <DeviceDetails
+                sims={pendingSims.map((i) => ({
+                  id: i.id,
+                  title: `SIM ${i.seq}`,
+                  values: { imei: i.imei ?? undefined, eid: i.eid ?? undefined, buyer_iccid: i.buyer_iccid ?? undefined },
+                }))}
+                fields={fields}
+                save={saveDealerDevice}
+              />
+            </details>
+          ) : null}
+          <div>
+            <p className="mb-2 text-sm font-medium">Photos</p>
+            <PhotoUpload
+              photos={photos}
+              max={MAX_ORDER_PHOTOS}
+              canAdd={open}
+              upload={addDealerPhoto.bind(null, order.id)}
+            />
+          </div>
+        </div>
+      ) : null}
       {orderRateable(order) ? (
         <div className="flex items-center justify-between gap-3 border-t px-4 py-2 sm:px-5">
           <p className="text-sm text-muted-foreground">

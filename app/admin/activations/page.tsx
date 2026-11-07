@@ -68,6 +68,7 @@ async function Results({ searchParams }: Pick<PageProps<"/admin/activations">, "
         // Any way of writing the number: "646 555 0144" finds "+1 (646) 555-0144".
         ...(phoneKey(safe) && phoneKey(safe)!.length >= 4 ? [`phone_key.ilike.%${phoneKey(safe)}%`] : []),
         `iccid.ilike.%${safe.replace(/\s/g, "")}%`,
+        `imei.ilike.%${safe.replace(/\s/g, "")}%`,
         `tracking_number.ilike.%${safe}%`,
       ].join(",")
     )

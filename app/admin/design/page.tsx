@@ -31,7 +31,7 @@ import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletMeter } from "@/components/dealer/wallet-meter"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
 import { PortalNotFound } from "@/components/staff/portal-not-found"
-import { DemoFormSection, DemoQuantityStepper, DemoRating, DemoSelect, DemoSwitch } from "./demos"
+import { DemoDeviceDetails, DemoFormSection, DemoQuantityStepper, DemoRating, DemoSelect, DemoSwitch } from "./demos"
 
 export const metadata: Metadata = { title: "Design system" }
 
@@ -388,6 +388,13 @@ export default function DesignSystemPage() {
           note="RatingForm: stars plus an optional comment, then the saved rating with Change rating, which reopens the form filled in. Inline it is a card (the whole order); RatingDialog puts it behind a small button per SIM or dealer line, reading Rate, or the given stars to change them. A changed review leaves the website until the owner features it again."
         >
           <DemoRating />
+        </Block>
+
+        <Block
+          title="Device details and photos"
+          note="DeviceDetails: the buyer's phone details per SIM (IMEI, EID, SIM number), from deviceFields() in lib/device.ts for the plan type, each SIM with its own Save; editable only until the SIM is delivered. PhotoUpload: square thumbnails that open full size and one Add photo button (one image per upload, 5 MB, up to 10 per order); read-only for the team."
+        >
+          <DemoDeviceDetails />
         </Block>
 
         <Block

@@ -6,6 +6,7 @@ import { z } from "zod"
 import type { FormState } from "@/lib/form-state"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Ticket } from "@/lib/types"
+import { checkImage } from "@/lib/uploads"
 
 /**
  * Filing a support ticket, shared by the customer's order page and the dealer portal.
@@ -14,13 +15,6 @@ import type { Ticket } from "@/lib/types"
  * inserts the ticket with the service role.
  */
 
-const SCREENSHOT_TYPES: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-}
-const SCREENSHOT_MAX = 5 * 1024 * 1024
 
 const ticketSchema = z.object({
   type: z.uuid("Choose what the problem is"),
@@ -32,16 +26,6 @@ const ticketSchema = z.object({
     .min(50, "Describe the problem in at least 50 characters")
     .max(4000, "Keep it under 4,000 characters"),
 })
-
-/** Checks the file's first bytes, not just the type the browser claims. */
-async function looksLikeImage(file: File) {
-  const b = new Uint8Array(await file.slice(0, 12).arrayBuffer())
-  const png = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
-  const jpg = b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff
-  const gif = b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46
-  const webp = b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45
-  return png || jpg || gif || webp
-}
 
 export function ticketValues(formData: FormData) {
   return {
@@ -62,10 +46,9 @@ export async function fileTicket(orderId: string, formData: FormData): Promise<{
   const screenshot = file instanceof File && file.size > 0 ? file : null
   let screenshotExt: string | null = null
   if (screenshot) {
-    screenshotExt = SCREENSHOT_TYPES[screenshot.type] ?? null
-    if (!screenshotExt) fieldErrors.screenshot = "Use a PNG, JPG, GIF or WebP image"
-    else if (screenshot.size > SCREENSHOT_MAX) fieldErrors.screenshot = "The image is over 5 MB"
-    else if (!(await looksLikeImage(screenshot))) fieldErrors.screenshot = "That file is not a readable image"
+    const checked = await checkImage(screenshot)
+    if ("error" in checked) fieldErrors.screenshot = checked.error
+    else screenshotExt = checked.ext
   }
   if (!parsed.success || Object.keys(fieldErrors).length) {
     return { state: { status: "error", message: "Please check the highlighted fields.", fieldErrors, values } }

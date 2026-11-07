@@ -18,6 +18,7 @@ import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
 import { formatDays, formatPrice } from "@/lib/format"
 import { discountableCents, discountFor, minimumOrderMessage, orderTotal, type DiscountRule } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
+import { checkoutDeviceFields, deviceHelp, deviceLabel, type PlanType } from "@/lib/device"
 import { placeRefill, type RefillField, type RefillState } from "./actions"
 
 export type RefillPlan = {
@@ -25,6 +26,8 @@ export type RefillPlan = {
   name: string
   /** A SIM card plan; only these can start a SIM card bought on its own. */
   sim: boolean
+  /** Daily or monthly: which phone details activating a card asks for. */
+  planType: PlanType
   facts: string
   packages: { days: number; price_cents: number; regular_price_cents: number | null }[]
 }
@@ -239,6 +242,26 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
                 <FieldDescription>18 to 22 digits, printed on the SIM card and on its holder.</FieldDescription>
               )}
             </Field>
+            {activate
+              ? checkoutDeviceFields(plan?.planType, "physical").map((f) => (
+                  <Field key={f} data-invalid={invalid(f as RefillField)}>
+                    <FieldLabel htmlFor={f}>
+                      {deviceLabel[f]} <span className="font-normal text-muted-foreground">(optional)</span>
+                    </FieldLabel>
+                    <Input
+                      id={f}
+                      name={f}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={f === "eid" ? 40 : 24}
+                      defaultValue={values[f]}
+                      aria-invalid={invalid(f as RefillField)}
+                      className="tabular font-mono"
+                    />
+                    {errors[f as RefillField] ? err(f as RefillField) : <FieldDescription>{deviceHelp[f]}</FieldDescription>}
+                  </Field>
+                ))
+              : null}
             {activate ? (
               <>
                 <Field data-invalid={invalid("zip")}>

@@ -18,6 +18,7 @@ export type DealerCatalogRow = {
   days: number
   price_cents: number
   retail_price_cents: number
+  plan_type: "daily" | "monthly"
 }
 
 /** Prices that apply to a whole order rather than one package. */
@@ -64,6 +65,7 @@ export type BatchOrder = Pick<
   | "id"
   | "zip_code"
   | "area_code"
+  | "plan_id"
   | "kind"
   | "number"
   | "status"
@@ -99,7 +101,7 @@ export type Batch = {
 export type BatchProgress = { delivered: number; total: number; cards: number; cardsShipped: number; status: CustomerStatus }
 
 const orderColumns =
-  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at, zip_code, area_code"
+  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at, zip_code, area_code, plan_id"
 
 /** The dealer's batches, newest first, with their orders. RLS keeps it to their own. */
 export async function listBatches(db: SupabaseClient, dealerId: string, limit = 50): Promise<Batch[]> {
@@ -123,13 +125,13 @@ export async function getBatch(db: SupabaseClient, batchId: string): Promise<Bat
   return { ...batch, orders: batch.orders.sort((x, y) => x.number - y.number) }
 }
 
-export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on">
+export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on" | "imei" | "eid" | "buyer_iccid">
 
 export async function listBatchItems(db: SupabaseClient, orderIds: string[]): Promise<BatchItem[]> {
   if (!orderIds.length) return []
   const { data } = await db
     .from("order_items")
-    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on")
+    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on, imei, eid, buyer_iccid")
     .in("order_id", orderIds)
     .order("seq")
     .limit(5000)

@@ -34,6 +34,9 @@ export async function GET() {
       "Shipped or delivered on",
       "Plan starts",
       "Plan ends",
+      "IMEI",
+      "EID",
+      "Your ICCID",
       "Your reference",
     ],
     ...rows.map((r) => [
@@ -51,6 +54,9 @@ export async function GET() {
       usDate(r.fulfilled_at),
       r.plan_starts_on ?? "",
       r.plan_ends_on ?? "",
+      csvText(r.imei),
+      csvText(r.eid),
+      csvText(r.buyer_iccid),
       r.order.batch?.reference ?? "",
     ]),
   ])

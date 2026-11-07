@@ -51,6 +51,9 @@ export async function GET(
       "Shipped or delivered on",
       "Plan starts",
       "Plan ends",
+      "IMEI",
+      "EID",
+      "Your ICCID",
     ],
     ...items.map((item) => {
       const o = orderById.get(item.order_id)!
@@ -69,6 +72,9 @@ export async function GET(
         usDate(item.fulfilled_at),
         item.plan_starts_on ?? "",
         item.plan_ends_on ?? "",
+      csvText(item.imei),
+      csvText(item.eid),
+      csvText(item.buyer_iccid),
       ]
     }),
   ])

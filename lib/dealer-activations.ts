@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Order, OrderItem } from "@/lib/types"
 import { phoneKey } from "@/lib/plan-dates"
 
-export type DealerActivation = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on"> & {
+export type DealerActivation = Pick<OrderItem, "id" | "seq" | "status" | "phone_number" | "iccid" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on" | "imei" | "eid" | "buyer_iccid"> & {
   order: Pick<Order, "id" | "kind" | "number" | "carrier_name" | "plan_name" | "product_type" | "days" | "status" | "phase" | "replacement_of"> & {
     batch: { id: string; number: number; reference: string | null } | null
   }
@@ -19,7 +19,7 @@ export async function listDealerActivations(db: SupabaseClient, dealerId: string
   let query = db
     .from("order_items")
     .select(
-      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on,
+      `id, seq, status, phone_number, iccid, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on, imei, eid, buyer_iccid,
        order:orders!order_items_order_id_fkey!inner ( id, kind, number, carrier_name, plan_name, product_type, days, status, phase, replacement_of, dealer_id,
          batch:order_batches ( id, number, reference ) )`
     )
@@ -46,6 +46,7 @@ export async function listDealerActivations(db: SupabaseClient, dealerId: string
         // Any way of writing the number: "646 555 0144" finds "+1 (646) 555-0144".
         ...(phoneKey(safe) && phoneKey(safe)!.length >= 4 ? [`phone_key.ilike.%${phoneKey(safe)}%`] : []),
         `iccid.ilike.%${safe.replace(/\s/g, "")}%`,
+        `imei.ilike.%${safe.replace(/\s/g, "")}%`,
         `tracking_number.ilike.%${safe}%`,
       ].join(",")
     )

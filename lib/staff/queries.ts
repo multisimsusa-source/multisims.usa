@@ -37,6 +37,21 @@ export async function listOpenOrders(): Promise<QueueOrder[]> {
   return data as unknown as QueueOrder[]
 }
 
+/** How many SIMs of each order came with the buyer's phone details. */
+export async function deviceDetailCounts(orderIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  if (!orderIds.length) return out
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("order_items")
+    .select("order_id")
+    .in("order_id", orderIds)
+    .or("imei.not.is.null,eid.not.is.null,buyer_iccid.not.is.null")
+    .limit(20000)
+  for (const r of data ?? []) out.set(r.order_id as string, (out.get(r.order_id as string) ?? 0) + 1)
+  return out
+}
+
 export type QrToAdd = { order: QueueOrder; missing: number; deliveredAt: string }
 
 /** Delivered eSIM orders with SIMs whose QR code has not been added yet, oldest first. */

@@ -13,6 +13,7 @@ import { addDays, EARLIEST_START_DAYS } from "@/lib/plan-dates"
 import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
+import { checkDevice, checkoutDeviceFields, tidyDevice, type DeviceField, type DeviceValues, type PlanType } from "@/lib/device"
 import type { Order } from "@/lib/types"
 import { usStateCodes } from "@/lib/us-states"
 
@@ -48,7 +49,9 @@ const address = z.object({
   activate_on: z.string(),
 })
 
-export type CheckoutField = keyof z.infer<typeof base> | keyof z.infer<typeof address>
+/** A device field for one SIM, for example imei_2. */
+type DeviceKey = `${DeviceField}_${number}`
+export type CheckoutField = keyof z.infer<typeof base> | keyof z.infer<typeof address> | DeviceKey
 
 /** Today in the US (where lines are activated), as YYYY-MM-DD. */
 function usToday() {
@@ -109,7 +112,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       ? Promise.resolve({ data: null })
       : db
           .from("plans")
-          .select("id, name, product_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
+          .select("id, name, product_type, plan_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
           .eq("slug", slug)
           .maybeSingle(),
     cardOnly
@@ -144,6 +147,22 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
         if (dateError) fieldErrors.activate_on = dateError
       }
     } else for (const issue of a.error.issues) fieldErrors[issue.path[0] as CheckoutField] ??= issue.message
+  }
+
+  // Phone details, one group per SIM: optional, checked only when filled.
+  const devices: DeviceValues[] = []
+  if (plan && parsed.success) {
+    const fields = checkoutDeviceFields(plan.plan_type as PlanType, plan.product_type)
+    for (let n = 1; n <= parsed.data.quantity; n++) {
+      const sim: DeviceValues = {}
+      for (const f of fields) {
+        const value = tidyDevice(values[`${f}_${n}`] ?? "")
+        const problem = checkDevice(f, value)
+        if (problem) fieldErrors[`${f}_${n}`] = problem
+        else if (value) sim[f] = value
+      }
+      devices.push(sim)
+    }
   }
 
   if (!parsed.success || Object.keys(fieldErrors).length) {
@@ -228,7 +247,12 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     return { status: "error", message: "We could not place your order. Please try again.", values }
   }
 
-  const items = Array.from({ length: input.quantity }, (_, i) => ({ order_id: order.id, seq: i + 1 }))
+  const items = Array.from({ length: input.quantity }, (_, i) => ({
+    order_id: order.id,
+    seq: i + 1,
+    imei: devices[i]?.imei ?? null,
+    eid: devices[i]?.eid ?? null,
+  }))
   const { error: itemsError } = await db.from("order_items").insert(items)
   if (itemsError) {
     console.error("[checkout] order items insert failed", itemsError)

@@ -40,6 +40,7 @@ import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { CallingDestinations } from "@/components/site/calling-destinations"
 import { DiscountCode } from "@/components/site/discount-code"
 import { ExactAmountNotice } from "@/components/site/exact-amount-notice"
+import { checkoutDeviceFields, deviceHelp, deviceLabel, type PlanType } from "@/lib/device"
 import { placeOrder, type CheckoutField, type CheckoutState } from "./actions"
 
 /** A plan the buyer can pick here, with its lengths. */
@@ -48,6 +49,8 @@ export type PlanChoice = {
   name: string
   /** One line of the plan's key facts, e.g. "20 GB data, 10 GB hotspot". */
   facts: string
+  /** Daily or monthly: which phone details to ask for. */
+  planType: PlanType
   /** price_cents is the sale price when regular_price_cents is set. */
   packages: { days: number; price_cents: number; regular_price_cents: number | null }[]
 }
@@ -319,6 +322,46 @@ export function CheckoutForm({
                   </FieldDescription>
                 )}
               </Field>
+            </FormSection>
+          ) : null}
+
+          {plan ? (
+            <FormSection
+              title="Your phone (optional)"
+              description="Helps us activate your line straight away. Dial *#06# on the phone to see its IMEI and EID."
+              cols={1}
+            >
+              {Array.from({ length: quantity }, (_, i) => i + 1).map((n) => (
+                <div key={n} className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+                  {quantity > 1 ? (
+                    <p className="text-sm font-medium sm:col-span-full">
+                      {physical ? "SIM card" : "eSIM"} {n}
+                    </p>
+                  ) : null}
+                  {checkoutDeviceFields(plan.planType, physical ? "physical" : "esim").map((f) => {
+                    const name = `${f}_${n}` as CheckoutField
+                    return (
+                      <Field key={name} data-invalid={invalid(name)}>
+                        <FieldLabel htmlFor={name}>
+                          {deviceLabel[f]}
+                          {quantity > 1 ? <span className="sr-only">{` for SIM ${n}`}</span> : null}
+                        </FieldLabel>
+                        <Input
+                          id={name}
+                          name={name}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={f === "eid" ? 40 : 24}
+                          defaultValue={values[name]}
+                          aria-invalid={invalid(name)}
+                          className="tabular font-mono"
+                        />
+                        {errors[name] ? err(name) : <FieldDescription>{deviceHelp[f]}</FieldDescription>}
+                      </Field>
+                    )
+                  })}
+                </div>
+              ))}
             </FormSection>
           ) : null}
 

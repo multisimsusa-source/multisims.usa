@@ -35,6 +35,7 @@ const planSchema = z.object({
     .max(80, "Keep the URL name under 80 characters")
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and single hyphens"),
   product_type: z.enum(["esim", "physical"], "Choose eSIM or SIM card"),
+  plan_type: z.enum(["daily", "monthly"], "Choose daily or monthly"),
   talk: z.string().trim().min(1, "Describe talk, for example Unlimited US talk").max(120, "Keep it under 120 characters"),
   sms: z.string().trim().min(1, "Describe text, for example Unlimited US text").max(120, "Keep it under 120 characters"),
   data_gb: optionalGb,
@@ -70,6 +71,7 @@ function readPlan(formData: FormData) {
     name,
     slug: get("slug").trim() || slugify(`${get("carrier_slug")} ${name} ${productType === "physical" ? "sim" : "esim"}`),
     product_type: productType,
+    plan_type: get("plan_type") || "daily",
     talk: get("talk"),
     sms: get("sms"),
     data_gb: get("data_unlimited") === "on" ? "" : get("data_gb").trim() || "missing",

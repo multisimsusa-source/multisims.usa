@@ -105,6 +105,41 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={invalid("plan_type")}>
+          <FieldLabel id="plan_type_label">Plan type</FieldLabel>
+          <div role="radiogroup" aria-labelledby="plan_type_label" className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["daily", "Daily"],
+                ["monthly", "Monthly"],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                key={value}
+                className="flex h-10 cursor-pointer items-center justify-center rounded-md border text-sm transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/40"
+              >
+                <input
+                  type="radio"
+                  name="plan_type"
+                  value={value}
+                  defaultChecked={(plan?.plan_type ?? "daily") === value}
+                  className="sr-only"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          {errors.plan_type ? (
+            err("plan_type")
+          ) : (
+            <FieldDescription>
+              Decides the phone details buyers are asked for. eSIM: IMEI and EID. SIM card: IMEI and ICCID on a daily plan, EID and ICCID on a monthly plan.
+            </FieldDescription>
+          )}
+        </Field>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={invalid("name")}>
             <FieldLabel htmlFor="name">Plan name</FieldLabel>
             <Input id="name" name="name" defaultValue={plan?.name} placeholder="Unlimited Plus" aria-invalid={invalid("name")} />

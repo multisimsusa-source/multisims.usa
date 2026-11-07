@@ -33,6 +33,8 @@ import type { DealerCatalogRow, DealerSimCard, OrderingTerms } from "@/lib/deale
 import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
 import type { ProductType } from "@/lib/types"
 import { usStates } from "@/lib/us-states"
+import { Textarea } from "@/components/ui/textarea"
+import { deviceFields, deviceShortLabel, parseDeviceRows, type PlanType } from "@/lib/device"
 import { placeDealerOrder } from "./actions"
 
 const MAX_PER_LINE = 500
@@ -50,6 +52,8 @@ type Line = {
   /** Where the numbers should be from, as on the website. Optional. */
   zip: string
   area: string
+  /** Pasted device details, one SIM per row. */
+  devices: string
 }
 type PlanOption = {
   id: string
@@ -57,6 +61,7 @@ type PlanOption = {
   carrier: string
   carrierId: string
   productType: ProductType
+  planType: PlanType
   packages: { id: string; days: number; price_cents: number }[]
 }
 
@@ -70,6 +75,7 @@ const newLine = (): Line => ({
   quantity: 1,
   zip: "",
   area: "",
+  devices: "",
 })
 
 const ZIP = /^(\d{5})?$/
@@ -141,6 +147,10 @@ export function OrderBuilder({
         ? (cardByCarrier.get(plan.carrierId)?.price_cents ?? terms.sim_card_price_cents)
         : 0
     const each = card ? card.price_cents : pkg ? pkg.price_cents + calling + sim : 0
+    // Device details for this plan's SIMs, parsed as the dealer types.
+    const fields = plan && !card ? deviceFields(plan.planType, plan.productType) : []
+    const parsedDevices = fields.length ? parseDeviceRows(line.devices, fields) : { rows: [], problems: [] }
+    const deviceProblem = parsedDevices.problems[0]?.text ?? (parsedDevices.rows.length > line.quantity ? `${parsedDevices.rows.length} rows of device details for ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"}. Remove the extra rows or raise the quantity.` : null)
     return {
       line,
       card,
@@ -150,6 +160,9 @@ export function OrderBuilder({
       sim,
       each,
       subtotal: each * line.quantity,
+      fields,
+      devices: parsedDevices.rows,
+      deviceProblem,
     }
   })
   const physical = priced.some((p) => p.card || p.plan?.productType === "physical")
@@ -159,7 +172,8 @@ export function OrderBuilder({
   const complete = priced.every((p) => p.pkg || p.card)
   const short = total > availableCents
   const overTotal = sims > MAX_SIMS
-  const canPlace = complete && !short && !overTotal && total > 0
+  const deviceTrouble = priced.find((p) => p.deviceProblem)
+  const canPlace = complete && !short && !overTotal && total > 0 && !deviceTrouble
 
   const update = (key: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
@@ -184,6 +198,11 @@ export function OrderBuilder({
       document.getElementById(`${zipBad ? "zip" : "area"}-${badPlace.key}`)?.focus()
       return
     }
+    if (deviceTrouble) {
+      setErrors({ [`devices-${deviceTrouble.line.key}`]: deviceTrouble.deviceProblem! })
+      document.getElementById(`devices-${deviceTrouble.line.key}`)?.focus()
+      return
+    }
     const addressErrors = physical ? checkAddress(address) : {}
     if (Object.keys(addressErrors).length) {
       setErrors(addressErrors)
@@ -202,6 +221,7 @@ export function OrderBuilder({
                 intl_calling: p.calling > 0,
                 zip_code: p.line.zip.trim(),
                 area_code: p.line.area.trim(),
+                devices: p.devices.map((d) => ({ imei: d.imei ?? "", eid: d.eid ?? "", buyer_iccid: d.buyer_iccid ?? "" })),
               }
         ),
         address: physical ? address : null,
@@ -260,7 +280,7 @@ export function OrderBuilder({
             ) : null}
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, card, plan, pkg, sim, each, subtotal }, i) => {
+            {priced.map(({ line, card, plan, pkg, sim, each, subtotal, fields, devices, deviceProblem }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -514,6 +534,37 @@ export function OrderBuilder({
                         )}
                       </Field>
                     </div>
+                  ) : null}
+
+                  {fields.length ? (
+                    <Field data-invalid={Boolean(deviceProblem) || undefined}>
+                      <FieldLabel htmlFor={`devices-${line.key}`}>
+                        Device details{" "}
+                        <span className="font-normal text-muted-foreground">(optional)</span>
+                      </FieldLabel>
+                      <Textarea
+                        id={`devices-${line.key}`}
+                        rows={3}
+                        value={line.devices}
+                        onChange={(e) => {
+                          update(line.key, { devices: e.currentTarget.value })
+                          setErrors((x) => ({ ...x, [`devices-${line.key}`]: "" }))
+                        }}
+                        aria-invalid={Boolean(deviceProblem) || undefined}
+                        spellCheck={false}
+                        className="tabular max-h-72 overflow-y-auto font-mono"
+                      />
+                      {deviceProblem ? (
+                        <FieldError>{deviceProblem}</FieldError>
+                      ) : (
+                        <FieldDescription>
+                          One SIM per row: {fields.map((f) => deviceShortLabel[f]).join(", ")}, separated by a comma.
+                          {devices.length
+                            ? ` ${devices.length} of ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"} have details.`
+                            : " You can also add them on the order page until the SIMs are delivered."}
+                        </FieldDescription>
+                      )}
+                    </Field>
                   ) : null}
                 </li>
               )
@@ -843,6 +894,7 @@ function groupPlans(rows: DealerCatalogRow[]): PlanOption[] {
         carrier: r.carrier_name,
         carrierId: r.carrier_id,
         productType: r.product_type,
+        planType: r.plan_type ?? "daily",
         packages: [],
       }
       index.set(r.plan_id, plan)

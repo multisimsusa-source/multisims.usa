@@ -28,6 +28,8 @@ export type Plan = {
   carrier_id: string
   /** Offered on the Refill page and to dealers for refills and activating cards. */
   refillable: boolean
+  /** Daily or monthly: decides which device details a buyer is asked for (lib/device.ts). */
+  plan_type: "daily" | "monthly"
   name: string
   slug: string
   product_type: ProductType
@@ -185,6 +187,10 @@ export type OrderItem = {
   plan_ends_on: string | null
   /** A refill: the SIM of ours it adds days to, when we know it. */
   refill_of_item: string | null
+  /** The buyer's device, for activation. `buyer_iccid` is what they typed; `iccid` is the card we ship. */
+  imei: string | null
+  eid: string | null
+  buyer_iccid: string | null
 }
 
 export type Payment = {

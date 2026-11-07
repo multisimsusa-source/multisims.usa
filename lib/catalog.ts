@@ -22,7 +22,7 @@ export const CATALOG_TAG = "catalog"
 export const CATALOG_LIFE = { stale: 300, revalidate: 60, expire: 86_400 }
 
 const PLAN_SELECT = `
-  id, carrier_id, name, slug, product_type, refillable, talk, sms, data_gb, hotspot_gb, network,
+  id, carrier_id, name, slug, product_type, refillable, plan_type, talk, sms, data_gb, hotspot_gb, network,
   slowdown_after_gb, slowdown_speed, countries_covered, summary, description, published,
   display_order, updated_at,
   carrier:carriers!inner ( id, name, slug, logo_path, active, display_order ),

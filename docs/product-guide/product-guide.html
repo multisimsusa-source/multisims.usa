@@ -364,7 +364,7 @@
   <h3><span class="n">4.3</span>Each kind of order</h3>
   <table>
     <tr><th>Order</th><th>Steps</th><th>Button</th></tr>
-    <tr><td>eSIM</td><td>QR code, phone number and ICCID for each SIM.</td><td>Mark complete and deliver</td></tr>
+    <tr><td>eSIM</td><td>Phone number and ICCID for each SIM, and the QR code when the carrier has sent it. If the QR comes later, deliver anyway: the order then shows under QR to add in the queue, and the customer gets the QR by email as soon as it is added.</td><td>Mark complete and deliver</td></tr>
     <tr><td>SIM card, posting</td><td>One USPS tracking number for the parcel, an ICCID for each card.</td><td>Mark shipped</td></tr>
     <tr><td>SIM card, activating</td><td>Comes back to the queue when the card arrives. Add the phone number for each SIM.</td><td>Mark active and deliver</td></tr>
     <tr><td>SIM card only</td><td>Tracking and ICCIDs only. These cards have no number yet.</td><td>Mark shipped</td></tr>
@@ -423,7 +423,8 @@
   <ol>
     <li>Open <span class="path">New order</span> and add lines. Each line is one plan and length with its own quantity, up to 500 SIMs a line and 1,000 an order. Prices are the dealer's own.</li>
     <li>SIM cards on their own are at the top of the plan list. A dealer with no SIM card price yet is told to contact you.</li>
-    <li>International calling can be added per line. A reference, such as a shop or purchase order, helps the dealer find the order later.</li>
+    <li>International calling can be added per line, and a ZIP code and area code for where the numbers should be from (both optional). A reference, such as a shop or purchase order, helps the dealer find the order later.</li>
+    <li>Device details (optional): one SIM per row, for example the IMEI and EID, pasted straight from a list. They can also be added or fixed on the order page, with photos, until the SIMs are delivered.</li>
     <li>For SIM cards, a US delivery address. All cards in the order ship together with one tracking number.</li>
     <li>The summary shows what is available, the order total and what is left after. If the money is not enough, it says how much more is needed.</li>
   </ol>
@@ -477,6 +478,7 @@
     <li><b>SIM cards</b>: one row per carrier with the website price, the dealer price and whether the card is sold on its own.</li>
     <li><b>Plans</b>: the plan details, then day packages, each with a price, an optional sale price and a wholesale price for dealers. A plan is on the website when it is published, its carrier is shown and at least one package is on sale.</li>
     <li><b>Offer for refills</b>: switch it on for every plan customers and dealers may refill with.</li>
+    <li><b>Plan type</b>: Daily or Monthly. It decides which phone details buyers are asked for: an eSIM the IMEI and EID; a SIM card the IMEI and ICCID (daily) or the EID and ICCID (monthly). All optional.</li>
     <li><b>Add-ons</b> sets international calling, and <b>Discounts</b> creates codes by percentage or amount, for one carrier or all, with dates and a use limit.</li>
   </ul>
   <p>Every change shows on the website within seconds. There is nothing to publish separately.</p>
