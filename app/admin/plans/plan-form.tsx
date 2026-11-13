@@ -104,40 +104,8 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
           </Field>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-        <Field data-invalid={invalid("plan_type")}>
-          <FieldLabel id="plan_type_label">Plan type</FieldLabel>
-          <div role="radiogroup" aria-labelledby="plan_type_label" className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["daily", "Daily"],
-                ["monthly", "Monthly"],
-              ] as const
-            ).map(([value, label]) => (
-              <label
-                key={value}
-                className="flex h-10 cursor-pointer items-center justify-center rounded-md border text-sm transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/40"
-              >
-                <input
-                  type="radio"
-                  name="plan_type"
-                  value={value}
-                  defaultChecked={(plan?.plan_type ?? "daily") === value}
-                  className="sr-only"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-          {errors.plan_type ? (
-            err("plan_type")
-          ) : (
-            <FieldDescription>
-              Decides the phone details buyers are asked for. eSIM: IMEI and EID. SIM card: IMEI and ICCID on a daily plan, EID and ICCID on a monthly plan.
-            </FieldDescription>
-          )}
-        </Field>
-        </div>
+        {/* Plan type (daily or monthly) no longer changes what buyers are asked; kept as a hidden value. */}
+        <input type="hidden" name="plan_type" value={plan?.plan_type ?? "daily"} />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={invalid("name")}>
@@ -147,29 +115,41 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
           </Field>
           <Field data-invalid={invalid("slug")}>
             <FieldLabel htmlFor="slug">URL name</FieldLabel>
-            <Input id="slug" name="slug" defaultValue={plan?.slug} placeholder="Made from carrier and name if empty" className="font-mono text-sm" aria-invalid={invalid("slug")} />
-            {errors.slug ? err("slug") : <FieldDescription>The plan page lives at /plans/this-name</FieldDescription>}
+            <Input id="slug" name="slug" defaultValue={plan?.slug} className="font-mono text-sm" aria-invalid={invalid("slug")} />
+            {errors.slug ? (
+              err("slug")
+            ) : (
+              <FieldDescription>The plan&apos;s web address: /plans/this-name. Lowercase words with hyphens, for example msu-travel-5gb. Leave it empty and it is made from the carrier and plan name.</FieldDescription>
+            )}
           </Field>
         </div>
 
         <Field data-invalid={invalid("summary")}>
           <FieldLabel htmlFor="summary">Short summary</FieldLabel>
-          <Input id="summary" name="summary" defaultValue={plan?.summary} maxLength={200} placeholder="Unlimited data on T-Mobile 5G with 10 GB hotspot." aria-invalid={invalid("summary")} />
-          {errors.summary ? err("summary") : <FieldDescription>One line, shown on plan cards and in search results.</FieldDescription>}
+          <Input id="summary" name="summary" defaultValue={plan?.summary} maxLength={200} aria-invalid={invalid("summary")} />
+          {errors.summary ? (
+            err("summary")
+          ) : (
+            <FieldDescription>One line buyers see on plan cards and in search, for example: 5 GB of US data for travellers, no calls or texts.</FieldDescription>
+          )}
         </Field>
       </Section>
 
       <Section title="Plan details">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={invalid("talk")}>
-            <FieldLabel htmlFor="talk">Talk</FieldLabel>
+            <FieldLabel htmlFor="talk">
+              Talk <span className="font-normal text-muted-foreground">(optional)</span>
+            </FieldLabel>
             <Input id="talk" name="talk" defaultValue={plan?.talk ?? "Unlimited US talk"} aria-invalid={invalid("talk")} />
-            {err("talk")}
+            {errors.talk ? err("talk") : <FieldDescription>For example Unlimited US talk. Leave Talk and Text empty for a data-only plan.</FieldDescription>}
           </Field>
           <Field data-invalid={invalid("sms")}>
-            <FieldLabel htmlFor="sms">Text</FieldLabel>
+            <FieldLabel htmlFor="sms">
+              Text <span className="font-normal text-muted-foreground">(optional)</span>
+            </FieldLabel>
             <Input id="sms" name="sms" defaultValue={plan?.sms ?? "Unlimited US text"} aria-invalid={invalid("sms")} />
-            {err("sms")}
+            {errors.sms ? err("sms") : <FieldDescription>For example Unlimited US text.</FieldDescription>}
           </Field>
 
           <Field data-invalid={invalid("data_gb")}>

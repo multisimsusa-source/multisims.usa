@@ -371,6 +371,18 @@ export function CheckoutForm({
               description="SIM cards ship by USPS to a US address."
               cols={3}
             >
+              {plan ? (
+                <p className="text-sm text-muted-foreground sm:col-span-full">
+                  Already have the SIM card?{" "}
+                  <Link
+                    href={`/refill?mode=activate&carrier=${carrier.slug}&plan=${plan.slug}${days ? `&days=${days}` : ""}`}
+                    className="font-medium text-brand underline-offset-4 hover:underline"
+                  >
+                    Activate it instead
+                  </Link>
+                  , with no shipping or card to pay for.
+                </p>
+              ) : null}
               <Field
                 data-invalid={invalid("line1")}
                 className="sm:col-span-full"

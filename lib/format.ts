@@ -81,3 +81,12 @@ export function coinName(code: string | null | undefined) {
   if (c.startsWith("usdc")) return "USDC"
   return c.toUpperCase()
 }
+
+/** Talk and text in one line; a data-only plan (both empty) says so. */
+export function talkTextLabel(plan: { talk: string | null; sms: string | null }) {
+  const talk = plan.talk?.trim() ?? ""
+  const sms = plan.sms?.trim() ?? ""
+  if (!talk && !sms) return "Data only, no calls or texts"
+  if (talk && sms) return `${talk}, ${sms.replace(/^Unlimited US /, "").toLowerCase()}`
+  return talk || sms
+}

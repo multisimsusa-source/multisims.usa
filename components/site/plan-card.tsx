@@ -4,7 +4,7 @@ import { ArrowRightIcon, ChatTextIcon, ShareNetworkIcon, WifiHighIcon } from "@p
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { Tag } from "@/components/patterns/tag"
 import { ProductBadge } from "@/components/site/product-mark"
-import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
+import { dataLabel, formatPrice, hotspotLabel, talkTextLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
 
 /** `preview`: a picture of the card (admin), so its link never loads the plan page. */
@@ -47,7 +47,7 @@ export function PlanCard({ plan, preview = false }: { plan: CatalogPlan; preview
           {hotspotLabel(plan)}
         </Fact>
         <Fact icon={<ChatTextIcon className="size-4" />} term="Talk and text" muted>
-          {plan.talk}, {plan.sms.replace(/^Unlimited US /, "").toLowerCase()}
+          {talkTextLabel(plan)}
         </Fact>
       </dl>
 

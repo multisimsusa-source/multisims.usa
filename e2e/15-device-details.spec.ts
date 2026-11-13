@@ -5,9 +5,7 @@ import { PASSWORD, testEmail } from "./support/env"
 import { choose, expectNoHorizontalScroll, expectToast, guestPage, orderFor, pageAs, PHONE, signIn, submitAndPay } from "./support/helpers"
 
 /**
- * The buyer's device details (Zafir, 7 Nov), all optional:
- *   Monthly plan: eSIM IMEI + EID, SIM card EID + ICCID
- *   Daily plan:   eSIM IMEI + EID, SIM card IMEI + ICCID
+ * The buyer's device details, all optional: eSIM IMEI + EID; SIM card EID + ICCID (any plan type).
  * Asked at checkout and in the dealer order form, editable until delivery, shown to the agent,
  * carried to a replacement; photos from the buyer. Builds on E2E Unlimited and E2E Card.
  */
@@ -23,16 +21,9 @@ const EID2 = "89049032004008882600000000000002"
 const ICCID = "8901260000000000555"
 
 test.describe.serial("Device details", () => {
-  test("the owner marks E2E Card as a monthly plan", async ({ browser }) => {
-    const owner = await pageAs(browser, "owner")
-    const { data: plan } = await db().from("plans").select("id").eq("name", "E2E Card").single()
-    await owner.goto(`/admin/plans/${plan!.id}`)
-    await owner.getByRole("radiogroup", { name: "Plan type" }).getByText("Monthly").click()
-    await owner.getByRole("button", { name: "Save plan" }).click()
-    await expectToast(owner, /saved/i)
-    await expect.poll(async () => (await db().from("plans").select("plan_type").eq("id", plan!.id).single()).data?.plan_type).toBe("monthly")
-
-    // A monthly SIM card plan asks for the EID (and the card's ICCID) when activating a card.
+  test("activating a SIM card asks for the EID (and the card's ICCID), daily plan or not", async ({ browser }) => {
+    const { data: plan } = await db().from("plans").select("plan_type").eq("name", "E2E Card").single()
+    expect(plan!.plan_type).toBe("daily")
     const guest = await guestPage(browser)
     await guest.goto("/refill?mode=activate")
     await choose(guest, guest.locator("#carrier-choice"), "E2E Mobile")

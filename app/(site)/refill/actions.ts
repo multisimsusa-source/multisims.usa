@@ -98,7 +98,8 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   const carrier = plan?.carrier as unknown as { id: string; name: string; slug: string; active: boolean } | undefined
   const pkg = plan?.packages.find((p) => p.active && p.days === Number(values.days))
   if (!plan || !pkg) fieldErrors.plan = "Choose a plan and a length"
-  else if (!plan.published || !plan.refillable || !carrier?.active) fieldErrors.plan = "This plan is no longer offered for refills. Choose another plan."
+  // A refill needs a plan offered for refills; activating a SIM card needs a SIM card plan.
+  else if (!plan.published || !carrier?.active || (values.mode !== "activate" && !plan.refillable)) fieldErrors.plan = "This plan is no longer offered for refills. Choose another plan."
   else if (values.mode === "activate" && plan.product_type !== "physical") fieldErrors.plan = "Choose a SIM card plan to start a SIM card"
   // Activating a card: the phone's details for the plan type (the card's ICCID is asked above).
   const device: DeviceValues = {}

@@ -1,10 +1,10 @@
 import type { ProductType } from "@/lib/types"
 
 /**
- * The buyer's device details an agent needs to activate a line (Zafir, 7 Nov). All optional.
+ * The buyer's device details an agent needs to activate a line. All optional.
  *
- *   Monthly plan: eSIM IMEI + EID, SIM card EID + ICCID
- *   Daily plan:   eSIM IMEI + EID, SIM card IMEI + ICCID
+ *   eSIM:     IMEI + EID
+ *   SIM card: EID + ICCID (daily and monthly plans alike, Zafir 13 Nov)
  *
  * Shared by the server and the browser, so every form asks for the same things.
  */
@@ -15,10 +15,12 @@ export type DeviceValues = Partial<Record<DeviceField, string>>
 
 export const planTypeLabel: Record<PlanType, string> = { daily: "Daily plan", monthly: "Monthly plan" }
 
-/** The fields a plan asks for, in the order a dealer pastes them. */
-export function deviceFields(planType: PlanType | null | undefined, productType: ProductType): DeviceField[] {
-  if (productType === "esim") return ["imei", "eid"]
-  return planType === "monthly" ? ["eid", "buyer_iccid"] : ["imei", "buyer_iccid"]
+/**
+ * The fields a plan asks for, in the order a dealer pastes them. The plan type no longer
+ * changes them (Zafir 13 Nov); it stays in the signature for when it does again.
+ */
+export function deviceFields(_planType: PlanType | null | undefined, productType: ProductType): DeviceField[] {
+  return productType === "esim" ? ["imei", "eid"] : ["eid", "buyer_iccid"]
 }
 
 /**

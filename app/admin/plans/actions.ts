@@ -36,8 +36,9 @@ const planSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and single hyphens"),
   product_type: z.enum(["esim", "physical"], "Choose eSIM or SIM card"),
   plan_type: z.enum(["daily", "monthly"], "Choose daily or monthly"),
-  talk: z.string().trim().min(1, "Describe talk, for example Unlimited US talk").max(120, "Keep it under 120 characters"),
-  sms: z.string().trim().min(1, "Describe text, for example Unlimited US text").max(120, "Keep it under 120 characters"),
+  // Empty for a data-only plan: the site then says "Data only, no calls or texts".
+  talk: z.string().trim().max(120, "Keep it under 120 characters"),
+  sms: z.string().trim().max(120, "Keep it under 120 characters"),
   data_gb: optionalGb,
   hotspot_gb: optionalGb,
   network: z.string().trim().min(1, "Enter the network, for example 5G / 4G LTE").max(60, "Keep it under 60 characters"),

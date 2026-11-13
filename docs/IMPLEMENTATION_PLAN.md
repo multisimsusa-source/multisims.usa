@@ -306,3 +306,13 @@ A dealer sent 50 USDT for a $50 top-up whose payment page asked 59.56 USDT (netw
 - [x] **QR code optional at delivery.** `complete_order` no longer needs a QR for eSIMs; plan dates start at delivery. `add_item_qr` adds the QR to a delivered eSIM (any staff adds a missing one, only the owner replaces one); the customer gets it by email once per SIM (`order_alerts` kind `qr-<seq>`), a dealer a short note. Customer and dealer pages say the QR is on its way; the queue lists "QR to add" and the overview counts them.
 - [x] **Dealer ZIP and area code** per plan line, optional, checked in the form and in `place_dealer_batch`, stored on the line's order.
 - [x] **Device details** (all optional): `plans.plan_type` daily or monthly; `order_items.imei`, `eid`, `buyer_iccid` (the buyer's ICCID, apart from the shipped card's `iccid`). Rules in `lib/device.ts`: eSIM IMEI + EID; SIM card IMEI + ICCID (daily) or EID + ICCID (monthly). Website checkout and Activate a SIM card ask for them (website checkout without the card's ICCID: we post the card); dealers paste one SIM per row. Editable until delivery (`set_item_device`), copied to a replacement (trigger), shown to agents with copy buttons and an ICCID mismatch warning, counted on queue rows, in dealer CSVs. Photos (`order_photos`, private bucket `device-photos`, 10 per order) from customers and dealers, read by staff.
+
+## Changes agreed 13 Nov 2026 (Zafir call)
+
+- [x] Owner alerts: contact form uses the Settings alert email; several addresses allowed; Send test email in Settings; the owner hears of every confirmed dealer top-up. (Root cause of "no emails": the alert email was the placeholder until 13 Nov 01:15 UTC.)
+- [x] Uploaded carrier logos keep their colours in light and dark mode (white plate in dark); built-in SVGs unchanged.
+- [x] Data-only plans: Talk and Text optional; "Data only, no calls or texts" on cards, "Not included" on the plan page. Clearer help for URL name and summary.
+- [x] SIM card device details are always EID + ICCID (the Daily/Monthly control is hidden, the column stays).
+- [x] Activate a SIM card works with every SIM card plan (not only refill plans); linked from SIM card plan pages and checkout, prefilled by URL.
+- [ ] One plan sells eSIM, SIM card or both.
+- [ ] Not built: dealers activating SIM cards they already hold.

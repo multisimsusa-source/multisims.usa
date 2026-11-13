@@ -242,8 +242,8 @@ export default async function HomePage() {
               A real US line, not just data
             </h2>
             <p className="max-w-[46ch] text-lg text-muted-foreground lg:justify-self-end">
-              Every plan comes on a US carrier, with talk and text alongside the
-              data, so your phone works the way it does at home.
+              Every plan runs on a US carrier network, and most come with talk and
+              text alongside the data, so your phone works the way it does at home.
             </p>
           </Reveal>
 

@@ -24,8 +24,10 @@ import { placeRefill, type RefillField, type RefillState } from "./actions"
 export type RefillPlan = {
   slug: string
   name: string
-  /** A SIM card plan; only these can start a SIM card bought on its own. */
+  /** A SIM card plan; only these can activate a SIM card the buyer already has. */
   sim: boolean
+  /** Offered for refills (the plan's switch in admin). */
+  refill: boolean
   /** Daily or monthly: which phone details activating a card asks for. */
   planType: PlanType
   facts: string
@@ -35,6 +37,8 @@ export type RefillCarrier = { slug: string; name: string; plans: RefillPlan[] }
 export type RefillPrefill = {
   mode: "refill" | "activate"
   carrier?: string
+  plan?: string
+  days?: number
   line_phone?: string
   iccid?: string
   name?: string
@@ -72,16 +76,16 @@ export function RefillForm({ carriers, prefill, addon, callingList, fees, takesP
 
   const [mode, setMode] = React.useState<"refill" | "activate">((state.values?.mode as "refill" | "activate") ?? prefill.mode)
   // Activating a SIM card needs a SIM card plan; a refill can be any plan of the carrier.
-  const offered = (c: RefillCarrier) => (mode === "activate" ? c.plans.filter((p) => p.sim) : c.plans)
+  const offered = (c: RefillCarrier) => c.plans.filter((p) => (mode === "activate" ? p.sim : p.refill))
   const shownCarriers = carriers.filter((c) => offered(c).length)
   const [carrierSlug, setCarrierSlug] = React.useState<string>(
     state.values?.carrier ?? prefill.carrier ?? (carriers.length === 1 ? carriers[0].slug : "")
   )
   const carrier = shownCarriers.find((c) => c.slug === carrierSlug) ?? null
   const carrierPlans = carrier ? offered(carrier) : []
-  const [planSlug, setPlanSlug] = React.useState<string>(state.values?.plan ?? "")
+  const [planSlug, setPlanSlug] = React.useState<string>(state.values?.plan ?? prefill.plan ?? "")
   const plan = carrierPlans.find((p) => p.slug === planSlug) ?? null
-  const [days, setDays] = React.useState<number | null>(state.values?.days ? Number(state.values.days) : null)
+  const [days, setDays] = React.useState<number | null>(state.values?.days ? Number(state.values.days) : (prefill.days ?? null))
   const pkg = plan?.packages.find((p) => p.days === days) ?? null
   const [intl, setIntl] = React.useState(state.values?.intl === "on")
   const [discount, setDiscount] = React.useState<(DiscountRule & { code: string }) | null>(null)

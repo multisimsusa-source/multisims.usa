@@ -47,7 +47,9 @@ async function Refill({ searchParams }: Params) {
   ])
 
   const carriers: RefillCarrier[] = []
-  for (const p of plans.filter((p) => p.refillable)) {
+  // Refills use plans offered for refills; activating a SIM card the buyer already has can use
+  // any SIM card plan.
+  for (const p of plans.filter((p) => p.refillable || p.product_type === "physical")) {
     let c = carriers.find((x) => x.slug === p.carrier.slug)
     if (!c) {
       c = { slug: p.carrier.slug, name: p.carrier.name, plans: [] }
@@ -57,6 +59,7 @@ async function Refill({ searchParams }: Params) {
       slug: p.slug,
       name: p.name,
       sim: p.product_type === "physical",
+      refill: p.refillable,
       planType: p.plan_type,
       facts: [dataLabel(p), p.hotspot_gb ? hotspotLabel(p) : null].filter(Boolean).join(", "),
       packages: p.packages.map(({ days, price_cents, regular_price_cents }) => ({ days, price_cents, regular_price_cents })),
@@ -83,7 +86,9 @@ async function Refill({ searchParams }: Params) {
   // "Refill this number" and "Activate this SIM" from an order page: the buyer already
   // holds that page's private link, so its details can fill the form.
   const mode = params.mode === "activate" ? "activate" : "refill"
-  let prefill: RefillPrefill = { mode }
+  // From a plan page or checkout: "Already have the SIM card?" carries the carrier, plan and length.
+  const plain = (key: string) => (typeof params[key] === "string" ? (params[key] as string).slice(0, 120) : undefined)
+  let prefill: RefillPrefill = { mode, carrier: plain("carrier"), plan: plain("plan"), days: Number(plain("days")) || undefined }
   const token = typeof params.from === "string" ? params.from : ""
   const itemId = typeof params.item === "string" ? params.item : ""
   if (token && itemId) {

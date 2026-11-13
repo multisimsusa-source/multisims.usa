@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps<"/plans/[slug]">): 
   if (!plan) return { title: "Plan not found", robots: { index: false } }
 
   const title = planFullName(plan)
-  const description = `${plan.carrier.name} ${productTypeLabel[plan.product_type]} for the US: ${lowerFirst(dataLabel(plan))}, ${lowerFirst(hotspotLabel(plan))}, ${lowerFirst(plan.talk)}. ${plan.packages.length} day packages from ${plan.packages[0].days} to ${plan.packages[plan.packages.length - 1].days} days.`
+  const description = `${plan.carrier.name} ${productTypeLabel[plan.product_type]} for the US: ${lowerFirst(dataLabel(plan))}, ${lowerFirst(hotspotLabel(plan))}${plan.talk.trim() ? `, ${lowerFirst(plan.talk)}` : ", data only"}. ${plan.packages.length} day packages from ${plan.packages[0].days} to ${plan.packages[plan.packages.length - 1].days} days.`
   return {
     title,
     description,
@@ -93,8 +93,14 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
               Plan details
             </h2>
             <dl className="mt-5 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
-              <Detail icon={<PhoneIcon className="size-5" />} label="Talk" value={plan.talk} />
-              <Detail icon={<ChatTextIcon className="size-5" />} label="Text" value={plan.sms} />
+              {plan.talk.trim() || plan.sms.trim() ? (
+                <>
+                  {plan.talk.trim() ? <Detail icon={<PhoneIcon className="size-5" />} label="Talk" value={plan.talk} /> : null}
+                  {plan.sms.trim() ? <Detail icon={<ChatTextIcon className="size-5" />} label="Text" value={plan.sms} /> : null}
+                </>
+              ) : (
+                <Detail icon={<PhoneIcon className="size-5" />} label="Calls and texts" value="Not included, data only" />
+              )}
               <Detail
                 icon={<WifiHighIcon className="size-5" />}
                 label="Data"
@@ -148,6 +154,18 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
                   {card.carrier.name} SIM card on its own, {formatPrice(card.price_cents)}
                 </Link>
                 . Activate it later from your order page.
+              </p>
+            ) : null}
+            {plan.product_type === "physical" ? (
+              <p className="mt-3 text-foreground/80">
+                Already have the SIM card?{" "}
+                <Link
+                  href={`/refill?mode=activate&carrier=${plan.carrier.slug}&plan=${plan.slug}`}
+                  className="font-medium text-brand underline-offset-4 hover:underline"
+                >
+                  Activate it with this plan
+                </Link>
+                . Nothing is posted and there is no shipping or card to pay for.
               </p>
             ) : null}
           </section>
