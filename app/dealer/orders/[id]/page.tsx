@@ -359,8 +359,8 @@ function LineCard({
             {orderTitle(order)}
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {order.kind === "refill" ? "Refill · " : ""}
-            {productTypeLabel[order.product_type]}
+            {/* A refill adds days to a number: it is neither an eSIM nor a SIM card. */}
+            {order.kind === "refill" ? "Refill" : productTypeLabel[order.product_type]}
             {order.days !== null ? ` · ${formatDays(order.days)}` : " only"}
             {order.addon_name ? ` · ${order.addon_name}` : ""} &middot;{" "}
             <span className="tabular font-mono">{orderLabel(order)}</span>

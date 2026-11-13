@@ -85,7 +85,9 @@ async function Refill({ searchParams }: Params) {
 
   // "Refill this number" and "Activate this SIM" from an order page: the buyer already
   // holds that page's private link, so its details can fill the form.
-  const mode = params.mode === "activate" ? "activate" : "refill"
+  // With no plan offered for refills, the page opens on activating a SIM card.
+  const canRefill = carriers.some((c) => c.plans.some((p) => p.refill))
+  const mode = params.mode === "activate" || !canRefill ? "activate" : "refill"
   // From a plan page or checkout: "Already have the SIM card?" carries the carrier, plan and length.
   const plain = (key: string) => (typeof params[key] === "string" ? (params[key] as string).slice(0, 120) : undefined)
   let prefill: RefillPrefill = { mode, carrier: plain("carrier"), plan: plain("plan"), days: Number(plain("days")) || undefined }

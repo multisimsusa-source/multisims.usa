@@ -26,13 +26,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CarrierLogo } from "@/components/site/carrier-logo"
-import type { Carrier, ProductType } from "@/lib/types"
+import type { Carrier } from "@/lib/types"
 
 export type SearchPlan = {
   slug: string
   name: string
   carrier: Pick<Carrier, "name" | "logo_path">
-  productType: ProductType
+  /** "eSIM", "SIM card" or "eSIM or SIM card". */
+  products: string
   facts: string
   from: string
   /** Everything a buyer might type for this plan, as one string. */
@@ -202,7 +203,7 @@ export function PlanSearch({
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">{plan.name}</span>
                       <span className="block text-xs text-muted-foreground sm:truncate">
-                        {plan.productType === "esim" ? "eSIM" : "SIM card"} ·{" "}
+                        {plan.products} ·{" "}
                         {plan.facts}
                       </span>
                       {/* Phones: the price joins the details instead of squeezing them. */}

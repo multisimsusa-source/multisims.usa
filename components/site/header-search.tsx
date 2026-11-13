@@ -1,6 +1,6 @@
 import { PlanSearch, type SearchPlan } from "@/components/site/plan-search"
 import { getActiveCarriers, getPublishedPlans } from "@/lib/catalog"
-import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
+import { dataLabel, formatPrice, hotspotLabel, productsLabel } from "@/lib/format"
 
 /**
  * Builds the search index from the cached catalogue (tag "catalog"), so a plan published
@@ -13,7 +13,7 @@ export async function HeaderSearch() {
     slug: p.slug,
     name: p.name,
     carrier: { name: p.carrier.name, logo_path: p.carrier.logo_path },
-    productType: p.product_type,
+    products: productsLabel(p),
     facts: `${dataLabel(p)}, ${hotspotLabel(p).replace(/^No/, "no")}`,
     from: formatPrice(p.from_price_cents),
     // Only plans that have a hotspot should answer "hotspot".

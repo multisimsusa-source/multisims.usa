@@ -5,6 +5,10 @@ import { testEmail } from "./support/env"
 import { choose, expectNoHorizontalScroll, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
 
 const SHOTS = process.env.E2E_SHOTS ?? "test-results/shots"
+// A fresh web address each run: plan pages are cached, and these plans are deleted at the end.
+const RUN = Date.now().toString(36)
+const DATA_SLUG = `e2e-data-only-${RUN}`
+const BOTH_SLUG = `e2e-both-ways-${RUN}`
 
 /**
  * What Zafir raised on the 13 Nov call: owner alerts, carrier logos, data-only plans, the
@@ -71,7 +75,7 @@ test.describe.serial("Zafir 13 Nov", () => {
     const { data: carrier } = await db().from("carriers").select("id").eq("name", "E2E Mobile").single()
     const { data: plan } = await db()
       .from("plans")
-      .insert({ carrier_id: carrier!.id, name: "E2E Data Only", slug: "e2e-data-only", product_type: "physical", data_gb: 5, published: true, refillable: false })
+      .insert({ carrier_id: carrier!.id, name: "E2E Data Only", slug: DATA_SLUG, product_type: "physical", data_gb: 5, published: true, refillable: false })
       .select("id")
       .single()
     await db().from("day_packages").insert({ plan_id: plan!.id, days: 30, price_cents: 2500, active: true })
@@ -89,7 +93,7 @@ test.describe.serial("Zafir 13 Nov", () => {
     const guest = await guestPage(browser, PHONE)
     await guest.goto("/plans?carrier=e2e-mobile")
     await expect(guest.locator("article").filter({ hasText: "E2E Data Only" }).getByText("Data only, no calls or texts")).toBeVisible()
-    await guest.goto("/plans/e2e-data-only")
+    await guest.goto(`/plans/${DATA_SLUG}`)
     await expect(guest.getByText("Not included, data only")).toBeVisible()
     await guest.screenshot({ path: `${SHOTS}/data-only-plan.png`, fullPage: true })
 
@@ -119,7 +123,7 @@ test.describe.serial("Zafir 13 Nov", () => {
     const { data: carrier } = await db().from("carriers").select("id").eq("name", "E2E Mobile").single()
     const { data: plan } = await db()
       .from("plans")
-      .insert({ carrier_id: carrier!.id, name: "E2E Both Ways", slug: "e2e-both-ways", sells_esim: true, sells_sim: true, data_gb: 20, published: true })
+      .insert({ carrier_id: carrier!.id, name: "E2E Both Ways", slug: BOTH_SLUG, sells_esim: true, sells_sim: true, data_gb: 20, published: true })
       .select("id, product_type")
       .single()
     expect(plan!.product_type).toBe("esim")
@@ -146,7 +150,7 @@ test.describe.serial("Zafir 13 Nov", () => {
     await guest.goto("/plans?type=esim")
     await expect(guest.getByRole("heading", { name: "E2E Both Ways" })).toBeVisible()
 
-    await guest.goto("/plans/e2e-both-ways")
+    await guest.goto(`/plans/${BOTH_SLUG}`)
     await expect(guest.getByText("eSIM or SIM card?")).toBeVisible()
     const buy = guest.getByRole("link", { name: "Buy now" })
     await expect(buy).toHaveAttribute("href", /product=esim/)
@@ -159,7 +163,7 @@ test.describe.serial("Zafir 13 Nov", () => {
     await expect(guest.getByText("Delivery address")).toBeVisible()
 
     // The eSIM way: no delivery address, and the order is an eSIM.
-    await guest.goto("/checkout?plan=e2e-both-ways&days=30&product=esim")
+    await guest.goto(`/checkout?plan=${BOTH_SLUG}&days=30&product=esim`)
     await expect(guest.getByText("Delivery address")).toHaveCount(0)
     await guest.getByLabel("Full name").fill("Both Ways")
     await guest.getByLabel("Email").fill("e2e-both-ways@multisims.test")
@@ -171,8 +175,8 @@ test.describe.serial("Zafir 13 Nov", () => {
     expect(web).toMatchObject({ product_type: "esim", shipping_cents: 0 })
 
     // The SIM card way: delivery address, shipping and the card price; and a link for a card in hand.
-    await guest.goto("/checkout?plan=e2e-both-ways&days=30&product=physical")
-    await expect(guest.getByRole("link", { name: "Activate it instead" })).toHaveAttribute("href", /mode=activate&carrier=e2e-mobile&plan=e2e-both-ways&days=30/)
+    await guest.goto(`/checkout?plan=${BOTH_SLUG}&days=30&product=physical`)
+    await expect(guest.getByRole("link", { name: "Activate it instead" })).toHaveAttribute("href", new RegExp(`mode=activate&carrier=e2e-mobile&plan=${BOTH_SLUG}&days=30`))
     await guest.getByLabel("Full name").fill("Both Ways Card")
     await guest.getByLabel("Email").fill("e2e-both-ways-card@multisims.test")
     await guest.getByLabel("Phone or WhatsApp").fill("+44 7700 900778")
