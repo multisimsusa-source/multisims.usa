@@ -36,7 +36,7 @@ export async function sendEmail(email: Email) {
 
   if (!key) {
     console.info("[email:dev] would send", { from, to, subject: email.subject, text: email.text })
-    return { ok: true as const }
+    return { ok: true as const, dev: true as const }
   }
 
   try {
@@ -64,12 +64,17 @@ export async function sendEmail(email: Email) {
       signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) {
-      console.error("[email] Resend error", res.status, await res.text())
-      return { ok: false as const }
+      const body = await res.text()
+      console.error("[email] Resend error", res.status, body)
+      let detail = body
+      try {
+        detail = (JSON.parse(body) as { message?: string }).message ?? body
+      } catch {}
+      return { ok: false as const, error: `${res.status}: ${detail}`.slice(0, 300) }
     }
     return { ok: true as const }
   } catch (error) {
     console.error("[email] Resend request failed", error)
-    return { ok: false as const }
+    return { ok: false as const, error: "The email service did not answer" }
   }
 }

@@ -83,6 +83,9 @@ test.describe.serial("Owner tools and access", () => {
   test("contact form sends a message", async ({ browser }) => {
     // On a real site the message would go to the business inbox.
     test.skip(REMOTE, "Not sent on a real site: it would land in the business inbox")
+    // Messages go to the alert email in Settings; email itself is off locally.
+    const { data: before } = await db().from("settings").select("owner_email").single()
+    await db().from("settings").update({ owner_email: "owner@multisims.test" }).eq("id", true)
     const page = await guestPage(browser)
     await page.goto("/contact")
     await page.getByLabel("Name").fill("E2E Visitor")
@@ -90,6 +93,7 @@ test.describe.serial("Owner tools and access", () => {
     await page.getByLabel("Message").fill("Do your eSIMs work on an iPhone 13 bought in the UK?")
     await page.getByRole("button", { name: "Send message" }).click()
     await expect(page.getByRole("heading", { name: "Message sent" })).toBeVisible()
+    await db().from("settings").update({ owner_email: before?.owner_email ?? null }).eq("id", true)
   })
 
   test("each role stays in its own portal; strangers get nothing", async ({ browser }) => {

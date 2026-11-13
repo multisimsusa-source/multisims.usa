@@ -221,7 +221,7 @@ export default async function HomePage() {
                     <CarrierLogo
                       carrier={carrier}
                       tone="mono"
-                      className="transition-[filter,opacity] duration-200 group-hover:opacity-100 group-hover:brightness-100 group-focus-visible:opacity-100 group-focus-visible:brightness-100 dark:group-hover:brightness-0 dark:group-focus-visible:brightness-0"
+                      className="transition-[filter,opacity] duration-200"
                     />
                   </Link>
                 </li>

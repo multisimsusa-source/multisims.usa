@@ -520,6 +520,16 @@ export function dealerFundsAddedEmail(amountCents: number, how: "topup" | "owner
 }
 
 /** A dealer top-up arrived short or long. The owner decides; short ones are not credited. */
+/** A dealer's crypto top-up reached their balance: a short note to the owner. */
+export function staffTopupReceivedEmail(company: string, amountCents: number, adminUrl: string): Rendered {
+  const lead = `${company} topped up ${formatPrice(amountCents)} in crypto. It is on their balance.`
+  return {
+    subject: `Top-up received: ${company}, ${formatPrice(amountCents)}`,
+    text: `${lead}\n\nOpen the dealer: ${adminUrl}`,
+    html: layout({ preheader: lead, heading: "Top-up received", body: p(esc(lead)), cta: { label: "Open the dealer", url: adminUrl } }),
+  }
+}
+
 export function staffTopupIssueEmail(
   company: string,
   issue: "underpaid" | "overpaid",

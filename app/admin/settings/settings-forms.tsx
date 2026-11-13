@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { centsToInput } from "@/lib/admin/result"
 import type { Settings, TicketType } from "@/lib/types"
-import { addTicketType, saveSettings, updateTicketType } from "./actions"
+import { addTicketType, saveSettings, sendTestEmail, updateTicketType } from "./actions"
 
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
@@ -38,12 +38,15 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       <div className="grid gap-6 p-4 sm:grid-cols-2 sm:p-6">
         <Field data-invalid={Boolean(errors.owner_email) || undefined}>
           <FieldLabel htmlFor="owner_email">Your alert email</FieldLabel>
-          <Input id="owner_email" name="owner_email" type="email" defaultValue={settings.owner_email ?? ""} placeholder="you@example.com" />
+          <Input id="owner_email" name="owner_email" type="text" inputMode="email" autoComplete="email" defaultValue={settings.owner_email ?? ""} />
           {errors.owner_email ? (
             <FieldError>{errors.owner_email}</FieldError>
           ) : (
-            <FieldDescription>Unclaimed-order alerts, customer messages and new tickets go here.</FieldDescription>
+            <FieldDescription>
+              New orders, dealer top-ups, payment problems, unclaimed orders, customer messages, tickets and the contact form go here. Several addresses? Separate them with commas.
+            </FieldDescription>
           )}
+          <TestEmailButton />
         </Field>
         <Field data-invalid={Boolean(errors.unclaimed_alert_minutes) || undefined}>
           <FieldLabel htmlFor="unclaimed_alert_minutes">Unclaimed alert after (minutes)</FieldLabel>
@@ -199,5 +202,29 @@ function TicketTypeRow({ type }: { type: TicketType }) {
         />
       </label>
     </li>
+  )
+}
+
+/** Sends a test to the saved alert addresses; the answer shows as a toast. */
+function TestEmailButton() {
+  const [pending, start] = React.useTransition()
+  return (
+    <div>
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const result = await sendTestEmail()
+            if (result.ok) toast.success(result.message ?? "Sent")
+            else toast.error(result.error)
+          })
+        }
+      >
+        {pending ? "Sending..." : "Send test email"}
+      </Button>
+    </div>
   )
 }

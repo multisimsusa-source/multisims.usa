@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { z } from "zod"
 
 import { sendEmail } from "@/lib/email"
+import { ownerRecipients } from "@/lib/notify"
 import { rateLimit } from "@/lib/rate-limit"
 import { verifyTurnstile } from "@/lib/turnstile"
 
@@ -61,9 +62,14 @@ export async function sendContactMessage(_prev: ContactState, formData: FormData
   }
 
   const { name, email, order, message } = parsed.data
-  const to = process.env.CONTACT_TO_EMAIL
+  // The owner's alert addresses from Settings (CONTACT_TO_EMAIL only as a fallback).
+  const to = await ownerRecipients()
+  if (!to.length) {
+    console.error("[contact] no owner alert email in Settings or CONTACT_TO_EMAIL")
+    return { status: "error", message: "We could not send your message. Please email us directly.", values }
+  }
   const result = await sendEmail({
-    to: to ? to.split(",").map((s) => s.trim()) : ["owner@multisimsusa.com"],
+    to,
     subject: `Website message from ${name}`,
     replyTo: email,
     text: [`From: ${name} <${email}>`, order ? `Order: ${order}` : null, "", message]

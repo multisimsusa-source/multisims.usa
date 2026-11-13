@@ -2,7 +2,7 @@ import "server-only"
 
 import { after } from "next/server"
 
-import { notifyDealerFunds, notifyOrderPaid, notifyPaymentIssue, notifyTopupIssue } from "@/lib/notify"
+import { notifyDealerFunds, notifyOrderPaid, notifyPaymentIssue, notifyTopupIssue, notifyTopupToOwner } from "@/lib/notify"
 import { orderLabel } from "@/lib/orders"
 import { roundUpToDollar } from "@/lib/pricing"
 import { absoluteUrl } from "@/lib/site"
@@ -158,6 +158,8 @@ async function applyTopUpEvent(payment: Payment, event: PaymentEvent) {
       const dealerId = payment.dealer_id
       const amount = row.amount_cents
       after(() => notifyDealerFunds(dealerId, amount, "topup", note, `topup-${payment.id}-${row.id}`))
+      // A short top-up already tells the owner (underpaid email); a full one gets its own note.
+      if (!note?.startsWith("Short")) after(() => notifyTopupToOwner(dealerId, amount, `topup-owner-${payment.id}-${row.id}`))
     }
     return row?.id ? row.amount_cents : null
   }

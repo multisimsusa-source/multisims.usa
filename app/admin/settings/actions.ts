@@ -7,9 +7,19 @@ import { catalogChanged } from "@/lib/admin/catalog-changed"
 import { isUniqueViolation, parseMoney, zodFieldErrors, type ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
+import { sendEmail } from "@/lib/email"
+import { ownerRecipients } from "@/lib/notify"
 
 const schema = z.object({
-  owner_email: z.union([z.literal(""), z.email("Enter a valid email")]),
+  // One or more addresses, separated by commas.
+  owner_email: z
+    .string()
+    .max(500, "Too long")
+    .refine(
+      (v) => v === "" || v.split(",").every((a) => z.email().safeParse(a.trim()).success),
+      "Enter valid email addresses, separated by commas"
+    )
+    .transform((v) => [...new Set(v.split(",").map((a) => a.trim()).filter(Boolean))].join(", ")),
   unclaimed_alert_minutes: z.coerce.number().int("Whole minutes").min(1, "At least 1 minute").max(120, "At most 120 minutes"),
   replacement_needs_approval: z.boolean(),
   max_replacements_per_order: z.coerce.number().int("Whole number").min(0, "At least 0").max(20, "At most 20"),
@@ -71,4 +81,20 @@ export async function updateTicketType(id: string, name: string, active: boolean
   if (error) return { ok: false, error: isUniqueViolation(error) ? "That issue type already exists" : "Could not save it" }
   refresh()
   return { ok: true, message: active ? "Saved" : "Hidden from the ticket form" }
+}
+
+/** Sends a test email to the alert addresses in Settings and says what the email service answered. */
+export async function sendTestEmail(): Promise<ActionResult> {
+  await requireRole("admin")
+  const to = await ownerRecipients()
+  if (!to.length) return { ok: false, error: "Save your alert email first." }
+  const result = await sendEmail({
+    sender: "orders",
+    to,
+    subject: "Test email from MultiSims USA",
+    text: "This is a test from Admin > Settings. Order, top-up and support alerts go to this address. If it reached your inbox, alerts will too.",
+  })
+  if (!result.ok) return { ok: false, error: `Not sent. The email service said: ${result.error ?? "no answer"}` }
+  if ("dev" in result) return { ok: true, message: `Email is switched off here (no RESEND_API_KEY). It would go to ${to.join(", ")}.` }
+  return { ok: true, message: `Sent to ${to.join(", ")}. Check the inbox, and the spam folder once.` }
 }

@@ -15,6 +15,7 @@ import {
   staffNewTicketEmail,
   staffPaymentIssueEmail,
   staffTopupIssueEmail,
+  staffTopupReceivedEmail,
   ticketAnsweredEmail,
   type BatchEmailLine,
   type DeliveredItem,
@@ -34,6 +35,11 @@ import type { Order, OrderItem, Payment, Ticket } from "@/lib/types"
 
 export function orderPageUrl(order: Pick<Order, "public_token">) {
   return absoluteUrl(`/order/${order.public_token}`)
+}
+
+/** The owner's alert addresses (Settings, or CONTACT_TO_EMAIL as a fallback). */
+export async function ownerRecipients() {
+  return staffRecipients({ agents: false })
 }
 
 /** Owner (settings, or CONTACT_TO_EMAIL as a fallback) plus every active agent. */
@@ -287,6 +293,16 @@ export async function notifyDealerFunds(dealerId: string, amountCents: number, h
   if (!profile?.email) return
   const mail = dealerFundsAddedEmail(amountCents, how, note, absoluteUrl("/dealer/wallet"))
   await sendEmail({ sender: "orders", to: profile.email, ...mail, idempotencyKey: key })
+}
+
+/** A dealer's crypto top-up is confirmed: the owner hears of every one. */
+export async function notifyTopupToOwner(dealerId: string, amountCents: number, key: string) {
+  const db = createServiceClient()
+  const { data: dealer } = await db.from("dealers").select("company").eq("profile_id", dealerId).maybeSingle()
+  const to = await ownerRecipients()
+  if (!to.length) return
+  const mail = staffTopupReceivedEmail(dealer?.company ?? "A dealer", amountCents, absoluteUrl(`/admin/dealers/${dealerId}`))
+  await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `${key}-${address}` })))
 }
 
 /** A top-up arrived short or long: the owner only. */

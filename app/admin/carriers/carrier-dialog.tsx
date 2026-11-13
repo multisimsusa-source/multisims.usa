@@ -1,5 +1,6 @@
 "use client"
 
+import { CarrierLogo } from "@/components/site/carrier-logo"
 import * as React from "react"
 import { PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
@@ -97,8 +98,8 @@ export function CarrierDialog(props: Props) {
             <FieldLabel htmlFor="carrier-logo">Logo</FieldLabel>
             {carrier?.logo_path ? (
               <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={publicStorageUrl("carrier-logos", carrier.logo_path)} alt="" className="h-7 w-auto max-w-40 object-contain" />
+                {/* As the website shows it, in the current light or dark theme. */}
+                <CarrierLogo carrier={carrier} size="md" />
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <input type="checkbox" name="remove_logo" className="size-4 accent-foreground" />
                   Remove
@@ -106,7 +107,7 @@ export function CarrierDialog(props: Props) {
               </div>
             ) : null}
             <Input id="carrier-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="pt-2 text-sm" />
-            {errors.logo ? <FieldError>{errors.logo}</FieldError> : <FieldDescription>PNG, JPG or WebP, up to 1 MB. A wide logo on a transparent background works best.</FieldDescription>}
+            {errors.logo ? <FieldError>{errors.logo}</FieldError> : <FieldDescription>PNG, JPG or WebP, up to 1 MB. It shows in its own colours in light and dark mode; a transparent or white background both work. A wide logo works best.</FieldDescription>}
           </Field>
 
           <Field>
