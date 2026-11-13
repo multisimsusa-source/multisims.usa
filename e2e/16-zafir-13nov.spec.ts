@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { db } from "./support/db"
 import { testEmail } from "./support/env"
-import { choose, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
+import { choose, expectNoHorizontalScroll, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
 
 const SHOTS = process.env.E2E_SHOTS ?? "test-results/shots"
 
@@ -26,6 +26,8 @@ test.describe.serial("Zafir 13 Nov", () => {
     const { data: saved } = await db().from("settings").select("owner_email").single()
     expect(saved?.owner_email).toBe("owner@multisims.test, second@multisims.test")
 
+    await owner.emulateMedia({ colorScheme: "dark" })
+    await owner.screenshot({ path: `${SHOTS}/settings-dark.png` })
     // Email is off locally: the test says where it would go.
     await owner.getByRole("button", { name: "Send test email" }).click()
     await expectToast(owner, /owner@multisims\.test, second@multisims\.test/)
@@ -53,6 +55,7 @@ test.describe.serial("Zafir 13 Nov", () => {
       if (scheme === "dark") {
         expect(await logo.evaluate((el) => getComputedStyle(el.parentElement!).backgroundColor)).toMatch(/255, 255, 255|oklch\(1 0 0\)/)
       }
+      await logo.scrollIntoViewIfNeeded()
       await page.screenshot({ path: `${SHOTS}/logo-${scheme}.png` })
     }
 
@@ -129,6 +132,13 @@ test.describe.serial("Zafir 13 Nov", () => {
     await expect(owner.locator('input[name="sells_sim"]')).toBeChecked()
     await owner.getByRole("button", { name: "Save plan" }).click()
     await expectToast(owner, /saved/i)
+    // Neither box ticked is refused.
+    await owner.locator("label").filter({ hasText: /^eSIM$/ }).click()
+    await owner.locator("label").filter({ hasText: /^SIM card$/ }).click()
+    await owner.getByRole("button", { name: "Save plan" }).click()
+    await expect(owner.getByText("Choose eSIM, SIM card, or both")).toBeVisible()
+    await owner.emulateMedia({ colorScheme: "dark" })
+    await owner.screenshot({ path: `${SHOTS}/both-ways-admin-dark.png` })
 
     const guest = await guestPage(browser, PHONE)
     await guest.goto("/plans?type=physical")
@@ -160,6 +170,31 @@ test.describe.serial("Zafir 13 Nov", () => {
     const { data: web } = await db().from("orders").select("id, product_type, shipping_cents").eq("customer_email", "e2e-both-ways@multisims.test").single()
     expect(web).toMatchObject({ product_type: "esim", shipping_cents: 0 })
 
+    // The SIM card way: delivery address, shipping and the card price; and a link for a card in hand.
+    await guest.goto("/checkout?plan=e2e-both-ways&days=30&product=physical")
+    await expect(guest.getByRole("link", { name: "Activate it instead" })).toHaveAttribute("href", /mode=activate&carrier=e2e-mobile&plan=e2e-both-ways&days=30/)
+    await guest.getByLabel("Full name").fill("Both Ways Card")
+    await guest.getByLabel("Email").fill("e2e-both-ways-card@multisims.test")
+    await guest.getByLabel("Phone or WhatsApp").fill("+44 7700 900778")
+    await guest.getByLabel("US ZIP code").fill("10001")
+    await guest.getByLabel("Street address").fill("350 Fifth Avenue")
+    await guest.getByLabel("City").fill("New York")
+    await choose(guest, guest.locator("#state"), "New York")
+    await guest.locator("#ship_zip").fill("10118")
+    await guest.getByRole("button", { name: /Place order|Continue to payment/ }).filter({ visible: true }).first().click()
+    await guest.waitForURL(/\/order\//)
+    const { data: webSim } = await db().from("orders").select("id, product_type, sim_card_price_cents, shipping_address").eq("customer_email", "e2e-both-ways-card@multisims.test").single()
+    expect(webSim!.product_type).toBe("physical")
+    expect(webSim!.sim_card_price_cents).toBeGreaterThan(0)
+    expect(webSim!.shipping_address).not.toBeNull()
+    await db().from("orders").delete().eq("id", webSim!.id)
+
+    // A product the plan does not sell is ignored: an eSIM-only plan never shows a delivery address.
+    const { data: esimOnly } = await db().from("plans").select("slug").eq("name", "E2E Unlimited").single()
+    await guest.goto(`/checkout?plan=${esimOnly!.slug}&days=30&product=physical`)
+    await expect(guest.getByText("Your phone (optional)")).toBeVisible()
+    await expect(guest.getByText("Delivery address")).toHaveCount(0)
+
     // A dealer picks SIM card on the line: device details ask for the EID and ICCID.
     const dealer = await signIn(browser, testEmail("device-dealer"), PHONE)
     await dealer.goto("/dealer/new")
@@ -167,6 +202,15 @@ test.describe.serial("Zafir 13 Nov", () => {
     await choose(dealer, dealer.locator('[id^="days-"]').nth(0), /^30 days/)
     await dealer.locator("label").filter({ hasText: /^SIM card$/ }).click()
     await expect(dealer.getByText(/One SIM per row: EID, ICCID/)).toBeVisible()
+    // A long plan label stays inside the card on a phone.
+    await expectNoHorizontalScroll(dealer)
+    expect(await dealer.evaluate(() => {
+      const trigger = document.querySelector('[id^="plan-"]')!.getBoundingClientRect()
+      const card = document.querySelector('[id^="plan-"]')!.closest("section, form")!.getBoundingClientRect()
+      return trigger.right <= card.right + 1
+    })).toBe(true)
+    await dealer.emulateMedia({ colorScheme: "dark" })
+    await dealer.screenshot({ path: `${SHOTS}/both-ways-dealer-dark.png`, fullPage: true })
     await dealer.getByLabel("Street address").fill("1 Market Street")
     await dealer.getByLabel("City").fill("San Francisco")
     await choose(dealer, dealer.locator("#state"), "California")

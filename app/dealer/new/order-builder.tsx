@@ -325,7 +325,7 @@ export function OrderBuilder({
                     </div>
                   </div>
 
-                  <div className="grid gap-x-4 gap-y-5 sm:grid-cols-[1fr_11rem]">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
                     <Field data-invalid={Boolean(err && !plan && !card) || undefined}>
                       <FieldLabel htmlFor={`plan-${line.key}`}>Plan</FieldLabel>
                       <Select
@@ -356,10 +356,10 @@ export function OrderBuilder({
                       >
                         <SelectTrigger
                           id={`plan-${line.key}`}
-                          className="w-full"
+                          className="w-full min-w-0"
                           aria-invalid={Boolean(err && !plan && !card) || undefined}
                         >
-                          <SelectValue placeholder="Choose a plan or SIM cards" />
+                          <SelectValue placeholder="Choose a plan or SIM cards" className="block min-w-0 truncate" />
                         </SelectTrigger>
                         <SelectContent>
                           {cards.length ? (
@@ -419,13 +419,14 @@ export function OrderBuilder({
                       >
                         <SelectTrigger
                           id={`days-${line.key}`}
-                          className="w-full"
+                          className="w-full min-w-0"
                           aria-invalid={
                             Boolean(err && plan && !pkg) || undefined
                           }
                         >
                           <SelectValue
                             placeholder={plan ? "Choose" : "Plan first"}
+                            className="block min-w-0 truncate"
                           />
                         </SelectTrigger>
                         <SelectContent>
