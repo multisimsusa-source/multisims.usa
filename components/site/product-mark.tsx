@@ -20,6 +20,16 @@ export function ProductMark({ type, className }: { type: ProductType; className?
   )
 }
 
+/** One badge per product a plan is sold as. */
+export function ProductBadges({ plan }: { plan: { sells_esim: boolean; sells_sim: boolean } }) {
+  return (
+    <>
+      {plan.sells_esim ? <ProductBadge type="esim" /> : null}
+      {plan.sells_sim ? <ProductBadge type="physical" /> : null}
+    </>
+  )
+}
+
 export function ProductBadge({ type }: { type: ProductType }) {
   return (
     <span

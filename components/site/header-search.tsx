@@ -1,6 +1,6 @@
 import { PlanSearch, type SearchPlan } from "@/components/site/plan-search"
 import { getActiveCarriers, getPublishedPlans } from "@/lib/catalog"
-import { dataLabel, formatPrice, hotspotLabel, productTypeLabel } from "@/lib/format"
+import { dataLabel, formatPrice, hotspotLabel } from "@/lib/format"
 
 /**
  * Builds the search index from the cached catalogue (tag "catalog"), so a plan published
@@ -20,8 +20,8 @@ export async function HeaderSearch() {
     search: [
       p.carrier.name,
       p.name,
-      productTypeLabel[p.product_type],
-      p.product_type === "esim" ? "esim qr" : "sim card physical",
+      p.sells_esim ? "esim qr" : "",
+      p.sells_sim ? "sim card physical" : "",
       dataLabel(p),
       p.hotspot_gb ? hotspotLabel(p) : "",
       p.talk,

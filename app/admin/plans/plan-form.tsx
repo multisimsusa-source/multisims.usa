@@ -76,31 +76,29 @@ export function PlanForm({ carriers, plan, defaultCarrierId }: Props) {
             {err("carrier_id")}
           </Field>
 
-          <Field data-invalid={invalid("product_type")}>
-            <FieldLabel id="product_type_label">Product</FieldLabel>
-            <div role="radiogroup" aria-labelledby="product_type_label" className="grid grid-cols-2 gap-2">
+          <Field data-invalid={invalid("sells")}>
+            <FieldLabel id="sells_label">Sold as</FieldLabel>
+            <div role="group" aria-labelledby="sells_label" className="grid grid-cols-2 gap-2">
               {(
                 [
-                  ["esim", "eSIM"],
-                  ["physical", "SIM card"],
+                  ["sells_esim", "eSIM", plan ? plan.sells_esim : true],
+                  ["sells_sim", "SIM card", plan ? plan.sells_sim : false],
                 ] as const
-              ).map(([value, label]) => (
+              ).map(([name, label, checked]) => (
                 <label
-                  key={value}
+                  key={name}
                   className="flex h-10 cursor-pointer items-center justify-center rounded-md border text-sm transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/40"
                 >
-                  <input
-                    type="radio"
-                    name="product_type"
-                    value={value}
-                    defaultChecked={(plan?.product_type ?? "esim") === value}
-                    className="sr-only"
-                  />
+                  <input type="checkbox" name={name} defaultChecked={checked} className="sr-only" />
                   {label}
                 </label>
               ))}
             </div>
-            {err("product_type")}
+            {errors.sells ? (
+              err("sells")
+            ) : (
+              <FieldDescription>Choose both to sell one plan either way: the buyer picks. A SIM card adds its card price and shipping.</FieldDescription>
+            )}
           </Field>
         </div>
 

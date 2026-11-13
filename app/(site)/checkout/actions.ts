@@ -112,7 +112,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       ? Promise.resolve({ data: null })
       : db
           .from("plans")
-          .select("id, name, product_type, plan_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
+          .select("id, name, product_type, sells_esim, sells_sim, plan_type, published, carrier:carriers!inner(id, name, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
           .eq("slug", slug)
           .maybeSingle(),
     cardOnly
@@ -135,7 +135,12 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     return { status: "error", message: "This plan or day package is no longer on sale. Go back and choose again.", values }
   }
 
-  const physical = cardOnly || plan?.product_type === "physical"
+  // The product the buyer chose, checked against what the plan is sold as.
+  const wantsSim = values.product === "physical" || (values.product !== "esim" && !plan?.sells_esim)
+  if (plan && (wantsSim ? !plan.sells_sim : !plan.sells_esim)) {
+    return { status: "error", message: "This plan is not sold that way any more. Go back and choose again.", values }
+  }
+  const physical = cardOnly || wantsSim
   let shipping: z.infer<typeof address> | null = null
   if (physical) {
     // A card on its own has no plan to start.
@@ -152,7 +157,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
   // Phone details, one group per SIM: optional, checked only when filled.
   const devices: DeviceValues[] = []
   if (plan && parsed.success) {
-    const fields = checkoutDeviceFields(plan.plan_type as PlanType, plan.product_type)
+    const fields = checkoutDeviceFields(plan.plan_type as PlanType, physical ? "physical" : "esim")
     for (let n = 1; n <= parsed.data.quantity; n++) {
       const sim: DeviceValues = {}
       for (const f of fields) {
@@ -224,7 +229,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
       addon_id: useAddon?.id ?? null,
       carrier_name: carrier!.name,
       plan_name: plan?.name ?? null,
-      product_type: cardOnly ? "physical" : plan!.product_type,
+      product_type: physical ? "physical" : "esim",
       days: pkg?.days ?? null,
       addon_name: useAddon?.name ?? null,
       quantity: input.quantity,

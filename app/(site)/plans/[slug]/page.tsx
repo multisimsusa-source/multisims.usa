@@ -16,12 +16,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { JsonLd } from "@/components/json-ld"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
-import { ProductBadge } from "@/components/site/product-mark"
+import { ProductBadges } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
 import { getCallingDestinations, getIntlCallingAddon, getPlanBySlug, getPublicFees, getPublishedPlans, getSimCardPrices, getSimCards } from "@/lib/catalog"
-import { dataLabel, formatPrice, hotspotLabel, planFullName, productTypeLabel, slowdownLabel } from "@/lib/format"
+import { dataLabel, formatPrice, hotspotLabel, planFullName, productsLabel, slowdownLabel } from "@/lib/format"
 import { absoluteUrl } from "@/lib/site"
-import type { CatalogPlan } from "@/lib/types"
+import type { CatalogPlan, ProductType } from "@/lib/types"
 
 export async function generateStaticParams() {
   const plans = await getPublishedPlans()
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps<"/plans/[slug]">): 
   if (!plan) return { title: "Plan not found", robots: { index: false } }
 
   const title = planFullName(plan)
-  const description = `${plan.carrier.name} ${productTypeLabel[plan.product_type]} for the US: ${lowerFirst(dataLabel(plan))}, ${lowerFirst(hotspotLabel(plan))}${plan.talk.trim() ? `, ${lowerFirst(plan.talk)}` : ", data only"}. ${plan.packages.length} day packages from ${plan.packages[0].days} to ${plan.packages[plan.packages.length - 1].days} days.`
+  const description = `${plan.carrier.name} ${productsLabel(plan)} for the US: ${lowerFirst(dataLabel(plan))}, ${lowerFirst(hotspotLabel(plan))}${plan.talk.trim() ? `, ${lowerFirst(plan.talk)}` : ", data only"}. ${plan.packages.length} day packages from ${plan.packages[0].days} to ${plan.packages[plan.packages.length - 1].days} days.`
   return {
     title,
     description,
@@ -74,7 +74,7 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
     getSimCardPrices(),
   ])
   if (!plan) notFound()
-  const card = plan.product_type === "physical" ? simCards.find((c) => c.carrier.id === plan.carrier.id) : undefined
+  const card = plan.sells_sim ? simCards.find((c) => c.carrier.id === plan.carrier.id) : undefined
 
   return (
     <>
@@ -83,7 +83,7 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <CarrierLogo carrier={plan.carrier} size="sm" />
-            <ProductBadge type={plan.product_type} />
+            <ProductBadges plan={plan} />
           </div>
           <h1 className="mt-4 text-4xl font-semibold sm:text-5xl">{plan.name}</h1>
           {plan.summary ? <p className="mt-3 text-lg text-muted-foreground">{plan.summary}</p> : null}
@@ -142,11 +142,18 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
             <h2 id="delivery" className="text-xl font-semibold">
               Delivery
             </h2>
-            <p className="mt-3 max-w-[65ch] text-foreground/80">
-              {plan.product_type === "esim"
-                ? "Your eSIM arrives as a QR code, by email and on your private order page. Scan it with your phone's camera to install the line. Your phone needs to support eSIM and be unlocked."
-                : "We post your SIM card from the US by USPS. The tracking number appears on your private order page as soon as it ships."}
-            </p>
+            {plan.sells_esim ? (
+              <p className="mt-3 max-w-[65ch] text-foreground/80">
+                {plan.sells_sim ? <span className="font-medium text-foreground">eSIM: </span> : null}
+                Your eSIM arrives as a QR code, by email and on your private order page. Scan it with your phone&apos;s camera to install the line. Your phone needs to support eSIM and be unlocked.
+              </p>
+            ) : null}
+            {plan.sells_sim ? (
+              <p className="mt-3 max-w-[65ch] text-foreground/80">
+                {plan.sells_esim ? <span className="font-medium text-foreground">SIM card: </span> : null}
+                We post your SIM card from the US by USPS. The tracking number appears on your private order page as soon as it ships.
+              </p>
+            ) : null}
             {card ? (
               <p className="mt-3 text-foreground/80">
                 Only need the card?{" "}
@@ -156,7 +163,7 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
                 . Activate it later from your order page.
               </p>
             ) : null}
-            {plan.product_type === "physical" ? (
+            {plan.sells_sim ? (
               <p className="mt-3 text-foreground/80">
                 Already have the SIM card?{" "}
                 <Link
@@ -174,10 +181,10 @@ async function PlanDetails({ params }: Pick<PageProps<"/plans/[slug]">, "params"
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border bg-card p-5 sm:p-6">
             <p className="text-sm font-medium">
-              {plan.carrier.name} {productTypeLabel[plan.product_type]}
+              {plan.carrier.name} {productsLabel(plan)}
             </p>
             <p className="font-heading text-2xl font-semibold tracking-[-0.02em]">{plan.name}</p>
-            <PlanConfigurator plan={plan} addon={addon} callingList={destinations.length > 0} extras={checkoutExtras(plan, fees, cardPrices)} className="mt-6" />
+            <PlanConfigurator plan={plan} addon={addon} callingList={destinations.length > 0} extras={{ esim: checkoutExtras(plan, "esim", fees, cardPrices), physical: checkoutExtras(plan, "physical", fees, cardPrices) }} className="mt-6" />
           </div>
         </aside>
       </div>
@@ -230,7 +237,7 @@ function productJsonLd(plan: CatalogPlan) {
     "@type": "Product",
     name: planFullName(plan),
     description: plan.summary || plan.description,
-    category: plan.product_type === "esim" ? "eSIM" : "SIM card",
+    category: productsLabel(plan),
     brand: { "@type": "Brand", name: plan.carrier.name },
     url: absoluteUrl(`/plans/${plan.slug}`),
     offers: {
@@ -259,11 +266,12 @@ function lowerFirst(text: string) {
 /** What checkout adds to the plan's price, in words, so the total on this page is never a surprise. */
 function checkoutExtras(
   plan: CatalogPlan,
+  product: ProductType,
   fees: { shippingCents: number; simCardCents: number; networkFeeCents: number },
   cardPrices: Record<string, number>
 ) {
   const parts: string[] = []
-  if (plan.product_type === "physical") {
+  if (product === "physical") {
     parts.push(`the SIM card (${formatPrice(cardPrices[plan.carrier.id] ?? fees.simCardCents)})`)
     if (fees.shippingCents) parts.push(`shipping (${formatPrice(fees.shippingCents)})`)
   }

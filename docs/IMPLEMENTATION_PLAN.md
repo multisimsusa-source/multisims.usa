@@ -314,5 +314,5 @@ A dealer sent 50 USDT for a $50 top-up whose payment page asked 59.56 USDT (netw
 - [x] Data-only plans: Talk and Text optional; "Data only, no calls or texts" on cards, "Not included" on the plan page. Clearer help for URL name and summary.
 - [x] SIM card device details are always EID + ICCID (the Daily/Monthly control is hidden, the column stays).
 - [x] Activate a SIM card works with every SIM card plan (not only refill plans); linked from SIM card plan pages and checkout, prefilled by URL.
-- [ ] One plan sells eSIM, SIM card or both.
+- [x] One plan sells eSIM, SIM card or both: `plans.sells_esim`, `plans.sells_sim` (product_type kept as the first, by trigger). Admin "Sold as" checkboxes; plan page choice sets `product=` for checkout; checkout and the dealer line (`product` in `place_dealer_batch`) write the choice to `orders.product_type`; filters, badges, search, activation use the flags. MobileX duplicate to merge in Admin.
 - [ ] Not built: dealers activating SIM cards they already hold.

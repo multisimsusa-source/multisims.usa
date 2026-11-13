@@ -18,7 +18,6 @@ const IMEI = "356938035643809"
 const IMEI2 = "356938035643817"
 const EID = "89049032004008882600000000000001"
 const EID2 = "89049032004008882600000000000002"
-const ICCID = "8901260000000000555"
 
 test.describe.serial("Device details", () => {
   test("activating a SIM card asks for the EID (and the card's ICCID), daily plan or not", async ({ browser }) => {

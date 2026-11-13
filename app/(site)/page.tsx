@@ -20,7 +20,7 @@ import { CarrierLogo } from "@/components/site/carrier-logo"
 import { FaqList } from "@/components/site/faq-list"
 import { PlanCard } from "@/components/site/plan-card"
 import { PlanConfigurator } from "@/components/site/plan-configurator"
-import { ProductBadge } from "@/components/site/product-mark"
+import { ProductBadges } from "@/components/site/product-mark"
 import { Container } from "@/components/site/section"
 import {
   getActiveCarriers,
@@ -100,11 +100,11 @@ export default async function HomePage() {
     plans.some((p) => p.carrier.id === c.id)
   )
   const featured =
-    plans.find((p) => p.product_type === "esim" && p.data_gb === null) ??
+    plans.find((p) => p.sells_esim && p.data_gb === null) ??
     plans[0] ??
     null
-  const esimCount = plans.filter((p) => p.product_type === "esim").length
-  const simCount = plans.filter((p) => p.product_type === "physical").length
+  const esimCount = plans.filter((p) => p.sells_esim).length
+  const simCount = plans.filter((p) => p.sells_sim).length
   const showcase = pickShowcase(plans)
   const carrierNames = carriersWithPlans.slice(0, 3).map((c) => c.name)
   const lengths = [
@@ -188,7 +188,9 @@ export default async function HomePage() {
                     {dataLabel(featured)}, {lowerFirst(hotspotLabel(featured))}
                   </p>
                 </div>
-                <ProductBadge type={featured.product_type} />
+                <span className="flex gap-1.5">
+                  <ProductBadges plan={featured} />
+                </span>
               </div>
               <PlanConfigurator
                 plan={featured}

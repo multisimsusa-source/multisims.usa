@@ -30,6 +30,9 @@ export type Plan = {
   refillable: boolean
   /** Daily or monthly: decides which device details a buyer is asked for (lib/device.ts). */
   plan_type: "daily" | "monthly"
+  /** What the plan is sold as; at least one. product_type is the first of them (eSIM when both). */
+  sells_esim: boolean
+  sells_sim: boolean
   name: string
   slug: string
   product_type: ProductType

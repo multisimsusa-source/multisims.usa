@@ -19,6 +19,8 @@ export type DealerCatalogRow = {
   price_cents: number
   retail_price_cents: number
   plan_type: "daily" | "monthly"
+  sells_esim: boolean
+  sells_sim: boolean
 }
 
 /** Prices that apply to a whole order rather than one package. */

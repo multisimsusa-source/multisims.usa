@@ -12,7 +12,7 @@ import { FlashToast } from "@/components/patterns/flash-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAdminPlan, hiddenReason, listCarriers } from "@/lib/admin/queries"
 import { PlanCard } from "@/components/site/plan-card"
-import { productTypeLabel } from "@/lib/format"
+import { productsLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { PlanForm } from "../plan-form"
@@ -76,7 +76,7 @@ async function PlanEditor({ params }: Pick<PageProps<"/admin/plans/[id]">, "para
         title={plan.name}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
-            {plan.carrier.name} {productTypeLabel[plan.product_type]}
+            {plan.carrier.name} {productsLabel(plan)}
             <Tag tone={reason ? "warning" : "success"}>{reason ?? "Live on website"}</Tag>
           </span>
         }

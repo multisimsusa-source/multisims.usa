@@ -49,11 +49,12 @@ async function Checkout({
   const pkg = plan?.packages.find((p) => p.days === days)
   // SIM cards: the carrier's card, and its SIM card plans to pick from (or none).
   const carrierSlug = plan?.carrier.slug ?? cardSlug
-  const physical = plan ? plan.product_type === "physical" : Boolean(cardSlug)
+  // A plan sold both ways: the buyer's choice from the plan page (?product=), else its first product.
+  const physical = plan ? (params.product === "physical" ? plan.sells_sim : !plan.sells_esim) : Boolean(cardSlug)
   const simCard = physical ? (simCards.find((c) => c.carrier.slug === carrierSlug) ?? null) : null
   const carrier = plan?.carrier ?? simCard?.carrier
   const choices = physical
-    ? plans.filter((p) => p.product_type === "physical" && p.carrier.slug === carrierSlug)
+    ? plans.filter((p) => p.sells_sim && p.carrier.slug === carrierSlug)
     : plan
       ? [plan]
       : []

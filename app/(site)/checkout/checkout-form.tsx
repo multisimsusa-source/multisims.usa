@@ -202,6 +202,7 @@ export function CheckoutForm({
       <input type="hidden" name="plan" value={plan?.slug ?? ""} />
       <input type="hidden" name="days" value={days ?? ""} />
       <input type="hidden" name="card" value={physical ? carrier.slug : ""} />
+      <input type="hidden" name="product" value={physical ? "physical" : "esim"} />
       <input type="hidden" name="quantity" value={quantity} />
       {addon && plan ? (
         <input type="hidden" name="intl" value={intl ? "on" : "off"} />

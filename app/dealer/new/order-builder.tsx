@@ -30,11 +30,12 @@ import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { Notice } from "@/components/patterns/notice"
 import { QuantityStepper } from "@/components/patterns/quantity-stepper"
 import type { DealerCatalogRow, DealerSimCard, OrderingTerms } from "@/lib/dealer-orders"
-import { formatDays, formatPrice, productTypeLabel, orderTitle } from "@/lib/format"
+import { formatDays, formatPrice, planProducts, productTypeLabel, orderTitle } from "@/lib/format"
 import type { ProductType } from "@/lib/types"
 import { usStates } from "@/lib/us-states"
 import { Textarea } from "@/components/ui/textarea"
 import { deviceFields, deviceShortLabel, parseDeviceRows, type PlanType } from "@/lib/device"
+import { cn } from "@/lib/utils"
 import { placeDealerOrder } from "./actions"
 
 const MAX_PER_LINE = 500
@@ -54,13 +55,16 @@ type Line = {
   area: string
   /** Pasted device details, one SIM per row. */
   devices: string
+  /** eSIM or SIM card, for a plan sold both ways; null means the plan's first. */
+  product: ProductType | null
 }
 type PlanOption = {
   id: string
   label: string
   carrier: string
   carrierId: string
-  productType: ProductType
+  /** What the plan is sold as, eSIM first. */
+  products: ProductType[]
   planType: PlanType
   packages: { id: string; days: number; price_cents: number }[]
 }
@@ -76,6 +80,7 @@ const newLine = (): Line => ({
   zip: "",
   area: "",
   devices: "",
+  product: null,
 })
 
 const ZIP = /^(\d{5})?$/
@@ -115,7 +120,7 @@ export function OrderBuilder({
     })),
     ...plans.map((p) => ({
       value: p.id,
-      label: `${p.label} (${productTypeLabel[p.productType]})`,
+      label: `${p.label} (${p.products.map((t) => productTypeLabel[t]).join(" or ")})`,
     })),
   ]
 
@@ -140,21 +145,24 @@ export function OrderBuilder({
       plan && line.calling && terms.calling_price_cents !== null
         ? terms.calling_price_cents
         : 0
+    // The product on this line: the dealer's pick on a plan sold both ways, else the plan's own.
+    const product: ProductType | null = plan ? (line.product && plan.products.includes(line.product) ? line.product : plan.products[0]) : null
     // A SIM card plan includes the card, at this dealer's price for that carrier.
     const sim = card
       ? card.price_cents
-      : plan?.productType === "physical"
+      : plan && product === "physical"
         ? (cardByCarrier.get(plan.carrierId)?.price_cents ?? terms.sim_card_price_cents)
         : 0
     const each = card ? card.price_cents : pkg ? pkg.price_cents + calling + sim : 0
     // Device details for this plan's SIMs, parsed as the dealer types.
-    const fields = plan && !card ? deviceFields(plan.planType, plan.productType) : []
+    const fields = plan && product && !card ? deviceFields(plan.planType, product) : []
     const parsedDevices = fields.length ? parseDeviceRows(line.devices, fields) : { rows: [], problems: [] }
     const deviceProblem = parsedDevices.problems[0]?.text ?? (parsedDevices.rows.length > line.quantity ? `${parsedDevices.rows.length} rows of device details for ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"}. Remove the extra rows or raise the quantity.` : null)
     return {
       line,
       card,
       plan,
+      product,
       pkg,
       calling,
       sim,
@@ -165,7 +173,7 @@ export function OrderBuilder({
       deviceProblem,
     }
   })
-  const physical = priced.some((p) => p.card || p.plan?.productType === "physical")
+  const physical = priced.some((p) => p.card || p.product === "physical")
   const shipping = physical ? terms.shipping_fee_cents : 0
   const total = priced.reduce((n, p) => n + p.subtotal, 0) + shipping
   const sims = lines.reduce((n, l) => n + l.quantity, 0)
@@ -219,6 +227,7 @@ export function OrderBuilder({
                 day_package_id: p.pkg!.id,
                 quantity: p.line.quantity,
                 intl_calling: p.calling > 0,
+                product: p.product ?? undefined,
                 zip_code: p.line.zip.trim(),
                 area_code: p.line.area.trim(),
                 devices: p.devices.map((d) => ({ imei: d.imei ?? "", eid: d.eid ?? "", buyer_iccid: d.buyer_iccid ?? "" })),
@@ -280,7 +289,7 @@ export function OrderBuilder({
             ) : null}
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, card, plan, pkg, sim, each, subtotal, fields, devices, deviceProblem }, i) => {
+            {priced.map(({ line, card, plan, product, pkg, sim, each, subtotal, fields, devices, deviceProblem }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -373,7 +382,7 @@ export function OrderBuilder({
                                 .filter((p) => p.carrier === carrier)
                                 .map((p) => (
                                   <SelectItem key={p.id} value={p.id}>
-                                    {p.label} ({productTypeLabel[p.productType]}
+                                    {p.label} ({p.products.map((t) => productTypeLabel[t]).join(" or ")}
                                     )
                                   </SelectItem>
                                 ))}
@@ -440,6 +449,33 @@ export function OrderBuilder({
                       </FieldError>
                     ) : null}
                   </div>
+
+                  {plan && plan.products.length > 1 ? (
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium">eSIM or SIM card?</legend>
+                      <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
+                        {plan.products.map((type) => (
+                          <label
+                            key={type}
+                            className={cn(
+                              "flex min-h-11 cursor-pointer items-center justify-center rounded-md border text-sm font-medium transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                              product === type ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={`product-${line.key}`}
+                              value={type}
+                              checked={product === type}
+                              onChange={() => update(line.key, { product: type, devices: "" })}
+                              className="sr-only"
+                            />
+                            {productTypeLabel[type]}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
 
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     {terms.calling_price_cents !== null && !card ? (
@@ -734,7 +770,7 @@ export function OrderBuilder({
                   </div>
                 )
               )}
-              {priced.some((p) => !p.card && p.plan?.productType === "physical" && p.sim > 0) ? (
+              {priced.some((p) => !p.card && p.product === "physical" && p.sim > 0) ? (
                 <p className="text-xs text-muted-foreground">
                   SIM card plans include the card at your SIM card price.
                 </p>
@@ -893,7 +929,7 @@ function groupPlans(rows: DealerCatalogRow[]): PlanOption[] {
         label: `${orderTitle(r)}`,
         carrier: r.carrier_name,
         carrierId: r.carrier_id,
-        productType: r.product_type,
+        products: planProducts({ sells_esim: r.sells_esim, sells_sim: r.sells_sim }),
         planType: r.plan_type ?? "daily",
         packages: [],
       }

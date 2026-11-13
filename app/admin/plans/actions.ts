@@ -34,7 +34,10 @@ const planSchema = z.object({
     .trim()
     .max(80, "Keep the URL name under 80 characters")
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and single hyphens"),
-  product_type: z.enum(["esim", "physical"], "Choose eSIM or SIM card"),
+  // What the plan is sold as (at least one); product_type follows (eSIM first).
+  sells_esim: z.boolean(),
+  sells_sim: z.boolean(),
+  product_type: z.enum(["esim", "physical"]),
   plan_type: z.enum(["daily", "monthly"], "Choose daily or monthly"),
   // Empty for a data-only plan: the site then says "Data only, no calls or texts".
   talk: z.string().trim().max(120, "Keep it under 120 characters"),
@@ -66,12 +69,19 @@ const planSchema = z.object({
 function readPlan(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "")
   const name = get("name")
-  const productType = get("product_type")
-  return planSchema.safeParse({
+  const sellsEsim = formData.get("sells_esim") === "on"
+  const sellsSim = formData.get("sells_sim") === "on"
+  // A plan sold one way keeps the product in its web address; one sold both ways does not.
+  const suffix = sellsEsim && sellsSim ? "" : sellsSim ? "sim" : "esim"
+  return planSchema
+    .refine((p) => p.sells_esim || p.sells_sim, { path: ["sells"], message: "Choose eSIM, SIM card, or both" })
+    .safeParse({
     carrier_id: get("carrier_id"),
     name,
-    slug: get("slug").trim() || slugify(`${get("carrier_slug")} ${name} ${productType === "physical" ? "sim" : "esim"}`),
-    product_type: productType,
+    slug: get("slug").trim() || slugify(`${get("carrier_slug")} ${name} ${suffix}`),
+    sells_esim: sellsEsim,
+    sells_sim: sellsSim,
+    product_type: sellsEsim || !sellsSim ? "esim" : "physical",
     plan_type: get("plan_type") || "daily",
     talk: get("talk"),
     sms: get("sms"),

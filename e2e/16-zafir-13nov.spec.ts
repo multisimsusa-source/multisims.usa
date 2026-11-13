@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test"
 
 import { db } from "./support/db"
-import { expectToast, guestPage, pageAs, PHONE } from "./support/helpers"
+import { testEmail } from "./support/env"
+import { choose, expectToast, guestPage, pageAs, PHONE, signIn } from "./support/helpers"
 
 const SHOTS = process.env.E2E_SHOTS ?? "test-results/shots"
 
@@ -108,6 +109,76 @@ test.describe.serial("Zafir 13 Nov", () => {
     expect(order).toMatchObject({ kind: "activation", shipping_address: null, sim_card_price_cents: 0 })
 
     await db().from("orders").delete().eq("id", order!.id)
+    await db().from("plans").delete().eq("id", plan!.id)
+  })
+
+  test("one plan sold as eSIM and SIM card: the buyer and the dealer pick", async ({ browser }) => {
+    const { data: carrier } = await db().from("carriers").select("id").eq("name", "E2E Mobile").single()
+    const { data: plan } = await db()
+      .from("plans")
+      .insert({ carrier_id: carrier!.id, name: "E2E Both Ways", slug: "e2e-both-ways", sells_esim: true, sells_sim: true, data_gb: 20, published: true })
+      .select("id, product_type")
+      .single()
+    expect(plan!.product_type).toBe("esim")
+    await db().from("day_packages").insert({ plan_id: plan!.id, days: 30, price_cents: 3000, wholesale_price_cents: 2000, active: true })
+
+    // Saved once by the owner (the site refreshes); both boxes are ticked.
+    const owner = await pageAs(browser, "owner")
+    await owner.goto(`/admin/plans/${plan!.id}`)
+    await expect(owner.locator('input[name="sells_esim"]')).toBeChecked()
+    await expect(owner.locator('input[name="sells_sim"]')).toBeChecked()
+    await owner.getByRole("button", { name: "Save plan" }).click()
+    await expectToast(owner, /saved/i)
+
+    const guest = await guestPage(browser, PHONE)
+    await guest.goto("/plans?type=physical")
+    await expect(guest.getByRole("heading", { name: "E2E Both Ways" })).toBeVisible()
+    await guest.goto("/plans?type=esim")
+    await expect(guest.getByRole("heading", { name: "E2E Both Ways" })).toBeVisible()
+
+    await guest.goto("/plans/e2e-both-ways")
+    await expect(guest.getByText("eSIM or SIM card?")).toBeVisible()
+    const buy = guest.getByRole("link", { name: "Buy now" })
+    await expect(buy).toHaveAttribute("href", /product=esim/)
+    await guest.locator("label").filter({ hasText: /^SIM card$/ }).click()
+    await expect(buy).toHaveAttribute("href", /product=physical/)
+    await expect(guest.getByText(/Plus the SIM card/)).toBeVisible()
+    await guest.screenshot({ path: `${SHOTS}/both-ways-plan.png`, fullPage: true })
+    await buy.click()
+    await guest.waitForURL(/\/checkout/)
+    await expect(guest.getByText("Delivery address")).toBeVisible()
+
+    // The eSIM way: no delivery address, and the order is an eSIM.
+    await guest.goto("/checkout?plan=e2e-both-ways&days=30&product=esim")
+    await expect(guest.getByText("Delivery address")).toHaveCount(0)
+    await guest.getByLabel("Full name").fill("Both Ways")
+    await guest.getByLabel("Email").fill("e2e-both-ways@multisims.test")
+    await guest.getByLabel("Phone or WhatsApp").fill("+44 7700 900777")
+    await guest.getByLabel("US ZIP code").fill("10001")
+    await guest.getByRole("button", { name: /Place order|Continue to payment/ }).filter({ visible: true }).first().click()
+    await guest.waitForURL(/\/order\//)
+    const { data: web } = await db().from("orders").select("id, product_type, shipping_cents").eq("customer_email", "e2e-both-ways@multisims.test").single()
+    expect(web).toMatchObject({ product_type: "esim", shipping_cents: 0 })
+
+    // A dealer picks SIM card on the line: device details ask for the EID and ICCID.
+    const dealer = await signIn(browser, testEmail("device-dealer"), PHONE)
+    await dealer.goto("/dealer/new")
+    await choose(dealer, dealer.locator('[id^="plan-"]').nth(0), /E2E Both Ways/)
+    await choose(dealer, dealer.locator('[id^="days-"]').nth(0), /^30 days/)
+    await dealer.locator("label").filter({ hasText: /^SIM card$/ }).click()
+    await expect(dealer.getByText(/One SIM per row: EID, ICCID/)).toBeVisible()
+    await dealer.getByLabel("Street address").fill("1 Market Street")
+    await dealer.getByLabel("City").fill("San Francisco")
+    await choose(dealer, dealer.locator("#state"), "California")
+    await dealer.getByLabel("ZIP code", { exact: true }).fill("94105")
+    await dealer.getByRole("button", { name: "Place order" }).filter({ visible: true }).first().click()
+    await expectToast(dealer, /placed/)
+    const { data: line } = await db().from("orders").select("id, product_type, sim_card_price_cents").eq("plan_id", plan!.id).eq("channel", "dealer").single()
+    expect(line!.product_type).toBe("physical")
+    expect(line!.sim_card_price_cents).toBeGreaterThan(0)
+
+    await db().from("wallet_ledger").delete().eq("order_id", line!.id)
+    await db().from("orders").delete().in("id", [web!.id, line!.id])
     await db().from("plans").delete().eq("id", plan!.id)
   })
 })

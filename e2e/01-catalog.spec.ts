@@ -26,7 +26,11 @@ test.describe.serial("Catalogue", () => {
       const page = await pageAs(browser, "owner")
       await page.goto("/admin/plans/new")
       await choose(page, page.locator("#carrier_id"), "E2E Mobile")
-      await page.locator("label").filter({ hasText: new RegExp(`^${plan.type}$`) }).click()
+      // "Sold as" starts with eSIM ticked: a SIM card plan ticks SIM card and unticks eSIM.
+      if (plan.type === "SIM card") {
+        await page.locator("label").filter({ hasText: /^SIM card$/ }).click()
+        await page.locator("label").filter({ hasText: /^eSIM$/ }).click()
+      }
       await page.getByLabel("Plan name").fill(plan.name)
       await page.getByLabel("Short summary").fill(`${plan.name} for end-to-end tests.`)
       await page.getByRole("button", { name: "Create plan" }).click()

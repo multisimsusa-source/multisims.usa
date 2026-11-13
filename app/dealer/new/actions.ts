@@ -22,6 +22,8 @@ const schema = z.object({
             .min(1, "At least 1 SIM")
             .max(500, "At most 500 SIMs per line"),
           intl_calling: z.boolean(),
+          // eSIM or SIM card on a plan sold both ways; the database checks the plan sells it.
+          product: z.enum(["esim", "physical"]).optional(),
           // Where the numbers should be from, as on the website. Optional.
           zip_code: z.string().trim().regex(/^(\d{5})?$/, "A ZIP code is 5 digits, for example 10001").default(""),
           area_code: z.string().trim().regex(/^([2-9]\d{2})?$/, "An area code is 3 digits, for example 212").default(""),

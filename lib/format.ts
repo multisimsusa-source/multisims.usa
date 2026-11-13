@@ -15,10 +15,28 @@ export function orderTitle(o: { carrier_name: string; plan_name: string | null }
   return `${o.carrier_name} ${o.plan_name ?? "SIM card"}`
 }
 
-/** "AT&T Unlimited eSIM"; no repeat when the name already says it ("Unlimited Starter SIM"). */
-export function planFullName(plan: { name: string; product_type: ProductType; carrier: { name: string } }) {
+type Sells = { sells_esim: boolean; sells_sim: boolean }
+
+/** What a plan is sold as, eSIM first. */
+export function planProducts(plan: Sells): ProductType[] {
+  return [...(plan.sells_esim ? (["esim"] as const) : []), ...(plan.sells_sim ? (["physical"] as const) : [])]
+}
+
+/** True when the plan is sold as this product. */
+export function sellsProduct(plan: Sells, type: ProductType) {
+  return type === "esim" ? plan.sells_esim : plan.sells_sim
+}
+
+/** "eSIM", "SIM card", or "eSIM or SIM card". */
+export function productsLabel(plan: Sells) {
+  return planProducts(plan).map((t) => productTypeLabel[t]).join(" or ")
+}
+
+/** "AT&T Unlimited eSIM"; no repeat when the name already says it, no product when it sells both. */
+export function planFullName(plan: Sells & { name: string; carrier: { name: string } }) {
   const says = /\b(e?sim|sim card)$/i.test(plan.name.trim())
-  return `${plan.carrier.name} ${plan.name}${says ? "" : ` ${productTypeLabel[plan.product_type]}`}`
+  const products = planProducts(plan)
+  return `${plan.carrier.name} ${plan.name}${says || products.length > 1 ? "" : ` ${productTypeLabel[products[0]]}`}`
 }
 
 /** Looks like a phone number: only digits, spaces and + ( ) . -, with 7 to 15 digits. */

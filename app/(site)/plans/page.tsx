@@ -1,3 +1,4 @@
+import { sellsProduct } from "@/lib/format"
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
@@ -47,8 +48,8 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
 
   // Each menu's counts respect the other filter, so a number is what you would get.
   const byCarrier = allPlans.filter((p) => !carrier || p.carrier.slug === carrier)
-  const byType = allPlans.filter((p) => !type || p.product_type === type)
-  const plans = sortPlans(byCarrier.filter((p) => !type || p.product_type === type), sort)
+  const byType = allPlans.filter((p) => !type || sellsProduct(p, type))
+  const plans = sortPlans(byCarrier.filter((p) => !type || sellsProduct(p, type)), sort)
 
   const carrierOptions = carriers
     .filter((c) => allPlans.some((p) => p.carrier.id === c.id))
@@ -67,8 +68,8 @@ async function PlansResults({ searchParams }: Pick<PageProps<"/plans">, "searchP
       total={plans.length}
       typeCounts={{
         all: byCarrier.length,
-        esim: byCarrier.filter((p) => p.product_type === "esim").length,
-        physical: byCarrier.filter((p) => p.product_type === "physical").length,
+        esim: byCarrier.filter((p) => p.sells_esim).length,
+        physical: byCarrier.filter((p) => p.sells_sim).length,
       }}
       carriers={carrierOptions}
     >

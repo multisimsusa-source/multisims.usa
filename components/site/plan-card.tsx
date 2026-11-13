@@ -3,7 +3,7 @@ import { ArrowRightIcon, ChatTextIcon, ShareNetworkIcon, WifiHighIcon } from "@p
 
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { Tag } from "@/components/patterns/tag"
-import { ProductBadge } from "@/components/site/product-mark"
+import { ProductBadges } from "@/components/site/product-mark"
 import { dataLabel, formatPrice, hotspotLabel, talkTextLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
 
@@ -19,7 +19,7 @@ export function PlanCard({ plan, preview = false }: { plan: CatalogPlan; preview
         <CarrierLogo carrier={plan.carrier} size="sm" />
         <span className="flex items-center gap-1.5">
           {plan.on_sale ? <Tag tone="success">Sale</Tag> : null}
-          <ProductBadge type={plan.product_type} />
+          <ProductBadges plan={plan} />
         </span>
       </div>
 

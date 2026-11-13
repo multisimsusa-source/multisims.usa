@@ -89,7 +89,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   const [{ data: plan }, { data: settings }, { data: addon }] = await Promise.all([
     db
       .from("plans")
-      .select("id, name, product_type, plan_type, published, refillable, carrier:carriers!inner(id, name, slug, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
+      .select("id, name, product_type, sells_sim, plan_type, published, refillable, carrier:carriers!inner(id, name, slug, active), packages:day_packages(id, days, price_cents, sale_price_cents, active)")
       .eq("slug", (values.plan ?? "").slice(0, 120))
       .maybeSingle(),
     db.from("settings").select("network_fee_cents, min_order_cents").maybeSingle(),
@@ -100,7 +100,7 @@ export async function placeRefill(_prev: RefillState, formData: FormData): Promi
   if (!plan || !pkg) fieldErrors.plan = "Choose a plan and a length"
   // A refill needs a plan offered for refills; activating a SIM card needs a SIM card plan.
   else if (!plan.published || !carrier?.active || (values.mode !== "activate" && !plan.refillable)) fieldErrors.plan = "This plan is no longer offered for refills. Choose another plan."
-  else if (values.mode === "activate" && plan.product_type !== "physical") fieldErrors.plan = "Choose a SIM card plan to start a SIM card"
+  else if (values.mode === "activate" && !plan.sells_sim) fieldErrors.plan = "Choose a SIM card plan to start a SIM card"
   // Activating a card: the phone's details for the plan type (the card's ICCID is asked above).
   const device: DeviceValues = {}
   if (values.mode === "activate" && plan) {

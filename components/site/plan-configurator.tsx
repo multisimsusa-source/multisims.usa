@@ -8,20 +8,20 @@ import { buttonVariants } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { PriceWithSale } from "@/components/patterns/price-with-sale"
 import { CallingDestinations } from "@/components/site/calling-destinations"
-import { formatDays, formatPrice } from "@/lib/format"
-import type { CatalogPlan } from "@/lib/types"
+import { formatDays, formatPrice, planProducts, productTypeLabel } from "@/lib/format"
+import type { CatalogPlan, ProductType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  plan: Pick<CatalogPlan, "slug" | "name" | "packages">
+  plan: Pick<CatalogPlan, "slug" | "name" | "packages" | "sells_esim" | "sells_sim">
   addon: { name: string; description: string; price_cents: number } | null
   /** Compact is the home-page preview; full is the plan page. */
   variant?: "full" | "compact"
   defaultDays?: number
   /** Show "See where you can call" under the calling switch. */
   callingList?: boolean
-  /** What checkout adds, for example "Plus the $3.00 network fee at checkout." */
-  extras?: string
+  /** What checkout adds per product, for example "Plus the SIM card ($5.00) at checkout." */
+  extras?: Partial<Record<ProductType, string>>
   className?: string
 }
 
@@ -31,14 +31,45 @@ export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 
   const initial = packages.find((p) => p.days === defaultDays) ?? packages[0]
   const [packageId, setPackageId] = React.useState(initial.id)
   const [intl, setIntl] = React.useState(false)
+  // A plan sold both ways: the buyer picks (full page only; the home preview sells the first).
+  const products = planProducts(plan)
+  const [product, setProduct] = React.useState<ProductType>(products[0] ?? "esim")
+  const choose = products.length > 1 && variant === "full"
 
   const selected = packages.find((p) => p.id === packageId) ?? initial
   const total = selected.price_cents + (intl && addon ? addon.price_cents : 0)
-  const checkoutHref = `/checkout?plan=${plan.slug}&days=${selected.days}${intl ? "&intl=1" : ""}`
+  const checkoutHref = `/checkout?plan=${plan.slug}&days=${selected.days}${intl ? "&intl=1" : ""}${products.length > 1 ? `&product=${product}` : ""}`
   const compact = variant === "compact"
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
+      {choose ? (
+        <fieldset>
+          <legend className="mb-3 text-sm font-medium">eSIM or SIM card?</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {products.map((type) => (
+              <label
+                key={type}
+                className={cn(
+                  "flex min-h-11 cursor-pointer items-center justify-center rounded-md border text-sm font-medium transition-colors",
+                  "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                  product === type ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`${groupId}-product`}
+                  value={type}
+                  checked={product === type}
+                  onChange={() => setProduct(type)}
+                  className="sr-only"
+                />
+                {productTypeLabel[type]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <fieldset>
         <legend className="mb-3 text-sm font-medium">How many days?</legend>
         <div
@@ -120,7 +151,7 @@ export function PlanConfigurator({ plan, addon, variant = "full", defaultDays = 
               Sale price. You save <span className="font-mono tabular">{formatPrice(selected.regular_price_cents - selected.price_cents)}</span>
             </p>
           ) : null}
-          {extras ? <p className="mt-1 text-xs text-muted-foreground">{extras}</p> : null}
+          {extras?.[product] ? <p className="mt-1 text-xs text-muted-foreground">{extras[product]}</p> : null}
         </div>
         <Link
           href={checkoutHref}

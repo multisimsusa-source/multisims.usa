@@ -20,8 +20,8 @@ export function carrierMix(carriers: AdminCarrier[], plans: AdminPlanRow[]): Car
     .filter((c) => c.active)
     .map((c) => {
       const own = live.filter((p) => p.carrier.id === c.id)
-      const esim = own.filter((p) => p.product_type === "esim").length
-      const physical = own.length - esim
+      const esim = own.filter((p) => p.sells_esim).length
+      const physical = own.filter((p) => p.sells_sim).length
       return { carrier: c.name, esim, physical, total: own.length }
     })
     .filter((r) => r.total > 0)

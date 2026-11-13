@@ -18,7 +18,7 @@ import {
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { publicStorageUrl } from "@/lib/supabase/env"
+
 import type { Carrier } from "@/lib/types"
 import { createCarrier, updateCarrier } from "./actions"
 

@@ -49,7 +49,7 @@ async function Refill({ searchParams }: Params) {
   const carriers: RefillCarrier[] = []
   // Refills use plans offered for refills; activating a SIM card the buyer already has can use
   // any SIM card plan.
-  for (const p of plans.filter((p) => p.refillable || p.product_type === "physical")) {
+  for (const p of plans.filter((p) => p.refillable || p.sells_sim)) {
     let c = carriers.find((x) => x.slug === p.carrier.slug)
     if (!c) {
       c = { slug: p.carrier.slug, name: p.carrier.name, plans: [] }
@@ -58,7 +58,7 @@ async function Refill({ searchParams }: Params) {
     c.plans.push({
       slug: p.slug,
       name: p.name,
-      sim: p.product_type === "physical",
+      sim: p.sells_sim,
       refill: p.refillable,
       planType: p.plan_type,
       facts: [dataLabel(p), p.hotspot_gb ? hotspotLabel(p) : null].filter(Boolean).join(", "),

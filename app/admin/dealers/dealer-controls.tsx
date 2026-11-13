@@ -14,8 +14,7 @@ import { LoginActiveSwitch, NewLoginButton, ResetPasswordButton } from "@/compon
 import { FormCard, FormSection } from "@/components/patterns/form-section"
 import { centsToInput } from "@/lib/admin/result"
 import type { DealerWithLogin, OwnerEntryKind } from "@/lib/dealers"
-import { formatDays, formatPrice, productTypeLabel } from "@/lib/format"
-import type { ProductType } from "@/lib/types"
+import { formatDays, formatPrice } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { addWalletEntry, createDealer, resetDealerPassword, saveDealerAccount, saveDealerPrices, setDealerActive } from "./actions"
 
@@ -183,7 +182,8 @@ export type PriceRow = {
   packageId: string
   carrier: string
   plan: string
-  productType: ProductType
+  /** "eSIM", "SIM card" or "eSIM or SIM card". */
+  products: string
   days: number
   retailCents: number
   wholesaleCents: number | null
@@ -212,12 +212,12 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
     return <p className="rounded-xl border bg-background p-5 text-sm text-muted-foreground">No published plans yet. Publish plans under Catalogue first.</p>
   }
 
-  const groups: { key: string; title: string; productType: ProductType; rows: PriceRow[] }[] = []
+  const groups: { key: string; title: string; products: string; rows: PriceRow[] }[] = []
   for (const r of rows) {
     const key = `${r.carrier}|${r.plan}`
     const last = groups.at(-1)
     if (last?.key === key) last.rows.push(r)
-    else groups.push({ key, title: `${r.carrier} ${r.plan}`, productType: r.productType, rows: [r] })
+    else groups.push({ key, title: `${r.carrier} ${r.plan}`, products: r.products, rows: [r] })
   }
 
   return (
@@ -308,7 +308,7 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                 <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="font-medium">{g.title}</span>
                   <span className="font-normal text-muted-foreground">
-                    {productTypeLabel[g.productType]} &middot; {g.rows.length} {g.rows.length === 1 ? "package" : "packages"}
+                    {g.products} &middot; {g.rows.length} {g.rows.length === 1 ? "package" : "packages"}
                     {special ? ` · ${special} special` : ""}
                     {missing ? ` · ${missing} not offered` : ""}
                   </span>
