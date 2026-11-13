@@ -281,7 +281,7 @@ async function notifyDealerLine(order: Order, kind: string) {
   const { data: batch } = await db.from("order_batches").select("id, number").eq("id", order.batch_id).single()
   if (!batch) return
   // A refill is never posted; a SIM card line is posted when it is "delivered" the first time.
-  const event = order.kind !== "refill" && order.product_type === "physical" && kind === "delivered" ? "shipped" : "delivered"
+  const event = order.kind !== "refill" && order.kind !== "activation" && order.product_type === "physical" && kind === "delivered" ? "shipped" : "delivered"
   const mail = dealerLineEmail(order, batch.number, event, absoluteUrl(`/dealer/orders/${batch.id}`))
   await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `dealer-${kind}-${order.id}` })
 }

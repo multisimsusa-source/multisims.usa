@@ -229,4 +229,62 @@ test.describe.serial("Zafir 13 Nov", () => {
     await db().from("orders").delete().in("id", [web!.id, line!.id])
     await db().from("plans").delete().eq("id", plan!.id)
   })
+
+  test("a dealer orders plans for SIM cards they already have; the agent activates them", async ({ browser }) => {
+    const ICCID_A = "8901260000000000301", ICCID_B = "8901260000000000302"
+    const EID_A = "89049032004008882600000000000301"
+    const dealer = await signIn(browser, testEmail("device-dealer"), PHONE)
+    await dealer.goto("/dealer/new")
+    await choose(dealer, dealer.locator('[id^="plan-"]').nth(0), /E2E Card/)
+    await choose(dealer, dealer.locator('[id^="days-"]').nth(0), /^7 days/)
+    await dealer.getByLabel("Quantity").first().fill("2")
+    await dealer.getByLabel("Quantity").first().blur()
+    await dealer.locator("label").filter({ hasText: "I already have the SIM cards" }).click()
+    const box = dealer.locator('[id^="devices-"]').first()
+    await box.fill(`${EID_A}, ${ICCID_A}`)
+    await expect(dealer.getByText(/1 of 2 so far/)).toBeVisible()
+    await box.fill(`${EID_A}, ${ICCID_A}\n${ICCID_A}`)
+    await expect(dealer.getByText("The same ICCID is in this line twice.")).toBeVisible()
+    await box.fill(`${EID_A}, ${ICCID_A}\n${ICCID_B}`)
+    // Nothing is posted: no delivery address, no shipping.
+    await expect(dealer.getByText("Delivery address")).toHaveCount(0)
+    await expect(dealer.getByText(/Shipping, once per order/)).toHaveCount(0)
+    await expectNoHorizontalScroll(dealer)
+    await dealer.screenshot({ path: `${SHOTS}/dealer-have-cards.png`, fullPage: true })
+    await dealer.getByRole("button", { name: "Place order" }).filter({ visible: true }).first().click()
+    await expectToast(dealer, /placed/)
+    await dealer.waitForURL(/\/dealer\/orders\//)
+    const batchUrl = dealer.url()
+
+    const { data: plan } = await db().from("plans").select("id").eq("name", "E2E Card").single()
+    const { data: order } = await db().from("orders").select("id, kind, shipping_address, shipping_cents, sim_card_price_cents, quantity, dealer_id").eq("plan_id", plan!.id).eq("kind", "activation").eq("channel", "dealer").order("created_at", { ascending: false }).limit(1).single()
+    expect(order).toMatchObject({ kind: "activation", shipping_address: null, shipping_cents: 0, sim_card_price_cents: 0, quantity: 2 })
+    const { data: items } = await db().from("order_items").select("seq, iccid, buyer_iccid, eid").eq("order_id", order!.id).order("seq")
+    expect(items).toEqual([
+      { seq: 1, iccid: ICCID_A, buyer_iccid: ICCID_A, eid: EID_A },
+      { seq: 2, iccid: ICCID_B, buyer_iccid: ICCID_B, eid: null },
+    ])
+
+    const agent = await pageAs(browser, "agent")
+    await agent.goto("/agent")
+    await expect(agent.locator("li").filter({ hasText: "Activate SIM" }).first()).toBeVisible()
+    await agent.goto(`/agent/orders/${order!.id}`)
+    await agent.getByRole("button", { name: /^Claim/ }).first().click()
+    await expectToast(agent, "Claimed")
+    for (const [i, phone] of [[0, "+1 646 555 0301"], [1, "+1 646 555 0302"]] as const) {
+      const form = agent.locator("form").filter({ hasText: `SIM ${i + 1} of 2` })
+      await form.getByLabel("Phone number").fill(phone)
+      await form.getByRole("button", { name: "Save", exact: true }).click()
+      await expectToast(agent, "Saved")
+    }
+    await agent.getByRole("button", { name: "Mark active and deliver" }).filter({ visible: true }).first().click()
+    await agent.getByRole("alertdialog").getByRole("button", { name: "Deliver now" }).click()
+    await expect.poll(async () => (await db().from("orders").select("status").eq("id", order!.id).single()).data?.status).toBe("fulfilled")
+    const { count } = await db().from("wallet_ledger").select("id", { count: "exact", head: true }).eq("order_id", order!.id).eq("kind", "capture")
+    expect(count).toBe(2)
+
+    await dealer.goto(batchUrl)
+    await expect(dealer.getByText(/Your SIM cards, activated/).first()).toBeVisible()
+    await expect(dealer.getByText("+1 (646) 555-0302").first()).toBeVisible()
+  })
 })

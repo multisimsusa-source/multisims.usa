@@ -315,4 +315,4 @@ A dealer sent 50 USDT for a $50 top-up whose payment page asked 59.56 USDT (netw
 - [x] SIM card device details are always EID + ICCID (the Daily/Monthly control is hidden, the column stays).
 - [x] Activate a SIM card works with every SIM card plan (not only refill plans); linked from SIM card plan pages and checkout, prefilled by URL.
 - [x] One plan sells eSIM, SIM card or both: `plans.sells_esim`, `plans.sells_sim` (product_type kept as the first, by trigger). Admin "Sold as" checkboxes; plan page choice sets `product=` for checkout; checkout and the dealer line (`product` in `place_dealer_batch`) write the choice to `orders.product_type`; filters, badges, search, activation use the flags. MobileX duplicate to merge in Admin.
-- [ ] Not built: dealers activating SIM cards they already hold.
+- [x] Dealers order plans for SIM cards they already hold: a SIM card line with "I already have the SIM cards" (`have_cards` in `place_dealer_batch`) posts nothing, needs every card's ICCID, and becomes an `activation` order the agents complete as usual.

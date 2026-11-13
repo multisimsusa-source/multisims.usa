@@ -24,6 +24,8 @@ const schema = z.object({
           intl_calling: z.boolean(),
           // eSIM or SIM card on a plan sold both ways; the database checks the plan sells it.
           product: z.enum(["esim", "physical"]).optional(),
+          // SIM cards the dealer already has: activated, not posted (every card's ICCID given).
+          have_cards: z.boolean().optional(),
           // Where the numbers should be from, as on the website. Optional.
           zip_code: z.string().trim().regex(/^(\d{5})?$/, "A ZIP code is 5 digits, for example 10001").default(""),
           area_code: z.string().trim().regex(/^([2-9]\d{2})?$/, "An area code is 3 digits, for example 212").default(""),

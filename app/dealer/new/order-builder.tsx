@@ -57,6 +57,8 @@ type Line = {
   devices: string
   /** eSIM or SIM card, for a plan sold both ways; null means the plan's first. */
   product: ProductType | null
+  /** SIM cards the dealer already has: nothing posted, each card's ICCID given. */
+  haveCards: boolean
 }
 type PlanOption = {
   id: string
@@ -81,6 +83,7 @@ const newLine = (): Line => ({
   area: "",
   devices: "",
   product: null,
+  haveCards: false,
 })
 
 const ZIP = /^(\d{5})?$/
@@ -148,16 +151,28 @@ export function OrderBuilder({
     // The product on this line: the dealer's pick on a plan sold both ways, else the plan's own.
     const product: ProductType | null = plan ? (line.product && plan.products.includes(line.product) ? line.product : plan.products[0]) : null
     // A SIM card plan includes the card, at this dealer's price for that carrier.
+    // Cards the dealer already has are not posted: no card price, no shipping.
+    const haveCards = product === "physical" && line.haveCards
     const sim = card
       ? card.price_cents
-      : plan && product === "physical"
+      : plan && product === "physical" && !haveCards
         ? (cardByCarrier.get(plan.carrierId)?.price_cents ?? terms.sim_card_price_cents)
         : 0
     const each = card ? card.price_cents : pkg ? pkg.price_cents + calling + sim : 0
     // Device details for this plan's SIMs, parsed as the dealer types.
     const fields = plan && product && !card ? deviceFields(plan.planType, product) : []
     const parsedDevices = fields.length ? parseDeviceRows(line.devices, fields) : { rows: [], problems: [] }
-    const deviceProblem = parsedDevices.problems[0]?.text ?? (parsedDevices.rows.length > line.quantity ? `${parsedDevices.rows.length} rows of device details for ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"}. Remove the extra rows or raise the quantity.` : null)
+    const deviceProblem =
+      parsedDevices.problems[0]?.text ??
+      (parsedDevices.rows.length > line.quantity
+        ? `${parsedDevices.rows.length} rows of device details for ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"}. Remove the extra rows or raise the quantity.`
+        : haveCards && parsedDevices.rows.length < line.quantity
+          ? `Give the ICCID of every SIM card you have: ${parsedDevices.rows.length} of ${line.quantity} so far, one row per card.`
+          : haveCards && parsedDevices.rows.some((r) => !r.buyer_iccid)
+            ? "Every row needs the SIM card's ICCID (18 to 22 digits)."
+            : haveCards && new Set(parsedDevices.rows.map((r) => r.buyer_iccid!.toLowerCase())).size < parsedDevices.rows.length
+              ? "The same ICCID is in this line twice."
+              : null)
     return {
       line,
       card,
@@ -169,11 +184,13 @@ export function OrderBuilder({
       each,
       subtotal: each * line.quantity,
       fields,
+      haveCards,
       devices: parsedDevices.rows,
       deviceProblem,
     }
   })
-  const physical = priced.some((p) => p.card || p.product === "physical")
+  // Only posted cards need a delivery address and shipping.
+  const physical = priced.some((p) => p.card || (p.product === "physical" && !p.haveCards))
   const shipping = physical ? terms.shipping_fee_cents : 0
   const total = priced.reduce((n, p) => n + p.subtotal, 0) + shipping
   const sims = lines.reduce((n, l) => n + l.quantity, 0)
@@ -228,6 +245,7 @@ export function OrderBuilder({
                 quantity: p.line.quantity,
                 intl_calling: p.calling > 0,
                 product: p.product ?? undefined,
+                have_cards: p.haveCards || undefined,
                 zip_code: p.line.zip.trim(),
                 area_code: p.line.area.trim(),
                 devices: p.devices.map((d) => ({ imei: d.imei ?? "", eid: d.eid ?? "", buyer_iccid: d.buyer_iccid ?? "" })),
@@ -289,7 +307,7 @@ export function OrderBuilder({
             ) : null}
           </div>
           <ol className="divide-y">
-            {priced.map(({ line, card, plan, product, pkg, sim, each, subtotal, fields, devices, deviceProblem }, i) => {
+            {priced.map(({ line, card, plan, product, pkg, sim, each, subtotal, fields, haveCards, devices, deviceProblem }, i) => {
               const n = i + 1
               const err = errors[`line-${line.key}`]
               return (
@@ -478,6 +496,42 @@ export function OrderBuilder({
                     </fieldset>
                   ) : null}
 
+                  {plan && product === "physical" ? (
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium">SIM cards</legend>
+                      <div className="grid grid-cols-1 gap-2 sm:max-w-md sm:grid-cols-2">
+                        {(
+                          [
+                            [false, "Post me SIM cards"],
+                            [true, "I already have the SIM cards"],
+                          ] as const
+                        ).map(([have, label]) => (
+                          <label
+                            key={label}
+                            className={cn(
+                              "flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 text-center text-sm font-medium transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                              line.haveCards === have ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={`have-${line.key}`}
+                              checked={line.haveCards === have}
+                              onChange={() => update(line.key, { haveCards: have })}
+                              className="sr-only"
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      {line.haveCards ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Nothing is posted: no card price or shipping. Paste each card&apos;s ICCID below and we activate them.
+                        </p>
+                      ) : null}
+                    </fieldset>
+                  ) : null}
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     {terms.calling_price_cents !== null && !card ? (
                       <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
@@ -576,8 +630,8 @@ export function OrderBuilder({
                   {fields.length ? (
                     <Field data-invalid={Boolean(deviceProblem) || undefined}>
                       <FieldLabel htmlFor={`devices-${line.key}`}>
-                        Device details{" "}
-                        <span className="font-normal text-muted-foreground">(optional)</span>
+                        {haveCards ? "Your SIM cards" : "Device details"}{" "}
+                        <span className="font-normal text-muted-foreground">{haveCards ? "(one row per card)" : "(optional)"}</span>
                       </FieldLabel>
                       <Textarea
                         id={`devices-${line.key}`}
@@ -595,7 +649,9 @@ export function OrderBuilder({
                         <FieldError>{deviceProblem}</FieldError>
                       ) : (
                         <FieldDescription>
-                          One SIM per row: {fields.map((f) => deviceShortLabel[f]).join(", ")}, separated by a comma.
+                          {haveCards
+                            ? "One card per row: its ICCID (required), with the phone's EID before it if you have it, separated by a comma."
+                            : `One SIM per row: ${fields.map((f) => deviceShortLabel[f]).join(", ")}, separated by a comma.`}
                           {devices.length
                             ? ` ${devices.length} of ${line.quantity} ${line.quantity === 1 ? "SIM" : "SIMs"} have details.`
                             : " You can also add them on the order page until the SIMs are delivered."}
