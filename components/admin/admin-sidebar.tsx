@@ -72,6 +72,7 @@ const navs: Record<PortalVariant, { home: string; label: string; groups: NavGrou
         items: [
           { href: "/admin/carriers", label: "Carriers", Icon: CellTowerIcon },
           { href: "/admin/plans", label: "Plans", Icon: TagIcon },
+          { href: "/admin/refills", label: "Refills", Icon: ArrowsClockwiseIcon },
           { href: "/admin/addons", label: "Add-ons", Icon: PlusSquareIcon },
           { href: "/admin/discounts", label: "Discounts", Icon: PercentIcon },
         ],

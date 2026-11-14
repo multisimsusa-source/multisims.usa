@@ -16,6 +16,7 @@ import { productsLabel } from "@/lib/format"
 import type { CatalogPlan } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { PlanForm } from "../plan-form"
+import { RefillSwitch } from "../refill-switch"
 import { DayPackages } from "./day-packages"
 import { DeletePlan } from "./delete-plan"
 
@@ -97,6 +98,22 @@ async function PlanEditor({ params }: Pick<PageProps<"/admin/plans/[id]">, "para
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <DayPackages planId={plan.id} packages={plan.packages} />
+          <section aria-labelledby="refill-title" className="rounded-xl border bg-background p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="refill-title" className="font-sans text-base font-semibold tracking-normal">
+                  Offer for refills
+                </h2>
+                <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">
+                  On: customers and dealers can refill a number with this plan, at the prices above (dealers pay the wholesale or their special price).{" "}
+                  <Link href="/admin/refills" className="font-medium text-foreground underline underline-offset-4">
+                    All refill plans
+                  </Link>
+                </p>
+              </div>
+              <RefillSwitch id={plan.id} name={plan.name} refillable={plan.refillable} />
+            </div>
+          </section>
           <PlanForm carriers={carriers} plan={plan} />
           <DeletePlan id={plan.id} name={plan.name} />
         </div>

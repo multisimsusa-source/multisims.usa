@@ -306,6 +306,9 @@ The client's MSU logo sets the identity: a deep plum Didone monogram over copper
 
 ### Portals (admin and agent)
 
+- **Refills (admin, Catalogue):** published plans grouped by carrier, one bordered card each: name with `ProductBadges` and a `Refills on` success `Tag`, an Offer for refills `Switch` (saves on change, same action as the plan page), lengths with Customer price and Dealer price ("Not offered to dealers" when no wholesale), and an Edit prices link. `EmptyState` when nothing is switched on.
+- **Dealer Prices:** grouped by plan id (two plans can share a name), each group tagged eSIM / SIM card / Refills; the column is Special price; a length with no wholesale and no special price says Not offered with a link to the plan; the Save bar turns sticky with "Unsaved changes" while edits are pending.
+
 - **Shell** (`components/staff/portal-shell.tsx`): sidebar per role (40px items, semibold active), sticky 64px bar with breadcrumbs, Live/Offline dot, "Enable sound" switch, View website, the notification bell, theme; `density-compact`.
 - **Agent queue:** groups (Yours, Waiting, Needs the owner, With other agents, awaiting approval) with mono counts; rows are click targets with ticking age (amber past the alert window); plum only on Claim.
 - **Refill on the workspace:** a brand `Refill` or `Activate SIM` tag by the status; each number shows the current plan end from our records (or "Unknown ... check it in the carrier portal") and the proposed start and end as date `Input`s with Save dates; Mark refilled and deliver. Delivered lines show the `PlanTimer`.

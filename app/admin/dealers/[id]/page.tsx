@@ -12,7 +12,7 @@ import { Tag } from "@/components/patterns/tag"
 import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
 import { batchLabel, getWallet, listLedger, type DealerWithLogin } from "@/lib/dealers"
-import { formatPrice, productsLabel } from "@/lib/format"
+import { formatPrice } from "@/lib/format"
 import { formatDateTime } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
 import { DealerAccountForm, DealerActiveSwitch, DealerPasswordButton, DealerPricesForm, WalletEntryButton, type CardPriceRow, type PriceRow } from "../dealer-controls"
@@ -49,7 +49,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
     supabase.from("dealer_sim_card_prices").select("carrier_id, price_cents").eq("dealer_id", id),
     supabase
       .from("day_packages")
-      .select("id, days, price_cents, wholesale_price_cents, active, plan:plans!inner(name, sells_esim, sells_sim, display_order, published, carrier:carriers!inner(name, display_order))")
+      .select("id, days, price_cents, wholesale_price_cents, active, plan:plans!inner(id, name, sells_esim, sells_sim, refillable, display_order, published, carrier:carriers!inner(name, display_order))")
       .eq("active", true)
       .order("days"),
     supabase.from("dealer_prices").select("day_package_id, price_cents").eq("dealer_id", id),
@@ -62,7 +62,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
     days: number
     price_cents: number
     wholesale_price_cents: number | null
-    plan: { name: string; sells_esim: boolean; sells_sim: boolean; display_order: number; published: boolean; carrier: { name: string; display_order: number } }
+    plan: { id: string; name: string; sells_esim: boolean; sells_sim: boolean; refillable: boolean; display_order: number; published: boolean; carrier: { name: string; display_order: number } }
   }
   const rows: PriceRow[] = ((packages ?? []) as unknown as PackageRow[])
     .filter((p) => p.plan.published)
@@ -76,9 +76,12 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
     )
     .map((p) => ({
       packageId: p.id,
+      planId: p.plan.id,
       carrier: p.plan.carrier.name,
       plan: p.plan.name,
-      products: productsLabel(p.plan),
+      sellsEsim: p.plan.sells_esim,
+      sellsSim: p.plan.sells_sim,
+      refillable: p.plan.refillable,
       days: p.days,
       retailCents: p.price_cents,
       wholesaleCents: p.wholesale_price_cents,
@@ -146,8 +149,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
                 Prices
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                This dealer pays the wholesale price unless you set a special price here. A package with neither is not offered to dealers.
-              </p>
+                What this dealer pays for new SIMs and refills. An empty box uses your wholesale price. A length with neither is not offered to this dealer.</p>
             </div>
             <DealerPricesForm dealerId={id} rows={rows} cards={cards} />
           </section>

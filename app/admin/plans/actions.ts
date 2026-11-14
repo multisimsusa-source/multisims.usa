@@ -63,7 +63,6 @@ const planSchema = z.object({
   summary: z.string().trim().max(200, "Keep the summary under 200 characters"),
   description: z.string().trim().max(5000, "Keep the description under 5,000 characters"),
   published: z.boolean(),
-  refillable: z.boolean(),
 })
 
 function readPlan(formData: FormData) {
@@ -94,7 +93,6 @@ function readPlan(formData: FormData) {
     summary: get("summary"),
     description: get("description"),
     published: formData.get("published") === "on",
-    refillable: formData.get("refillable") === "on",
   })
 }
 
@@ -138,6 +136,16 @@ export async function setPlanPublished(id: string, published: boolean): Promise<
   if (error) return dbFailed(error)
   catalogChanged()
   return { ok: true, message: published ? "Plan published" : "Plan withdrawn from the site" }
+}
+
+/** "Offer for refills": saved on its own (plan page and Refills page), never by the plan form. */
+export async function setPlanRefillable(id: string, refillable: boolean): Promise<ActionResult> {
+  await requireRole("admin")
+  const supabase = await createClient()
+  const { error } = await supabase.from("plans").update({ refillable }).eq("id", id)
+  if (error) return dbFailed(error)
+  catalogChanged()
+  return { ok: true, message: refillable ? "Offered for refills" : "No longer offered for refills" }
 }
 
 export async function deletePlan(id: string): Promise<ActionResult> {

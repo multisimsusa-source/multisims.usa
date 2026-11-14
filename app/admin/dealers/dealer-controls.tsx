@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { LoginActiveSwitch, NewLoginButton, ResetPasswordButton } from "@/components/admin/login-controls"
 import { FormCard, FormSection } from "@/components/patterns/form-section"
+import Link from "next/link"
+import { Tag } from "@/components/patterns/tag"
 import { centsToInput } from "@/lib/admin/result"
 import type { DealerWithLogin, OwnerEntryKind } from "@/lib/dealers"
 import { formatDays, formatPrice } from "@/lib/format"
@@ -180,10 +182,14 @@ export function WalletEntryButton({ dealerId, company, mode }: { dealerId: strin
 
 export type PriceRow = {
   packageId: string
+  /** Rows are grouped by plan: two plans can share a name (an eSIM and a SIM card copy). */
+  planId: string
   carrier: string
   plan: string
-  /** "eSIM", "SIM card" or "eSIM or SIM card". */
-  products: string
+  sellsEsim: boolean
+  sellsSim: boolean
+  /** Offered for refills: the same prices apply to refills. */
+  refillable: boolean
   days: number
   retailCents: number
   wholesaleCents: number | null
@@ -212,12 +218,11 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
     return <p className="rounded-xl border bg-background p-5 text-sm text-muted-foreground">No published plans yet. Publish plans under Catalogue first.</p>
   }
 
-  const groups: { key: string; title: string; products: string; rows: PriceRow[] }[] = []
+  const groups: { key: string; title: string; first: PriceRow; rows: PriceRow[] }[] = []
   for (const r of rows) {
-    const key = `${r.carrier}|${r.plan}`
     const last = groups.at(-1)
-    if (last?.key === key) last.rows.push(r)
-    else groups.push({ key, title: `${r.carrier} ${r.plan}`, products: r.products, rows: [r] })
+    if (last?.key === r.planId) last.rows.push(r)
+    else groups.push({ key: r.planId, title: `${r.carrier} ${r.plan}`, first: r, rows: [r] })
   }
 
   return (
@@ -259,7 +264,7 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                 <span>Card</span>
                 <span className="text-right">Retail</span>
                 <span className="text-right">Wholesale</span>
-                <span>This dealer</span>
+                <span>Special price</span>
               </div>
               <ul className="flex flex-col gap-2">
                 {cards.map((c) => {
@@ -277,16 +282,20 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                       <span className="hidden text-right font-mono text-sm tabular sm:block">
                         {c.wholesaleCents === null ? <span className="font-sans text-muted-foreground">Not set</span> : formatPrice(c.wholesaleCents)}
                       </span>
-                      <Input
-                        id={name}
-                        name={name}
-                        inputMode="decimal"
-                        autoComplete="off"
-                        defaultValue={centsToInput(c.dealerCents)}
-                        aria-invalid={Boolean(error) || undefined}
-                        aria-describedby={error ? `${name}-error` : undefined}
-                        className="font-mono tabular"
-                      />
+                      <div>
+                        {/* Phones have no column headings: name the box. */}
+                        <span aria-hidden className="block pb-1 text-xs text-muted-foreground sm:hidden">Special price</span>
+                        <Input
+                          id={name}
+                          name={name}
+                          inputMode="decimal"
+                          autoComplete="off"
+                          defaultValue={centsToInput(c.dealerCents)}
+                          aria-invalid={Boolean(error) || undefined}
+                          aria-describedby={error ? `${name}-error` : undefined}
+                          className="font-mono tabular"
+                        />
+                      </div>
                       {error ? (
                         <p id={`${name}-error`} className="col-span-full text-sm text-danger-ink">
                           {error}
@@ -307,8 +316,11 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
               <AccordionTrigger className="items-center py-4 text-sm">
                 <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="font-medium">{g.title}</span>
+                  {g.first.sellsEsim ? <Tag tone="brand">eSIM</Tag> : null}
+                  {g.first.sellsSim ? <Tag tone="neutral">SIM card</Tag> : null}
+                  {g.first.refillable ? <Tag tone="success">Refills</Tag> : null}
                   <span className="font-normal text-muted-foreground">
-                    {g.products} &middot; {g.rows.length} {g.rows.length === 1 ? "package" : "packages"}
+                    {g.rows.length} {g.rows.length === 1 ? "package" : "packages"}
                     {special ? ` · ${special} special` : ""}
                     {missing ? ` · ${missing} not offered` : ""}
                   </span>
@@ -319,7 +331,7 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                   <span>Length</span>
                   <span className="text-right">Retail</span>
                   <span className="text-right">Wholesale</span>
-                  <span>This dealer</span>
+                  <span>Special price</span>
                 </div>
                 <ul className="flex flex-col gap-2">
                   {g.rows.map((r) => {
@@ -327,26 +339,37 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                     const error = errors[name]
                     return (
                       <li key={r.packageId} className="grid grid-cols-[1fr_9rem] items-center gap-x-4 gap-y-1 sm:grid-cols-[1fr_6rem_6rem_9rem]">
-                        <label htmlFor={name} className="text-sm">
-                          {formatDays(r.days)}
+                        <div className="text-sm">
+                          <label htmlFor={name}>{formatDays(r.days)}</label>
                           <span className="block text-xs text-muted-foreground sm:hidden">
                             Retail {formatPrice(r.retailCents)} &middot; Wholesale {r.wholesaleCents === null ? "not set" : formatPrice(r.wholesaleCents)}
                           </span>
-                        </label>
+                          {r.wholesaleCents === null && r.dealerCents === null ? (
+                            <span className="block text-xs text-muted-foreground">
+                              Not offered.{" "}
+                              <Link href={`/admin/plans/${r.planId}`} className="font-medium text-foreground underline underline-offset-4">
+                                Set wholesale on the plan
+                              </Link>
+                            </span>
+                          ) : null}
+                        </div>
                         <span className="hidden text-right font-mono text-sm text-muted-foreground tabular sm:block">{formatPrice(r.retailCents)}</span>
                         <span className="hidden text-right font-mono text-sm tabular sm:block">
                           {r.wholesaleCents === null ? <span className="font-sans text-muted-foreground">Not set</span> : formatPrice(r.wholesaleCents)}
                         </span>
-                        <Input
-                          id={name}
-                          name={name}
-                          inputMode="decimal"
-                          autoComplete="off"
-                          defaultValue={centsToInput(r.dealerCents)}
-                          aria-invalid={Boolean(error) || undefined}
-                          aria-describedby={error ? `${name}-error` : undefined}
-                          className="font-mono tabular"
-                        />
+                        <div>
+                          <span aria-hidden className="block pb-1 text-xs text-muted-foreground sm:hidden">Special price</span>
+                          <Input
+                            id={name}
+                            name={name}
+                            inputMode="decimal"
+                            autoComplete="off"
+                            defaultValue={centsToInput(r.dealerCents)}
+                            aria-invalid={Boolean(error) || undefined}
+                            aria-describedby={error ? `${name}-error` : undefined}
+                            className="font-mono tabular"
+                          />
+                        </div>
                         {error ? (
                           <p id={`${name}-error`} className="col-span-full text-sm text-danger-ink">
                             {error}
@@ -361,8 +384,17 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
           )
         })}
       </Accordion>
-      <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <p className="text-sm text-muted-foreground">Open a plan or SIM cards to set special prices. An empty field uses the wholesale price.</p>
+      {/* Stays in view while there are changes to save. */}
+      <div
+        className={cn(
+          "flex flex-col gap-3 rounded-b-xl border-t bg-background p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+          dirty && "sticky bottom-0 z-10 bg-background/95 backdrop-blur"
+        )}
+      >
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {dirty ? <span className="font-medium text-warning-ink">Unsaved changes. </span> : null}
+          Open a plan or SIM cards to set special prices. An empty box uses the wholesale price.
+        </p>
         <Button type="submit" size="lg" disabled={pending || !dirty}>
           {pending ? "Saving..." : "Save prices"}
         </Button>

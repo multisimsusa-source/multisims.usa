@@ -316,3 +316,9 @@ A dealer sent 50 USDT for a $50 top-up whose payment page asked 59.56 USDT (netw
 - [x] Activate a SIM card works with every SIM card plan (not only refill plans); linked from SIM card plan pages and checkout, prefilled by URL.
 - [x] One plan sells eSIM, SIM card or both: `plans.sells_esim`, `plans.sells_sim` (product_type kept as the first, by trigger). Admin "Sold as" checkboxes; plan page choice sets `product=` for checkout; checkout and the dealer line (`product` in `place_dealer_batch`) write the choice to `orders.product_type`; filters, badges, search, activation use the flags. MobileX duplicate to merge in Admin.
 - [x] Dealers order plans for SIM cards they already hold: a SIM card line with "I already have the SIM cards" (`have_cards` in `place_dealer_batch`) posts nothing, needs every card's ICCID, and becomes an `activation` order the agents complete as usual.
+
+## Admin UX, 14 Nov 2026 (refills and dealer prices)
+- [x] Catalogue > Refills: every published plan with its Offer for refills switch and customer and dealer prices. Refills use the plan's own prices; nothing new stored.
+- [x] Plan page: Offer for refills sits under the prices as its own switch (no longer saved by the plan form); the prices say they apply to new orders and refills.
+- [x] Plans list: eSIM / SIM card tags and a Refills tag.
+- [x] Dealer Prices: grouped by plan id (fixes two same-name plans merging under one tag), Special price column, Not offered rows link to the plan, Save bar stays in view with unsaved changes.

@@ -83,6 +83,9 @@ test.describe.serial("Zafir 13 Nov", () => {
     // The owner clears Talk and Text and saves: allowed now, and the site refreshes.
     const owner = await pageAs(browser, "owner")
     await owner.goto(`/admin/plans/${plan!.id}`)
+    // The page's "View on site" link prefetches the public plan page; a person never saves
+    // within the same instant, so let that prefetch land before the save clears the cache.
+    await owner.waitForTimeout(1500)
     await owner.getByLabel(/^Talk/).fill("")
     await owner.getByLabel(/^Text/).fill("")
     await owner.getByRole("button", { name: "Save plan" }).click()
@@ -286,5 +289,53 @@ test.describe.serial("Zafir 13 Nov", () => {
     await dealer.goto(batchUrl)
     await expect(dealer.getByText(/Your SIM cards, activated/).first()).toBeVisible()
     await expect(dealer.getByText("+1 (646) 555-0302").first()).toBeVisible()
+  })
+
+  test("refills and dealer prices are easy to find; two plans with one name stay apart", async ({ browser }) => {
+    const { data: carrier } = await db().from("carriers").select("id").eq("name", "E2E Mobile").single()
+    const twin = { carrier_id: carrier!.id, name: "E2E Twin Plan", data_gb: 10, published: true }
+    const { data: esim } = await db().from("plans").insert({ ...twin, slug: `e2e-twin-esim-${RUN}`, sells_esim: true, sells_sim: false }).select("id").single()
+    const { data: sim } = await db().from("plans").insert({ ...twin, slug: `e2e-twin-sim-${RUN}`, sells_esim: false, sells_sim: true }).select("id").single()
+    await db().from("day_packages").insert([
+      { plan_id: esim!.id, days: 30, price_cents: 5000, wholesale_price_cents: 4000, active: true },
+      { plan_id: sim!.id, days: 30, price_cents: 5000, active: true },
+    ])
+
+    const owner = await pageAs(browser, "owner", PHONE)
+    // Refills page: both plans, each tagged, customer and dealer prices side by side.
+    await owner.goto("/admin/refills")
+    const twins = owner.locator("li").filter({ hasText: "E2E Twin Plan" })
+    await expect(twins).toHaveCount(2)
+    await expect(twins.filter({ hasText: "$40.00" })).toHaveCount(1)
+    await expect(twins.filter({ hasText: "Not offered to dealers" })).toHaveCount(1)
+    // Switch on the eSIM twin (the one with a dealer price).
+    await twins.filter({ hasText: "$40.00" }).getByRole("switch", { name: "Offer E2E Twin Plan for refills" }).click()
+    await expectToast(owner, "Offered for refills")
+    await expectNoHorizontalScroll(owner)
+    await owner.screenshot({ path: `${SHOTS}/admin-refills-phone.png`, fullPage: true })
+
+    // Plans list: each row says eSIM or SIM card.
+    await owner.goto("/admin/plans?q=twin")
+    const rows = owner.locator("main li").filter({ hasText: "E2E Twin Plan" })
+    await expect(rows).toHaveCount(2)
+    await expect(rows.filter({ hasText: "eSIM" }).getByText("Refills", { exact: true })).toBeVisible()
+    await expect(rows.filter({ hasText: "SIM card" }).getByText("Refills", { exact: true })).toHaveCount(0)
+
+    // Dealer prices: two groups, one per plan, each with its own tag; the SIM card one is not offered.
+    const { data: dealer } = await db().from("profiles").select("id").eq("email", testEmail("device-dealer")).single()
+    await owner.goto(`/admin/dealers/${dealer!.id}`)
+    await expect(owner.getByText("What this dealer pays for new SIMs and refills.")).toBeVisible()
+    const groups = owner.getByRole("button", { name: /E2E Mobile E2E Twin Plan/ })
+    await expect(groups).toHaveCount(2)
+    await groups.filter({ hasText: "SIM card" }).click()
+    await expect(owner.getByRole("link", { name: "Set wholesale on the plan" }).first()).toBeVisible()
+    await groups.filter({ hasText: "eSIM" }).click()
+    await expect(owner.getByText("Special price").filter({ visible: true }).first()).toBeVisible()
+    const box = owner.locator(`input[name^="price:"]`).filter({ visible: true }).first()
+    await box.fill("35.00")
+    await expect(owner.getByText("Unsaved changes.")).toBeVisible()
+    await owner.screenshot({ path: `${SHOTS}/admin-dealer-prices-phone.png`, fullPage: true })
+
+    await db().from("plans").delete().in("id", [esim!.id, sim!.id])
   })
 })

@@ -48,6 +48,11 @@ export function DayPackages({ planId, packages }: { planId: string; packages: Da
         </p>
       )}
 
+      {packages.length ? (
+        <p className="border-t px-4 py-3 text-sm text-muted-foreground sm:px-6">
+          These prices are used for new orders and for refills.
+        </p>
+      ) : null}
       <AddPackage planId={planId} used={used} />
     </section>
   )

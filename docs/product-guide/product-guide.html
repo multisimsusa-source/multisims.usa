@@ -478,7 +478,7 @@
     <li><b>Carriers</b>: add a network with its logo and show or hide it. Hiding a carrier hides all its plans at once.</li>
     <li><b>SIM cards</b>: one row per carrier with the website price, the dealer price and whether the card is sold on its own.</li>
     <li><b>Plans</b>: the plan details, then day packages, each with a price, an optional sale price and a wholesale price for dealers. A plan is on the website when it is published, its carrier is shown and at least one package is on sale.</li>
-    <li><b>Offer for refills</b>: switch it on for every plan customers and dealers may refill with.</li>
+    <li><b>Refills</b> (its own page under Catalogue): every published plan with an <b>Offer for refills</b> switch and the refill prices, customers' and dealers'. Refills use the plan's own prices; change them on the plan.</li>
     <li><b>Sold as</b>: eSIM, SIM card, or both. One plan sold both ways replaces two copies of the same plan; buyers and dealers pick, and a SIM card adds its card price and shipping.</li>
     <li><b>Phone details</b>: buyers are asked for them, all optional. An eSIM asks for the IMEI and EID, a SIM card for the EID and ICCID.</li>
     <li><b>Data-only plans</b>: leave Talk and Text empty. Every SIM card plan can also activate a SIM card the buyer already has.</li>
@@ -501,7 +501,7 @@
   <h3><span class="n">6.5</span>Dealers and their money</h3>
   <ol>
     <li>Create the dealer with company, contact name and email, and send them the login.</li>
-    <li>Set their prices. Leave a box empty to use your normal wholesale price. SIM card prices can be set per carrier.</li>
+    <li>Set their prices under <b>Prices</b>: each plan shows whether it is an eSIM or a SIM card and whether it is offered for refills. A <b>Special price</b> applies to new SIMs and refills; leave it empty to use your wholesale price. SIM card prices can be set per carrier.</li>
     <li>Set a credit limit if you allow one. Zero means they pay first.</li>
     <li>Add funds when they pay you. To fix a mistake use <b>Correction</b>, add or take, with a note the dealer sees. A correction can never take more than the money in the wallet.</li>
   </ol>
@@ -523,8 +523,8 @@
 
   <table>
     <tr><th>Setting</th><th>Where</th><th>Why it matters</th></tr>
-    <tr><td>Offer for refills</td><td>Plans, each plan, Refill</td><td>Until at least one plan is switched on, the Refill page says "Refills open soon" and dealers cannot refill.</td></tr>
-    <tr><td>Dealer prices</td><td>Plans, Wholesale column, or each dealer's Prices</td><td>A plan with no dealer price is not offered to dealers, for orders or refills.</td></tr>
+    <tr><td>Offer for refills</td><td>Catalogue, Refills</td><td>Until at least one plan is switched on, the Refill page says "Refills open soon" and dealers cannot refill.</td></tr>
+    <tr><td>Dealer prices</td><td>Plans, Wholesale column, or each dealer's Prices (Special price)</td><td>A plan with no dealer price is not offered to dealers, for orders or refills.</td></tr>
     <tr><td>SIM card prices</td><td>Carriers, SIM cards</td><td>The payment provider needs at least $20 per order. A single $5 card with shipping is under that, so a customer has to buy several cards or add a plan.</td></tr>
     <tr><td>Alert email</td><td>Settings</td><td>Where unclaimed orders, customer messages and tickets are sent.</td></tr>
     <tr><td>Agents</td><td>Agents</td><td>Every active agent gets new order emails. Switch off anyone who should not.</td></tr>

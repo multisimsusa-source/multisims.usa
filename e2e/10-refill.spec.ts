@@ -134,14 +134,24 @@ test.describe.serial("Refill and the plan timer", () => {
 
   test("owner offers E2E Unlimited and E2E Card for refills", async ({ browser }) => {
     const owner = await pageAs(browser, "owner")
+    // From the Refills page (one switch per plan, saved at once) and from the plan page.
+    await owner.goto("/admin/refills")
+    await expect(owner.getByText("Refills use the plan's own prices.")).toBeVisible()
+    await owner.getByRole("switch", { name: "Offer E2E Unlimited for refills" }).click()
+    await expectToast(owner, "Offered for refills")
+    const card = await plan("E2E Card")
+    await owner.goto(`/admin/plans/${card.id}`)
+    await expect(owner.getByText("These prices are used for new orders and for refills.")).toBeVisible()
+    await owner.getByRole("switch", { name: "Offer E2E Card for refills" }).click()
+    await expectToast(owner, "Offered for refills")
     for (const name of ["E2E Unlimited", "E2E Card"]) {
       const p = await plan(name)
-      await owner.goto(`/admin/plans/${p.id}`)
-      await owner.getByRole("switch", { name: "Offer for refills" }).click()
-      await owner.getByRole("button", { name: "Save plan" }).click()
-      await expectToast(owner, /saved/i)
       await expect.poll(async () => (await db().from("plans").select("refillable").eq("id", p.id).single()).data?.refillable).toBe(true)
     }
+    // Saving the plan form never undoes the switch.
+    await owner.getByRole("button", { name: "Save plan" }).click()
+    await expectToast(owner, /saved/i)
+    expect((await db().from("plans").select("refillable").eq("id", card.id).single()).data?.refillable).toBe(true)
   })
 
   test("an eSIM delivered today starts its timer; the customer sees it and can refill", async ({ browser }) => {

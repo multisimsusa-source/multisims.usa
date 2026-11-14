@@ -8,6 +8,7 @@ import { AdminPageHeader } from "@/components/admin/page-header"
 import { FlashToast } from "@/components/patterns/flash-toast"
 import { CarrierLogo } from "@/components/site/carrier-logo"
 import { ProductBadges } from "@/components/site/product-mark"
+import { Tag } from "@/components/patterns/tag"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { hiddenReason, listCarriers, listPlans } from "@/lib/admin/queries"
@@ -146,7 +147,10 @@ async function PlanResults({ searchParams }: Pick<PageProps<"/admin/plans">, "se
                         <span className="sr-only">{plan.carrier.name}</span>
                       </td>
                       <td className="px-3 py-3">
-                        <ProductBadges plan={plan} />
+                        <span className="flex flex-wrap gap-1.5">
+                          <ProductBadges plan={plan} />
+                          {plan.refillable ? <Tag tone="success">Refills</Tag> : null}
+                        </span>
                       </td>
                       <td className="px-3 py-3 text-right font-mono tabular-nums">
                         {onSale.length}
@@ -186,7 +190,10 @@ async function PlanResults({ searchParams }: Pick<PageProps<"/admin/plans">, "se
                 <li key={plan.id} className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <CarrierLogo carrier={plan.carrier} size="sm" />
-                    <ProductBadges plan={plan} />
+                    <span className="flex flex-wrap justify-end gap-1.5">
+                      <ProductBadges plan={plan} />
+                      {plan.refillable ? <Tag tone="success">Refills</Tag> : null}
+                    </span>
                   </div>
                   <Link href={`/admin/plans/${plan.id}`} className="mt-2.5 block font-medium hover:underline underline-offset-4">
                     {plan.name}
