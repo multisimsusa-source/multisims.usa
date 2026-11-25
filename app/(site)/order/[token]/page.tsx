@@ -166,6 +166,8 @@ async function OrderView({
     : Infinity
 
   // Live lines first (replacements next to the SIM they replace), replaced ones last.
+  // SIMs the owner cancelled when the rest of the order could not be filled.
+  const cancelledSims = order.status === "cancelled" ? 0 : items.filter((i) => i.order_id === order.id && i.status === "cancelled").length
   const shown = items
     .filter((i) => (refillLike || i.status !== "pending") && i.status !== "cancelled")
     .sort(
@@ -403,6 +405,13 @@ async function OrderView({
               </Link>
               . You see the fee before you pay.
             </p>
+          ) : null}
+          {cancelledSims > 0 ? (
+            <Notice tone="info" className="mt-4" title={`${cancelledSims} ${cancelledSims === 1 ? unit : `${unit}s`} could not be delivered`}>
+              {order.refunded_at
+                ? "We cancelled them and sent you a refund for them."
+                : "We cancelled them and are in touch with you by email about the refund for them."}
+            </Notice>
           ) : null}
           {pendingReplacements.length > 0 ? (
             <p className="mt-4 flex items-center gap-3 rounded-xl border border-dashed p-4 text-sm">
