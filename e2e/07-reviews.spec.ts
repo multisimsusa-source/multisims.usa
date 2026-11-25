@@ -254,8 +254,9 @@ test.describe.serial("Ratings", () => {
     await expect(page.getByText(/Your line starts/)).toBeVisible()
     await expect(orderForm(page)).toHaveCount(0)
 
-    // The start date comes: the daily job queues it.
-    const today = new Date().toISOString().slice(0, 10)
+    // The start date comes: the daily job queues it. Plan days run on US Eastern dates, which
+    // lag UTC by a few hours each night.
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" })
     await db().from("orders").update({ activate_on: today }).eq("id", order.id)
     await db().rpc("queue_due_activations")
     await page.reload()

@@ -7,6 +7,10 @@ import { AdminPageHeader } from "@/components/admin/page-header"
 import { ListSkeleton } from "@/components/admin/skeletons"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { TicketStatusTag } from "@/components/patterns/status-tag"
+import { MediaUpload } from "@/components/patterns/media-upload"
+import { MAX_TICKET_FILES } from "@/lib/media"
+import { listTicketFiles } from "@/lib/ticket-files"
+import { finishDealerTicketFile, startDealerTicketFile } from "./actions"
 import { requireRole } from "@/lib/auth"
 import { batchLabel } from "@/lib/dealers"
 import { formatDateTime, orderLabel, severityLabel } from "@/lib/orders"
@@ -62,6 +66,8 @@ async function Tickets() {
     .order("created_at", { ascending: false })
     .limit(200)
   const tickets = (data ?? []) as unknown as Row[]
+  // Only this dealer's tickets came back (RLS), so their files can be listed for them.
+  const files = await listTicketFiles(tickets.map((t) => t.id))
 
   if (!tickets.length) {
     return (
@@ -126,6 +132,20 @@ async function Tickets() {
               No answer yet. We email you when there is one.
             </p>
           )}
+          {t.status !== "resolved" || files.get(t.id)?.length ? (
+            <div className="mt-4 border-t pt-4">
+              <p className="mb-2 text-sm font-medium">Photos and videos</p>
+              <MediaUpload
+                files={files.get(t.id) ?? []}
+                max={MAX_TICKET_FILES}
+                canAdd={t.status !== "resolved"}
+                start={startDealerTicketFile.bind(null, t.id)}
+                finish={finishDealerTicketFile.bind(null, t.id)}
+                byLabel={{ customer: "You", staff: "Support" }}
+                emptyText="A photo or short video of the problem helps us fix it faster."
+              />
+            </div>
+          ) : null}
         </li>
       ))}
     </ul>

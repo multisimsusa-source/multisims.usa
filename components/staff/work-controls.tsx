@@ -27,6 +27,7 @@ import { ActionButton, ClaimButton } from "@/components/staff/order-actions"
 import { NoteDialog } from "@/components/staff/note-dialog"
 import {
   completeOrder,
+  deliverReadyItems,
   flagOrder,
   issueReplacement,
   releaseOrder,
@@ -35,6 +36,7 @@ import {
 import {
   approveReplacement,
   cancelOrder,
+  cancelRemainingItems,
   markOrderPaid,
   reassignOrder,
   recordRefund,
@@ -53,6 +55,48 @@ type WorkProps = {
   noQr?: number
   /** SIM cards with no plan: done once shipped, nothing to activate. */
   cardOnly?: boolean
+  /** A bulk line where some SIMs are ready and some are not: deliver the ready ones now. */
+  partial?: { ready: number; left: number } | null
+  /** "eSIM" or "SIM", for the partial delivery wording. */
+  unit?: string
+}
+
+const partialCopy: Record<ItemNeed, { button: (n: number, unit: string) => string; title: (n: number, unit: string) => string; description: (n: number, left: number, unit: string) => string }> = {
+  qr: {
+    button: (n, unit) => `Deliver ${n} ready ${unit}${n === 1 ? "" : "s"}`,
+    title: (n, unit) => `Deliver ${n} ${unit}${n === 1 ? "" : "s"} now?`,
+    description: (n, left, unit) =>
+      `The ${n} ${unit}${n === 1 ? "" : "s"} with a QR code or phone number go to the customer now and show on their order page. The other ${left} stay here for you to finish; a missing QR code can still be added after. This cannot be undone.`,
+  },
+  ship: {
+    button: (n) => `Mark ${n} ready shipped`,
+    title: (n) => `Mark ${n} SIM card${n === 1 ? "" : "s"} shipped?`,
+    description: (n, left) =>
+      `The ${n} SIM card${n === 1 ? "" : "s"} with an ICCID and tracking number show as shipped on the customer's order page. The other ${left} stay here for you to finish. This cannot be undone.`,
+  },
+  activate: {
+    button: (n) => `Deliver ${n} active line${n === 1 ? "" : "s"}`,
+    title: (n) => `Deliver ${n} line${n === 1 ? "" : "s"} now?`,
+    description: (n, left) =>
+      `The ${n} SIM${n === 1 ? "" : "s"} with a phone number show as Delivered on the customer's order page straight away. The other ${left} stay here for you to finish. This cannot be undone.`,
+  },
+  refill: {
+    button: () => "",
+    title: () => "",
+    description: () => "",
+  },
+  service_qr: {
+    button: (n) => `Deliver ${n} ready QR code${n === 1 ? "" : "s"}`,
+    title: (n) => `Send ${n} QR code${n === 1 ? "" : "s"} now?`,
+    description: (n, left) =>
+      `The ${n} number${n === 1 ? "" : "s"} with a QR code go to the customer now and show as Delivered. The other ${left} stay here for you to finish. This cannot be undone.`,
+  },
+  service_number: {
+    button: (n) => `Deliver ${n} new number${n === 1 ? "" : "s"}`,
+    title: (n) => `Deliver ${n} new number${n === 1 ? "" : "s"} now?`,
+    description: (n, left) =>
+      `The ${n} line${n === 1 ? "" : "s"} with a new number show as Delivered on the customer's order page straight away. The other ${left} stay here for you to finish. This cannot be undone.`,
+  },
 }
 
 const completeCopy: Record<
@@ -97,6 +141,22 @@ const completeCopy: Record<
     confirm: "Deliver now",
     missing: "a phone number",
   },
+  service_qr: {
+    button: "Deliver QR codes",
+    title: "Send the QR codes now?",
+    description:
+      "The QR codes go to the customer by email and show on their order page straight away, and the order shows as Delivered. A dealer is charged for each one now. This cannot be undone.",
+    confirm: "Deliver now",
+    missing: "a QR code",
+  },
+  service_number: {
+    button: "Deliver new numbers",
+    title: "Are the new numbers live?",
+    description:
+      "The new numbers go to the customer by email and show on their order page straight away, and the order shows as Delivered. A dealer is charged for each one now. This cannot be undone.",
+    confirm: "Deliver now",
+    missing: "its new number",
+  },
 }
 
 /** Claim, release, flag and complete: the agent's main row of actions. */
@@ -109,6 +169,8 @@ export function WorkControls({
   missing,
   noQr = 0,
   cardOnly,
+  partial,
+  unit = "SIM",
 }: WorkProps) {
   const qrHint = noQr > 0 ? `${noQr} eSIM${noQr === 1 ? " has" : "s have"} no QR code yet. You can deliver now and add ${noQr === 1 ? "it" : "them"} after.` : null
   const copy = cardOnly
@@ -121,6 +183,22 @@ export function WorkControls({
   if (canClaim)
     return <ClaimButton orderId={orderId} className="w-full px-8 sm:w-auto" />
   if (!canWork) return null
+
+  const partialCopyFor = cardOnly ? partialCopy.ship : partialCopy[need]
+  const deliverReady = (fullWidth: boolean) =>
+    partial ? (
+      <ConfirmAction
+        trigger={
+          <Button variant="outline" size="lg" className={fullWidth ? "w-full" : "px-6"}>
+            {partialCopyFor.button(partial.ready, unit)}
+          </Button>
+        }
+        title={partialCopyFor.title(partial.ready, unit)}
+        description={partialCopyFor.description(partial.ready, partial.left, unit)}
+        confirmLabel="Deliver these"
+        action={() => deliverReadyItems(orderId)}
+      />
+    ) : null
 
   const complete = (fullWidth: boolean) => (
     <ConfirmAction
@@ -144,17 +222,19 @@ export function WorkControls({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="max-sm:hidden">{complete(false)}</div>
+      {partial ? <div className="max-sm:hidden">{deliverReady(false)}</div> : null}
       {/* Phones: the finishing action stays in reach at the bottom of the screen. */}
       <ActionBar mode="fixed" breakpoint="sm">
-        <div className="w-full">
+        <div className="flex w-full flex-col gap-2">
+          {partial ? deliverReady(true) : null}
           {complete(true)}
           {missing > 0 ? (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
+            <p className="text-center text-xs text-muted-foreground">
               {missing} SIM{missing === 1 ? "" : "s"} still need
               {missing === 1 ? "s" : ""} {copy.missing}
             </p>
           ) : qrHint ? (
-            <p className="mt-2 text-center text-xs text-muted-foreground">{qrHint}</p>
+            <p className="text-center text-xs text-muted-foreground">{qrHint}</p>
           ) : null}
         </div>
       </ActionBar>
@@ -193,7 +273,8 @@ export function WorkControls({
       {missing > 0 ? (
         <p className="w-full text-sm text-muted-foreground max-sm:hidden">
           {missing} SIM{missing === 1 ? "" : "s"} still need
-          {missing === 1 ? "s" : ""} {copy.missing} before you can complete.
+          {missing === 1 ? "s" : ""} {copy.missing} before you can complete
+          {partial ? ". You can deliver the ready ones now." : "."}
         </p>
       ) : qrHint ? (
         <p className="w-full text-sm text-muted-foreground max-sm:hidden">{qrHint}</p>
@@ -307,6 +388,7 @@ export function AdminOrderControls({
   meId,
   paid,
   refunded,
+  delivered,
 }: {
   orderId: string
   status: OrderStatus
@@ -315,6 +397,8 @@ export function AdminOrderControls({
   meId: string
   paid: boolean
   refunded: boolean
+  /** Part of the line is delivered: only the rest can be cancelled. */
+  delivered?: { done: number; left: number; dealer: boolean } | null
 }) {
   const [agent, setAgent] = React.useState(claimedBy ?? meId)
   const open = ["queued", "claimed", "needs_attention"].includes(status)
@@ -403,7 +487,28 @@ export function AdminOrderControls({
         </NoteDialog>
       ) : null}
 
-      {status !== "fulfilled" && status !== "cancelled" ? (
+      {delivered && open ? (
+        <NoteDialog
+          trigger={
+            <Button variant="destructive" size="lg" className="w-full">
+              Cancel the other {delivered.left}
+            </Button>
+          }
+          title={`Cancel the ${delivered.left} SIM${delivered.left === 1 ? "" : "s"} not delivered?`}
+          description={
+            delivered.dealer
+              ? `The ${delivered.done} delivered stay delivered and are paid for. The other ${delivered.left} show as Cancelled and their share goes back to the dealer's wallet. The order is then done.`
+              : `The ${delivered.done} delivered stay delivered. The other ${delivered.left} show as Cancelled and the order is then done. Refund the customer for them from your own wallet.`
+          }
+          label="Reason (internal)"
+          placeholder="The carrier has no more lines in this area."
+          confirmLabel="Cancel the rest"
+          destructive
+          action={(note) => cancelRemainingItems(orderId, note)}
+        />
+      ) : null}
+
+      {!delivered && status !== "fulfilled" && status !== "cancelled" ? (
         <NoteDialog
           trigger={
             <Button variant="destructive" size="lg" className="w-full">

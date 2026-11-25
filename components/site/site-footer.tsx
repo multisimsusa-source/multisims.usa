@@ -14,6 +14,7 @@ const shop: FooterLink[] = [
   { href: "/plans", label: "All plans" },
   { href: "/refill", label: "Refill a number" },
   { href: "/refill?mode=activate", label: "Activate a SIM card" },
+  { href: "/services", label: "QR code or new number" },
 ]
 const help: FooterLink[] = [
   { href: "/faq", label: "FAQ" },

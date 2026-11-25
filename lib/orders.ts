@@ -28,18 +28,24 @@ type StatusSource = Pick<Order, "status" | "product_type" | "phase" | "kind">
  */
 export function customerOrderStatus(order: StatusSource): CustomerStatus {
   if (order.status === "cancelled") return "Cancelled"
-  if (order.product_type === "esim" || order.kind === "refill" || order.kind === "activation")
+  if (order.product_type === "esim" || order.kind === "refill" || order.kind === "activation" || order.kind === "service")
     return order.status === "fulfilled" ? "Delivered" : "Processing"
   if (order.phase === "activate") return order.status === "fulfilled" ? "Delivered" : "Shipped"
   return order.status === "fulfilled" ? "Shipped" : "Processing"
 }
 
-/** One SIM, judged by the order it belongs to (a replacement has its own order). */
-export function customerItemStatus(order: StatusSource, item: Pick<OrderItem, "status">): CustomerStatus {
+/**
+ * One SIM, judged by the order it belongs to (a replacement has its own order). Part of a
+ * bulk line can be delivered while the rest is still being filled, so a SIM that is done
+ * shows as done even when its order is still open.
+ */
+export function customerItemStatus(order: StatusSource, item: Pick<OrderItem, "status" | "activated_at">): CustomerStatus {
   if (order.status === "cancelled" || item.status === "cancelled") return "Cancelled"
   if (item.status === "pending") return "Processing"
-  const status = customerOrderStatus(order)
-  return status === "Processing" ? "Shipped" : status
+  if (order.status === "fulfilled") return customerOrderStatus(order)
+  if (order.product_type === "esim" || order.kind === "refill" || order.kind === "activation" || order.kind === "service") return "Delivered"
+  if (order.phase === "activate" && item.activated_at) return "Delivered"
+  return "Shipped"
 }
 
 /** "When the SIM arrives" or "On Oct 20, 2026". */

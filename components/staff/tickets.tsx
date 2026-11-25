@@ -9,6 +9,10 @@ import {
   TicketStatusTag,
 } from "@/components/patterns/status-tag"
 import { AnswerForm } from "@/components/staff/answer-form"
+import { MediaUpload } from "@/components/patterns/media-upload"
+import { finishStaffTicketFile, startStaffTicketFile } from "@/app/agent/actions"
+import { MAX_TICKET_FILES } from "@/lib/media"
+import { listTicketFiles } from "@/lib/ticket-files"
 import { UrlFilters } from "@/components/staff/url-filters"
 import { ReplaceButton } from "@/components/staff/work-controls"
 import {
@@ -134,8 +138,9 @@ export async function TicketView({
   id: string
   base: "/admin" | "/agent"
 }) {
-  const data = await getTicket(id)
+  const [data, fileMap] = await Promise.all([getTicket(id), listTicketFiles([id])])
   if (!data) notFound()
+  const files = fileMap.get(id) ?? []
   const {
     ticket: t,
     items,
@@ -208,6 +213,21 @@ export async function TicketView({
                 </span>
               </a>
             ) : null}
+          </section>
+
+          <section aria-labelledby="ticket-files" className="rounded-xl border bg-background p-4 sm:p-5">
+            <h2 id="ticket-files" className="mb-1 type-overline">Photos and videos</h2>
+            <p className="mb-3 text-sm text-muted-foreground">
+              From the customer and from you. The customer sees them on their order page.
+            </p>
+            <MediaUpload
+              files={files}
+              max={MAX_TICKET_FILES}
+              canAdd
+              start={startStaffTicketFile.bind(null, t.id)}
+              finish={finishStaffTicketFile.bind(null, t.id)}
+              byLabel={{ customer: "Customer", staff: "Support" }}
+            />
           </section>
 
           <section aria-label="Answer">

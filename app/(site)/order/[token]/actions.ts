@@ -19,6 +19,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { clientIp } from "@/lib/request"
 import { createServiceClient } from "@/lib/supabase/service"
 import { fileTicket, ticketValues } from "@/lib/tickets"
+import { finishTicketUpload, startTicketUpload, type UploadTicket } from "@/lib/ticket-files"
 import { verifyTurnstile } from "@/lib/turnstile"
 import type { Order } from "@/lib/types"
 import type { FormState } from "@/lib/form-state"
@@ -363,4 +364,39 @@ export async function addCustomerPhoto(token: string, formData: FormData): Promi
   if (!added.ok) return { ok: false, error: added.error }
   refresh()
   return { ok: true, message: "Photo added" }
+}
+
+/** The customer's own open request on this order, or null. */
+async function customerTicket(token: string, ticketId: string) {
+  if (!z.uuid().safeParse(ticketId).success) return null
+  const order = await loadOrder(token)
+  if (!order) return null
+  const { data } = await createServiceClient()
+    .from("tickets")
+    .select("id, status")
+    .eq("id", ticketId)
+    .eq("order_id", order.id)
+    .maybeSingle()
+  return data
+}
+
+/** Step one of adding a photo or video to a request: a signed upload link. */
+export async function startTicketFile(token: string, ticketId: string, file: { type: string; size: number }): Promise<UploadTicket> {
+  const ticket = await customerTicket(token, ticketId)
+  if (!ticket) return { ok: false, error: "We could not find this request." }
+  if (ticket.status === "resolved") return { ok: false, error: "This request is closed. Open a new one if the problem is back." }
+  if (!(await rateLimit(`ticket-file:${await clientIp()}`, 30, 60 * 60_000)).ok) {
+    return { ok: false, error: "Too many files. Wait a little and try again." }
+  }
+  return startTicketUpload(ticket.id, { type: String(file?.type ?? ""), size: Number(file?.size ?? 0) })
+}
+
+/** Step two: the file is in storage; check it and add it to the request. */
+export async function finishTicketFile(token: string, ticketId: string, path: string): Promise<ActionResult> {
+  const ticket = await customerTicket(token, ticketId)
+  if (!ticket) return { ok: false, error: "We could not find this request." }
+  const done = await finishTicketUpload(ticket.id, String(path ?? ""), { addedBy: "customer", uploadedBy: null })
+  if (!done.ok) return done
+  refresh()
+  return { ok: true }
 }

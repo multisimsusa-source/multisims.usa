@@ -31,7 +31,7 @@ import { WalletLedger } from "@/components/dealer/wallet-ledger"
 import { WalletMeter } from "@/components/dealer/wallet-meter"
 import { WalletSummary } from "@/components/dealer/wallet-summary"
 import { PortalNotFound } from "@/components/staff/portal-not-found"
-import { DemoDeviceDetails, DemoFormSection, DemoQuantityStepper, DemoRating, DemoSelect, DemoSwitch } from "./demos"
+import { DemoDeviceDetails, DemoFormSection, DemoMediaUpload, DemoQuantityStepper, DemoRating, DemoSegmentedChoice, DemoSelect, DemoSwitch } from "./demos"
 
 export const metadata: Metadata = { title: "Design system" }
 
@@ -395,6 +395,20 @@ export default function DesignSystemPage() {
           note="DeviceDetails: the buyer's phone details per SIM (IMEI, EID, SIM number), from deviceFields() in lib/device.ts for the plan type, each SIM with its own Save; editable only until the SIM is delivered. PhotoUpload: square thumbnails that open full size and one Add photo button (one image per upload, 5 MB, up to 10 per order); read-only for the team."
         >
           <DemoDeviceDetails />
+        </Block>
+
+        <Block
+          title="Photos and videos on a request"
+          note="MediaUpload: square tiles, each labelled with who added it (You or Support, Customer or Support for the team); a photo opens full size, a video plays in place. One outline Add photo or video button; the file goes straight to private storage on a signed link, so a 50 MB phone video works. Photos up to 10 MB, videos up to 50 MB, 20 per request."
+        >
+          <DemoMediaUpload />
+        </Block>
+
+        <Block
+          title="Choice side by side"
+          note="SegmentedChoice: two or three choices as real radio inputs, the chosen one filled with the brand colour, each at least 44px high, with an optional mono hint such as a price. eSIM or SIM card, which service."
+        >
+          <DemoSegmentedChoice />
         </Block>
 
         <Block

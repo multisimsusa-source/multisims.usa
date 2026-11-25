@@ -215,7 +215,7 @@ function TicketFields({
         ) : file && file.size > 5 * 1024 * 1024 ? (
           <FieldError>This image is over 5 MB. Choose a smaller one.</FieldError>
         ) : (
-          <FieldDescription>PNG, JPG, GIF or WebP, up to 5 MB.</FieldDescription>
+          <FieldDescription>PNG, JPG, GIF or WebP, up to 5 MB. You can add more photos and videos once the request is sent.</FieldDescription>
         )}
       </Field>
 

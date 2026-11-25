@@ -53,6 +53,8 @@ import {
 import {
   addCustomerPhoto,
   createTicket,
+  finishTicketFile,
+  startTicketFile,
   requestActivation,
   saveDeviceDetails,
   saveReview,
@@ -63,6 +65,11 @@ import { LiveRefresh } from "./live-refresh"
 import { ActivateButton, PayButton } from "./pay-button"
 import { ReviewPanel } from "./review-panel"
 import { SupportPanel } from "./support-panel"
+import { MediaUpload } from "@/components/patterns/media-upload"
+import { MAX_TICKET_FILES } from "@/lib/media"
+import { listTicketFiles } from "@/lib/ticket-files"
+import { getServiceOffers } from "@/lib/services"
+import { minimumOrderCents } from "@/lib/payments"
 
 export const metadata: Metadata = {
   title: "Your order",
@@ -109,8 +116,10 @@ async function OrderView({
     reviews,
   } = data
   const status = customerOrderStatus(order)
-  // A refill or a card's activation adds days to a line; it never ships or has a QR.
-  const refillLike = order.kind === "refill" || order.kind === "activation"
+  // A refill, a card's activation or a new number works on a line; it never ships or has a
+  // QR. A QR code service is shown like an eSIM: its QR code is what is delivered.
+  const numberChange = order.kind === "service" && order.service_code === "number_change"
+  const refillLike = order.kind === "refill" || order.kind === "activation" || numberChange
   const esim = order.product_type === "esim" && !refillLike
   const unpaid = order.status === "awaiting_payment"
   const processing = status === "Processing" && !unpaid
@@ -119,7 +128,25 @@ async function OrderView({
   // Each delivered line's plan dates, refills of the same number included.
   // Only delivered SIMs: a refill still in progress must not show what we know about a number
   // someone typed (another customer's line, its end date).
-  const timers = await getLineTimers(createServiceClient(), items.filter((i) => i.status === "fulfilled"))
+  const [timers, ticketFiles, serviceOffers] = await Promise.all([
+    getLineTimers(createServiceClient(), items.filter((i) => i.status === "fulfilled")),
+    listTicketFiles(tickets.map((t) => t.id)),
+    getServiceOffers(),
+  ])
+  const carrierOffers = order.channel === "website" ? serviceOffers.filter((o) => o.carrier_name === order.carrier_name) : []
+  const serviceMinimum = carrierOffers.length
+    ? await createServiceClient()
+        .from("settings")
+        .select("min_order_cents, network_fee_cents")
+        .maybeSingle()
+        .then(async ({ data: s }) => (await minimumOrderCents(s?.min_order_cents ?? 0)) - (s?.network_fee_cents ?? 0))
+    : 0
+  // A line we delivered on the website can ask for a QR code or a new number, when the
+  // carrier offers it.
+  const serviceItem =
+    carrierOffers.some((o) => o.price_cents >= serviceMinimum)
+      ? items.find((i) => i.status === "fulfilled" && i.phone_number && customerItemStatus(i.owner, i) === "Delivered")
+      : undefined
   // The buyer's phone details, while their SIMs are still to be delivered (not refills).
   const pendingOwn = order.kind === "line" && order.status !== "cancelled" ? items.filter((i) => i.order_id === order.id && i.status === "pending") : []
   const { data: planRow } = pendingOwn.length && order.plan_id
@@ -195,7 +222,11 @@ async function OrderView({
           {orderTitle(order)}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {order.kind === "refill"
+          {order.kind === "service"
+            ? order.service_code === "esim_qr"
+              ? "A QR code to install your line as an eSIM"
+              : "A new phone number on your line"
+            : order.kind === "refill"
             ? "Refill"
             : order.kind === "activation"
               ? "SIM card activation"
@@ -221,7 +252,11 @@ async function OrderView({
           <div className="rounded-xl border bg-card p-5 sm:p-6">
             <Progress order={order} status={status} />
             <p className="mt-6 max-w-[60ch] text-sm text-muted-foreground">
-              {refillLike
+              {numberChange
+                ? processing
+                  ? `We are getting your new number. It appears here once it is ready, and we email it to ${order.customer_email}. This page updates on its own.`
+                  : "Your new number is below, and we emailed it to you. Restart your phone to pick it up."
+                : refillLike
                 ? processing
                   ? order.kind === "refill"
                     ? `We are adding the days to your number, and we email ${order.customer_email} once they are on. This page updates on its own.`
@@ -357,6 +392,18 @@ async function OrderView({
               </li>
             ))}
           </ul>
+          {serviceItem ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Need an eSIM QR code or a new number for this line?{" "}
+              <Link
+                href={`/services?from=${order.public_token}&item=${serviceItem.id}`}
+                className="font-medium text-brand underline-offset-4 hover:underline"
+              >
+                Ask for it here
+              </Link>
+              . You see the fee before you pay.
+            </p>
+          ) : null}
           {pendingReplacements.length > 0 ? (
             <p className="mt-4 flex items-center gap-3 rounded-xl border border-dashed p-4 text-sm">
               <span
@@ -380,7 +427,7 @@ async function OrderView({
           <DetailRow label="Order number" value={orderLabel(order)} mono />
           <DetailRow label="Placed" value={formatDateTime(order.created_at)} />
           <DetailRow
-            label={order.kind === "card_only" ? "Product" : "Plan"}
+            label={order.kind === "card_only" ? "Product" : order.kind === "service" ? "Service" : "Plan"}
             value={orderTitle(order)}
           />
           {order.days !== null ? (
@@ -456,6 +503,20 @@ async function OrderView({
                       <p className="whitespace-pre-line">{t.answer}</p>
                     </div>
                   ) : null}
+                  {t.status !== "resolved" || ticketFiles.get(t.id)?.length ? (
+                    <div className="mt-4 border-t pt-4">
+                      <p className="mb-2 text-sm font-medium">Photos and videos</p>
+                      <MediaUpload
+                        files={ticketFiles.get(t.id) ?? []}
+                        max={MAX_TICKET_FILES}
+                        canAdd={t.status !== "resolved"}
+                        start={startTicketFile.bind(null, order.public_token, t.id)}
+                        finish={finishTicketFile.bind(null, order.public_token, t.id)}
+                        byLabel={{ customer: "You", staff: "From us" }}
+                        emptyText="A photo or short video of the problem helps us fix it faster."
+                      />
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -483,7 +544,7 @@ async function OrderView({
  * physical orders shipped before the activation step existed, end at Shipped.
  */
 function Progress({ order, status }: { order: Order; status: CustomerStatus }) {
-  const physical = order.product_type === "physical" && order.kind !== "refill" && order.kind !== "activation"
+  const physical = order.product_type === "physical" && (order.kind === "line" || order.kind === "card_only")
   // Ends at Shipped: a SIM card with no plan, and cards posted before the activation step.
   const legacy =
     physical &&

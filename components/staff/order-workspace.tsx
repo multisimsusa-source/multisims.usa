@@ -81,23 +81,50 @@ export async function OrderWorkspace({
     : null
 
   const refill = order.kind === "refill"
-  // A refill or a card's activation works on a line: no QR, nothing to post.
-  const refillLike = refill || order.kind === "activation"
+  // A service on a line the customer has: a QR code for it, or a new number.
+  const service = order.kind === "service" ? (order.service_code ?? null) : null
+  // A refill, a card's activation or a service works on a line: nothing to post.
+  const refillLike = refill || order.kind === "activation" || Boolean(service)
   const esim = order.product_type === "esim" && !refillLike
   const holder = order.claimed_by === viewer.id || isAdmin
   const canWork =
     holder && (order.status === "claimed" || order.status === "needs_attention")
   const canClaim = order.status === "queued"
   const activation = order.phase === "activate"
-  const need: ItemNeed = refill ? "refill" : order.kind === "activation" ? "activate" : esim ? "qr" : activation ? "activate" : "ship"
+  const need: ItemNeed = service
+    ? service === "esim_qr"
+      ? "service_qr"
+      : "service_number"
+    : refill
+      ? "refill"
+      : order.kind === "activation"
+        ? "activate"
+        : esim
+          ? "qr"
+          : activation
+            ? "activate"
+            : "ship"
   const working = items.filter((i) =>
-    activation ? i.status === "fulfilled" : i.status === "pending"
+    activation ? i.status === "fulfilled" && !i.activated_at : i.status === "pending"
   )
   const missing = working.filter((i) => !itemReady(i, need)).length
+  // A bulk line can go out in parts: the SIMs with their details now, the rest later. An
+  // eSIM counts as ready for that once it has a QR code or a number.
+  const partReady = (i: (typeof items)[number]) => (need === "qr" ? Boolean(i.qr_path || i.phone_number) : itemReady(i, need))
+  const readyNow = working.filter(partReady).length
+  const partial =
+    canWork && !refill && !order.replaces_item_id && readyNow > 0 && readyNow < working.length
+      ? { ready: readyNow, left: working.length - readyNow }
+      : null
+  // What is already out on an open order, for the owner's "cancel the rest".
+  const doneSoFar = items.filter((i) => i.status === "fulfilled").length
+  const notYet = items.filter((i) => i.status === "pending").length
+  const delivered =
+    !activation && doneSoFar > 0 && notYet > 0 ? { done: doneSoFar, left: notYet, dealer: order.channel === "dealer" } : null
   // eSIMs may go out before their QR code; the agent is told, not stopped.
   const noQr = esim ? working.filter((i) => !i.qr_path).length : 0
   const base = isAdmin ? "/admin" : "/agent"
-  const unit = esim ? "eSIM" : "SIM"
+  const unit = service ? "Number" : esim ? "eSIM" : "SIM"
   const tracking = items.find((i) => i.tracking_number)?.tracking_number ?? null
   const canReplace = allowance.used < allowance.limit
   const supabase = await createClient()
@@ -138,6 +165,7 @@ export async function OrderWorkspace({
           ) : null}
           {refill ? <Tag tone="brand">Refill</Tag> : null}
           {order.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
+          {service ? <Tag tone="brand">{service === "esim_qr" ? "QR code" : "Number change"}</Tag> : null}
           {order.kind === "card_only" ? <Tag tone="neutral">SIM cards only</Tag> : null}
           {order.refunded_at ? <Tag tone="neutral">Refunded</Tag> : null}
           {order.paid_at &&
@@ -153,7 +181,7 @@ export async function OrderWorkspace({
         </div>
         <p className="flex flex-wrap items-center gap-2 text-lg font-medium">
           {orderTitle(order)}
-          <ProductBadge type={order.product_type} />
+          {service ? null : <ProductBadge type={order.product_type} />}
         </p>
         <WorkControls
           orderId={order.id}
@@ -164,6 +192,8 @@ export async function OrderWorkspace({
           missing={missing}
           noQr={noQr}
           cardOnly={order.kind === "card_only"}
+          partial={partial}
+          unit={unit}
         />
         {order.claimed_by && !holder && order.status === "claimed" ? (
           <p className="text-sm text-muted-foreground">
@@ -274,7 +304,7 @@ export async function OrderWorkspace({
           {canWork && working.length >= 2 && !refill ? (
             <BulkTools
               orderId={order.id}
-              qr={esim}
+              qr={esim || service === "esim_qr"}
               cardOnly={order.kind === "card_only"}
               items={working.map((i) => ({
                 id: i.id,
@@ -285,9 +315,10 @@ export async function OrderWorkspace({
           ) : null}
           {items.map((item) =>
             // A cancelled order's undelivered SIM has nothing to fill in: say so instead of empty boxes.
-            order.status === "cancelled" && item.status === "pending" ? (
+            (order.status === "cancelled" && item.status === "pending") || item.status === "cancelled" ? (
               <p key={item.id} className="rounded-xl border bg-background px-4 py-3 text-sm text-muted-foreground sm:px-5">
-                {items.length > 1 ? `${unit} ${item.seq} of ${items.length}` : unit}: not delivered, the order was cancelled.
+                {items.length > 1 ? `${unit} ${item.seq} of ${items.length}` : unit}: not delivered,{" "}
+                {order.status === "cancelled" ? "the order was cancelled." : "cancelled by the owner."}
               </p>
             ) : (
               <div key={item.id}>
@@ -295,15 +326,16 @@ export async function OrderWorkspace({
                   // Remount with fresh defaults after each save.
                   key={`${item.status}-${item.qr_path}-${item.phone_number}-${item.iccid}`}
                   item={item}
-                  productType={refillLike ? "physical" : order.product_type}
+                  productType={service === "esim_qr" ? "esim" : refillLike ? "physical" : order.product_type}
                   need={need}
+                  service={service}
                   cardOnly={order.kind === "card_only"}
                   done={order.status === "fulfilled" || order.status === "cancelled"}
-                  addQr={esim && order.status === "fulfilled" && item.status === "fulfilled" && !item.qr_path}
+                  addQr={esim && order.status !== "cancelled" && item.status === "fulfilled" && !item.qr_path}
                   editable={
                     canWork &&
                     (activation
-                      ? item.status === "fulfilled"
+                      ? item.status === "fulfilled" && !item.activated_at
                       : item.status === "pending")
                   }
                   title={
@@ -331,7 +363,7 @@ export async function OrderWorkspace({
                   <PlanTimer timer={timers.get(item.id)!} className="mt-2 rounded-xl border bg-background px-4 py-3" />
                 ) : null}
                 {/* A refill sends no SIM, so there is nothing to replace. */}
-                {item.status === "fulfilled" && !refill ? (
+                {item.status === "fulfilled" && !refill && !service ? (
                   <div className="mt-2 flex justify-end">
                     {canReplace ? (
                       <ReplaceButton itemId={item.id} />
@@ -360,6 +392,7 @@ export async function OrderWorkspace({
                 .map((s) => ({ id: s.id, name: s.full_name || s.email }))}
               paid={Boolean(order.paid_at || shortPayment)}
               refunded={Boolean(order.refunded_at)}
+              delivered={delivered}
             />
           ) : null}
 
@@ -368,20 +401,30 @@ export async function OrderWorkspace({
               label="Carrier and plan"
               value={`${orderTitle(order)}`}
             />
-            <KeyValue
-              label="Product"
-              value={productTypeLabel[order.product_type]}
-            />
-            <KeyValue
-              label="Days"
-              value={order.days !== null ? formatDays(order.days) : "No plan, SIM card only"}
-            />
-            {refillLike ? (
+            {service ? (
+              <KeyValue
+                label="Order"
+                value={service === "esim_qr" ? "A QR code for this line, to install it as an eSIM" : "A new phone number on this line"}
+                strong
+              />
+            ) : (
+              <>
+                <KeyValue
+                  label="Product"
+                  value={productTypeLabel[order.product_type]}
+                />
+                <KeyValue
+                  label="Days"
+                  value={order.days !== null ? formatDays(order.days) : "No plan, SIM card only"}
+                />
+              </>
+            )}
+            {refillLike && !service ? (
               <KeyValue label="Order" value={refill ? "Refill: add days to the number" : "Activate this SIM card"} strong />
             ) : null}
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
             {/* A new line needs a ZIP and maybe an area code; cards without a plan and refills do not. */}
-            {order.kind !== "card_only" && !refill ? (
+            {order.kind !== "card_only" && !refill && !service ? (
               <>
                 <KeyValue
                   label="ZIP code"

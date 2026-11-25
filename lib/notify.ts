@@ -4,6 +4,7 @@ import { sendEmail, type EmailAttachment } from "@/lib/email"
 import {
   orderConfirmationEmail,
   orderDeliveredEmail,
+  partialDeliveryEmail,
   paymentPendingEmail,
   staffCustomerMessageEmail,
   dealerFundsAddedEmail,
@@ -271,6 +272,29 @@ export async function notifyNewBatchToStaff(batchId: string) {
   await Promise.all(to.map((address) => sendEmail({ sender: "orders", to: address, ...mail, idempotencyKey: `batch-${batch.id}-${address}` })))
 }
 
+/** Part of a bulk line went out: one short email per step, keyed by how many are done. */
+export async function notifyPartialDelivery(orderId: string) {
+  const order = await loadOrder(orderId)
+  if (!order) return
+  const db = createServiceClient()
+  const { data: rows } = await db.from("order_items").select("status, activated_at").eq("order_id", orderId)
+  const items = (rows ?? []) as Pick<OrderItem, "status" | "activated_at">[]
+  const activating = order.product_type === "physical" && order.phase === "activate" && order.kind !== "activation"
+  const done = items.filter((i) => (activating ? Boolean(i.activated_at) : i.status === "fulfilled")).length
+  if (!done || !(await once(orderId, `partial-${order.phase}-${done}`))) return
+  const shipped = order.product_type === "physical" && order.phase === "fulfil" && (order.kind === "line" || order.kind === "card_only")
+  if (order.channel === "dealer") {
+    if (!order.batch_id) return
+    const { data: batch } = await db.from("order_batches").select("id, number").eq("id", order.batch_id).single()
+    if (!batch) return
+    const mail = partialDeliveryEmail(order, done, { url: absoluteUrl(`/dealer/orders/${batch.id}`), batchNumber: batch.number, shipped })
+    await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `partial-${order.phase}-${done}-${order.id}` })
+    return
+  }
+  const mail = partialDeliveryEmail(order, done, { url: orderPageUrl(order), shipped })
+  await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `partial-${order.phase}-${done}-${order.id}` })
+}
+
 /**
  * Dealer lines: a short email per line pointing to the order in the portal, never the QR
  * codes themselves (a line can hold 500 SIMs).
@@ -281,7 +305,7 @@ async function notifyDealerLine(order: Order, kind: string) {
   const { data: batch } = await db.from("order_batches").select("id, number").eq("id", order.batch_id).single()
   if (!batch) return
   // A refill is never posted; a SIM card line is posted when it is "delivered" the first time.
-  const event = order.kind !== "refill" && order.kind !== "activation" && order.product_type === "physical" && kind === "delivered" ? "shipped" : "delivered"
+  const event = (order.kind === "line" || order.kind === "card_only") && order.product_type === "physical" && kind === "delivered" ? "shipped" : "delivered"
   const mail = dealerLineEmail(order, batch.number, event, absoluteUrl(`/dealer/orders/${batch.id}`))
   await sendEmail({ sender: "orders", to: order.customer_email, ...mail, idempotencyKey: `dealer-${kind}-${order.id}` })
 }

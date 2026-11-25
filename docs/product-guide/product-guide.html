@@ -171,6 +171,8 @@
     <tr><td>SIM card on its own</td><td>Just the card, with no plan and no days. It can be activated later with any plan.</td></tr>
     <tr><td>Refill</td><td>More days on a number that is already active. Same SIM, same number.</td></tr>
     <tr><td>Activation</td><td>A plan started on a SIM card the customer already has. Nothing is posted.</td></tr>
+    <tr><td>eSIM QR code</td><td>A QR code for a line they already have, to install it as an eSIM. For a fee you set per carrier.</td></tr>
+    <tr><td>Number change</td><td>A new phone number on a line they already have. The plan and days stay. For a fee you set per carrier.</td></tr>
   </table>
 
   <h3>What customers and dealers see</h3>
@@ -313,7 +315,8 @@
   <h3><span class="n">3.8</span>Ratings and problems</h3>
   <ul>
     <li><b>Rating.</b> Once the line works, the customer can rate the order and each SIM from 1 to 5 stars with a comment, and change it later. Nothing is shown on the website until you feature it.</li>
-    <li><b>Report a problem.</b> On a delivered order the customer picks what is wrong, how urgent it is, describes it and can add a screenshot. Your team answers on the order page and by email.</li>
+    <li><b>Report a problem.</b> On a delivered order the customer picks what is wrong, how urgent it is, describes it and can add a screenshot. While the request is open, both the customer and your team can add more photos and videos (up to 50 MB each). Your team answers on the order page and by email.</li>
+    <li><b>QR code or new number.</b> On <span class="path">/services</span>, linked from delivered orders and the footer, a customer asks for an eSIM QR code or a new number for a line they have. They see the fee before paying.</li>
     <li><b>Taking longer than usual.</b> If an order waits a while, a <b>Contact us</b> box appears on the order page so the customer can reach you.</li>
   </ul>
 
@@ -355,6 +358,7 @@
     <li>The panel on the right, <b>Line to get</b>, says exactly what to order from the carrier: carrier and plan, days, quantity, ZIP code and area code, and international calling if bought.</li>
     <li>Fill each SIM: drop or paste the QR image, type the phone number and ICCID, and press Save. For many SIMs, the bulk tools take a column of numbers and ICCIDs pasted from a spreadsheet, and several QR images at once.</li>
     <li>When every SIM is ready, press the main button and confirm. The customer is told straight away.</li>
+    <li>On a big line where only some SIMs are ready, <b>Deliver N ready</b> sends those now; the rest stay on the order for later. The dealer is charged only for what is delivered.</li>
   </ol>
 </section>
 
@@ -370,6 +374,8 @@
     <tr><td>SIM card only</td><td>Tracking and ICCIDs only. These cards have no number yet.</td><td>Mark shipped</td></tr>
     <tr><td>Refill</td><td>Add the days on the carrier's side. Check the dates below.</td><td>Mark refilled and deliver</td></tr>
     <tr><td>Activation</td><td>The customer's ICCID is given. Start the plan and add the phone number.</td><td>Mark active and deliver</td></tr>
+    <tr><td>QR code</td><td>Get the eSIM QR for the customer's number and add it.</td><td>Deliver QR codes</td></tr>
+    <tr><td>Number change</td><td>Change the number on the carrier's side and save the new one; the old one is kept.</td><td>Deliver new numbers</td></tr>
   </table>
 
   <figure><img src="img/a3-workspace-refill.jpg"><figcaption>A refill: when the current plan ends, and the dates for the new days</figcaption></figure>
@@ -381,7 +387,7 @@
   <ul>
     <li><b>Needs attention</b> sends the order to you with a reason, for example "Area code 212 is not available today". It waits under Needs the owner until you decide.</li>
     <li><b>Release</b> puts the order back in the queue for someone else.</li>
-    <li><b>Tickets</b> lists problems reported by customers and dealers, the most urgent first. The agent writes one clear answer and sets the status. The customer sees it on the order page and by email.</li>
+    <li><b>Tickets</b> lists problems reported by customers and dealers, the most urgent first. The agent writes one clear answer and sets the status, and can add photos or videos. The customer sees it on the order page and by email.</li>
     <li><b>Issue replacement</b> creates a free new order for a SIM that does not work. It goes straight to the queue, or waits for your approval if you chose that in Settings.</li>
   </ul>
 </section>
@@ -444,8 +450,11 @@
   </ol>
   <p>The Refill section only lists plans you offer for refills and that have a price for this dealer. Otherwise the page says refills are not open yet, or that this dealer has no price for those plans.</p>
 
-  <h3><span class="n">5.5</span>Support and ratings</h3>
-  <p>From an order the dealer can report a problem on a line or a single SIM, and rate a line or a SIM. Dealer ratings are for you only and never appear on the website. Under <span class="path">Login</span> the dealer can change their password.</p>
+  <h3><span class="n">5.5</span>QR codes and new numbers</h3>
+  <p>Under <span class="path">Services</span> the dealer picks eSIM QR code or Number change, the carrier, and pastes the numbers. The fee per number is shown before placing; it is held on the wallet and taken for each number only once it is done.</p>
+
+  <h3><span class="n">5.6</span>Support and ratings</h3>
+  <p>From an order the dealer can report a problem on a line or a single SIM, add photos and videos to it under <span class="path">Tickets</span>, and rate a line or a SIM. Dealer ratings are for you only and never appear on the website. Under <span class="path">Login</span> the dealer can change their password.</p>
 </section>
 
 <!-- 6. Owner -->
@@ -482,6 +491,7 @@
     <li><b>Sold as</b>: eSIM, SIM card, or both. One plan sold both ways replaces two copies of the same plan; buyers and dealers pick, and a SIM card adds its card price and shipping.</li>
     <li><b>Phone details</b>: buyers are asked for them, all optional. An eSIM asks for the IMEI and EID, a SIM card for the EID and ICCID.</li>
     <li><b>Data-only plans</b>: leave Talk and Text empty. Every SIM card plan can also activate a SIM card the buyer already has.</li>
+    <li><b>Services</b>: the eSIM QR code and Number change fees for each carrier, a customer price and a dealer price, each switched on or off. A fee under the website minimum is for dealers only.</li>
     <li><b>Add-ons</b> sets international calling, and <b>Discounts</b> creates codes by percentage or amount, for one carrier or all, with dates and a use limit.</li>
   </ul>
   <p>Every change shows on the website within seconds. There is nothing to publish separately.</p>
@@ -491,7 +501,7 @@
   <figure><img src="img/o3-plan.jpg"><figcaption>A plan: its day packages, prices, sale and wholesale, and how it looks on the site</figcaption></figure>
 
   <h3><span class="n">6.3</span>Orders and support</h3>
-  <p><span class="path">Orders</span> lists every order with filters for status, product, agent, website or dealer, and a search by order number, name, email, phone number or ICCID. On an order you can fill it yourself, reassign it, send a flagged order back with an instruction, cancel it with a reason only your team sees, mark it paid or record a refund. <span class="path">Tickets</span>, <span class="path">Activations</span> and <span class="path">Customers</span> sit next to it. Customers can be exported for your records.</p>
+  <p><span class="path">Orders</span> lists every order with filters for status, product, agent, website or dealer, and a search by order number, name, email, phone number or ICCID. On an order you can fill it yourself, reassign it, send a flagged order back with an instruction, cancel it with a reason only your team sees, mark it paid or record a refund. When part of a bulk line is delivered and the rest cannot be filled, <b>Cancel the other N</b> cancels just those and returns their share to the dealer. <span class="path">Tickets</span>, <span class="path">Activations</span> and <span class="path">Customers</span> sit next to it. Customers can be exported for your records.</p>
 
   <h3><span class="n">6.4</span>Agents</h3>
   <p>Create an agent with a name and email. A password is suggested and shown once with copy buttons, so you can send the email and password together. You can reset a password or switch a login off when someone leaves; their claimed orders go back to the queue.</p>

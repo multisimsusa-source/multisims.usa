@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Tag } from "@/components/patterns/tag"
 import { addItemQr, saveItem } from "@/app/agent/actions"
 import { itemStatusLabel } from "@/lib/orders"
-import type { ProductType } from "@/lib/types"
+import type { ProductType, ServiceCode } from "@/lib/types"
 import { itemReady, type ItemNeed } from "@/lib/staff/item-need"
 import type { WorkItem } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
@@ -34,6 +34,8 @@ type Props = {
   done?: boolean
   /** A delivered eSIM still without its QR code: only the QR can be added. */
   addQr?: boolean
+  /** A service on the customer's line: its QR code, or its new number. */
+  service?: ServiceCode | null
 }
 
 const needLabel: Record<ItemNeed, string> = {
@@ -41,6 +43,8 @@ const needLabel: Record<ItemNeed, string> = {
   qr: "No QR yet",
   ship: "Needs ICCID and tracking",
   activate: "Needs phone number",
+  service_qr: "Needs QR code",
+  service_number: "Needs new number",
 }
 
 /**
@@ -57,7 +61,9 @@ export function ItemForm({
   cardOnly = false,
   done = false,
   addQr = false,
+  service = null,
 }: Props) {
+  const numberChange = service === "number_change"
   // The QR box takes an image while the SIM is being worked, or after delivery when missing.
   const qrEditable = editable || addQr
   const esim = productType === "esim"
@@ -93,7 +99,7 @@ export function ItemForm({
   const working =
     !done &&
     (item.status === "pending" ||
-      (need === "activate" && item.status === "fulfilled"))
+      (need === "activate" && item.status === "fulfilled" && !item.activated_at))
   const shown = preview ?? item.qr_url
 
   return (
@@ -229,7 +235,7 @@ export function ItemForm({
         <div className="grid min-w-0 flex-1 content-start gap-4 sm:grid-cols-2">
           {cardOnly ? null : (
             <Field data-invalid={Boolean(errors.phone_number) || undefined}>
-              <FieldLabel htmlFor={`${item.id}-phone`}>Phone number</FieldLabel>
+              <FieldLabel htmlFor={`${item.id}-phone`}>{numberChange ? "New phone number" : "Phone number"}</FieldLabel>
               <Input
                 id={`${item.id}-phone`}
                 name="phone_number"
@@ -242,6 +248,10 @@ export function ItemForm({
               />
               {errors.phone_number ? (
                 <FieldError>{errors.phone_number}</FieldError>
+              ) : numberChange && item.old_phone_number ? (
+                <p className="text-xs text-muted-foreground">
+                  Was <span className="tabular font-mono">{item.old_phone_number}</span>
+                </p>
               ) : null}
             </Field>
           )}

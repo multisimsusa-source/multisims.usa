@@ -67,10 +67,16 @@ function rows(pairs: [string, string][]) {
 function orderRows(order: Order): [string, string][] {
   const out: [string, string][] = [
     ["Order", orderLabel(order)],
-    ["Plan", `${orderTitle(order)}`],
+    [order.kind === "service" ? "Service" : "Plan", `${orderTitle(order)}`],
     [
       "Product",
-      order.kind === "refill" ? "Refill" : order.kind === "activation" ? "SIM card activation" : productTypeLabel[order.product_type],
+      order.kind === "service"
+        ? "For a line you have"
+        : order.kind === "refill"
+          ? "Refill"
+          : order.kind === "activation"
+            ? "SIM card activation"
+            : productTypeLabel[order.product_type],
     ],
     ["Quantity", String(order.quantity)],
   ]
@@ -92,7 +98,11 @@ function textRows(pairs: [string, string][]) {
 export function orderConfirmationEmail(order: Order, orderUrl: string): Rendered {
   const pairs = orderRows(order)
   const eta =
-    order.kind === "refill"
+    order.kind === "service"
+      ? order.service_code === "esim_qr"
+        ? "Your QR code will appear on your order page and arrive by email as soon as it is ready."
+        : "We email you your new number as soon as it is ready. Your plan and its days stay the same."
+      : order.kind === "refill"
       ? "We email you as soon as the days are on your number, with the new dates. If your plan is still running, they start the day after it ends."
       : order.kind === "activation"
         ? "We email you your phone number and plan dates as soon as the line is active."
@@ -144,9 +154,20 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
   const refill = order.kind === "refill"
   const activation = order.kind === "activation"
   const esim = order.product_type === "esim" && !refill && !activation
+  // A service on a line they have: a QR code (an eSIM, as above), or a new number.
+  const qrService = order.kind === "service" && order.service_code === "esim_qr"
+  const numberChange = order.kind === "service" && order.service_code === "number_change"
   // Physical SIMs get two emails: shipped (tracking), then active (phone number).
-  const active = !esim && order.status === "fulfilled" && (order.phase === "activate" || refill || activation)
-  const heading = refill
+  const active = !esim && order.status === "fulfilled" && (order.phase === "activate" || refill || activation || numberChange)
+  const heading = qrService
+    ? items.length > 1
+      ? "Your eSIM QR codes are ready"
+      : "Your eSIM QR code is ready"
+    : numberChange
+    ? items.length > 1
+      ? "Your new numbers are ready"
+      : "Your new number is ready"
+    : refill
     ? "Your refill is on"
     : activation
       ? "Your SIM card is active"
@@ -187,7 +208,9 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
   // An eSIM's QR code can follow after delivery: it is then emailed on its own.
   const anyQr = itemBlocks.some((b) => b.qrCid)
   const qrToCome = esim && itemBlocks.some((b) => !b.qrCid)
-  const install = refill
+  const install = numberChange
+    ? "Restart your phone so it picks up the new number. Your plan and its days stay the same."
+    : refill
     ? "Nothing to do on your phone: the days are added to the same SIM and number. If your plan was still running, the new days start the day after it ends."
     : esim
     ? anyQr
@@ -201,7 +224,7 @@ export function orderDeliveredEmail(order: Order, items: DeliveredItem[], orderU
     preheader: esim ? (anyQr ? "Scan the QR code to install your line." : "Your QR code follows by email.") : active ? "Your phone number is inside." : "Your tracking number is inside.",
     heading,
     body:
-      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${refill ? "done" : esim ? "delivered" : active ? "active" : "on its way"}.`) +
+      p(`Hi ${esc(order.customer_name)}, order ${esc(orderLabel(order))} is ${refill || numberChange ? "done" : esim ? "delivered" : active ? "active" : "on its way"}.`) +
       itemBlocks
         .map(
           (b) =>
@@ -445,7 +468,9 @@ export type BatchEmailLine = Pick<Order, "number" | "kind" | "carrier_name" | "p
 function batchRows(lines: BatchEmailLine[]): [string, string][] {
   return lines.map((l) => [
     `${orderLabel(l)} ${orderTitle(l)}`,
-    `${l.quantity} x ${productTypeLabel[l.product_type]}${l.days !== null ? `, ${formatDays(l.days)}` : ""}${l.addon_name ? `, ${l.addon_name}` : ""}`,
+    l.kind === "service"
+      ? `${l.quantity} ${l.quantity === 1 ? "number" : "numbers"}`
+      : `${l.quantity} x ${productTypeLabel[l.product_type]}${l.days !== null ? `, ${formatDays(l.days)}` : ""}${l.addon_name ? `, ${l.addon_name}` : ""}`,
   ])
 }
 
@@ -455,16 +480,20 @@ export function staffNewBatchEmail(batch: { number: number; company: string }, l
   const pairs = batchRows(lines)
   // A dealer refill adds days to numbers they already have.
   const refill = lines.length > 0 && lines.every((l) => l.kind === "refill")
-  const unit = refill ? "numbers" : "SIMs"
-  const lead = refill
+  // A service request: a QR code or a new number on numbers they already have.
+  const service = lines.length > 0 && lines.every((l) => l.kind === "service")
+  const unit = refill || service ? "numbers" : "SIMs"
+  const lead = service
+    ? `${batch.company} asked for ${lines.map((l) => `${l.carrier_name} ${l.plan_name}`).join(", ")} on ${sims} ${sims === 1 ? "number" : "numbers"}. It is in the queue.`
+    : refill
     ? `${batch.company} placed a refill: ${sims} ${unit} on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
     : `${batch.company} placed a bulk order: ${sims} SIMs on ${lines.length} ${lines.length === 1 ? "line" : "lines"}. Each line is its own order in the queue.`
   return {
-    subject: `Dealer ${refill ? "refill" : "order"} B-${batch.number}: ${sims} ${unit} from ${batch.company}`,
+    subject: `Dealer ${service ? "service request" : refill ? "refill" : "order"} B-${batch.number}: ${sims} ${unit} from ${batch.company}`,
     text: `${lead}\n\n${textRows(pairs)}\n\nOpen the queue: ${workUrl}`,
     html: layout({
       preheader: `${sims} ${unit} from ${batch.company}`,
-      heading: refill ? "Dealer refill waiting" : "Dealer order waiting",
+      heading: service ? "Dealer service request waiting" : refill ? "Dealer refill waiting" : "Dealer order waiting",
       body: p(esc(lead)) + rows(pairs),
       cta: { label: "Open the queue", url: workUrl },
     }),
@@ -475,14 +504,24 @@ export function staffNewBatchEmail(batch: { number: number; company: string }, l
 export function dealerLineEmail(order: Order, batchNumber: number, event: "delivered" | "shipped", portalUrl: string): Rendered {
   const what = `${order.quantity} x ${orderTitle(order)}${order.days !== null ? `, ${formatDays(order.days)}` : ""}`
   const refill = order.kind === "refill"
-  const heading = refill
+  const qr = order.kind === "service" && order.service_code === "esim_qr"
+  const numberChange = order.kind === "service" && order.service_code === "number_change"
+  const heading = qr
+    ? "QR codes ready"
+    : numberChange
+    ? "New numbers ready"
+    : refill
     ? "Numbers refilled"
     : event === "shipped"
       ? "SIM cards shipped"
       : order.product_type === "esim"
         ? "eSIMs ready"
         : "Lines active"
-  const lead = refill
+  const lead = qr
+    ? `The QR codes for ${what} are ready. They are on your order page; your customers scan them to install the line as an eSIM.`
+    : numberChange
+    ? `The number change for ${what} is done. Each line's new number is on your order page.`
+    : refill
     ? `The refill of ${what} is done. The new dates for each number are on your order page.`
     : event === "shipped"
       ? order.kind === "card_only"
@@ -499,6 +538,35 @@ export function dealerLineEmail(order: Order, batchNumber: number, event: "deliv
       heading,
       body: p(esc(lead)),
       cta: { label: "Open your order", url: portalUrl },
+    }),
+  }
+}
+
+/**
+ * Part of a bulk line is ready; the rest follow on the same order. For a dealer (portal link)
+ * or a website customer (their order page).
+ */
+export function partialDeliveryEmail(
+  order: Order,
+  done: number,
+  opts: { url: string; batchNumber?: number; shipped: boolean }
+): Rendered {
+  const total = order.quantity
+  const unit = order.product_type === "esim" && order.kind !== "activation" ? "eSIM" : "SIM"
+  const what = `${orderTitle(order)}${order.days !== null ? `, ${formatDays(order.days)}` : ""}`
+  const heading = opts.shipped ? `${done} of ${total} SIM cards shipped` : `${done} of ${total} ${unit}s ready`
+  const lead = opts.shipped
+    ? `${done} of the ${total} SIM cards for ${what} are in the post. The tracking number is on your order page. The rest follow on the same order.`
+    : `${done} of the ${total} ${unit}s for ${what} are ready. Their details are on your order page. The rest follow on the same order, and we email you again when they are ready.`
+  const label = opts.batchNumber ? `B-${opts.batchNumber}: ` : ""
+  return {
+    subject: `${label}${heading} (${orderLabel(order)})`,
+    text: `${lead}\n\nOpen your order: ${opts.url}`,
+    html: layout({
+      preheader: what,
+      heading,
+      body: p(esc(lead)),
+      cta: { label: "Open your order", url: opts.url },
     }),
   }
 }

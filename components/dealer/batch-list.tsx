@@ -23,6 +23,7 @@ export function BatchList({
         const progress = batchProgress(b.orders)
         const lines = b.orders.filter((o) => !o.replacement_of)
         const refill = lines.length > 0 && lines.every((o) => o.kind === "refill")
+        const service = lines.length > 0 && lines.every((o) => o.kind === "service")
         return (
           <li
             key={b.id}
@@ -56,7 +57,7 @@ export function BatchList({
               {progress.total ? (
                 <>
                   <span className="tabular font-mono text-foreground">{progress.delivered}</span> of{" "}
-                  <span className="tabular font-mono">{progress.total}</span> {refill ? "numbers refilled" : "SIMs live"}
+                  <span className="tabular font-mono">{progress.total}</span> {service ? "numbers done" : refill ? "numbers refilled" : "SIMs live"}
                 </>
               ) : progress.cards ? (
                 <>

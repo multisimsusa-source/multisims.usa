@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Test output (git-ignored): the HTML report bundles minified scripts.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

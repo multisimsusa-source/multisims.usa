@@ -8,9 +8,10 @@ import { z } from "zod"
 import type { ActionResult } from "@/lib/admin/result"
 import { requireStaff } from "@/lib/auth"
 import { isPhoneLike, tidyPhone } from "@/lib/format"
-import { notifyNewOrderToStaff, notifyOrderDelivered, notifyQrReady, notifyTicketAnswered } from "@/lib/notify"
+import { notifyNewOrderToStaff, notifyOrderDelivered, notifyPartialDelivery, notifyQrReady, notifyTicketAnswered } from "@/lib/notify"
 import { usToday } from "@/lib/plan-dates"
 import { createClient } from "@/lib/supabase/server"
+import { finishTicketUpload, startTicketUpload, type UploadTicket } from "@/lib/ticket-files"
 import type { Order, Ticket, TicketStatus } from "@/lib/types"
 
 /**
@@ -310,6 +311,22 @@ export async function completeOrder(orderId: string): Promise<ActionResult> {
   return { ok: true, message }
 }
 
+/**
+ * A bulk line: delivers the SIMs that are ready now; the rest stay on the order to finish
+ * later. The dealer is charged only for these SIMs and gets a short email with the count.
+ */
+export async function deliverReadyItems(orderId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!id.safeParse(orderId).success) return { ok: false, error: "Unknown order" }
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("deliver_ready_items", { p_order_id: orderId })
+  if (error) return fail(error)
+  const count = Number(data)
+  after(() => notifyPartialDelivery(orderId))
+  refresh()
+  return { ok: true, message: `${count} SIM${count === 1 ? "" : "s"} delivered. The rest stay here.` }
+}
+
 const answerSchema = z.object({
   status: z.enum(["open", "in_progress", "resolved"]),
   answer: z.string().trim().max(4000, "Keep it under 4,000 characters"),
@@ -367,4 +384,24 @@ export async function saveRefillDates(itemId: string, startsOn: string, endsOn: 
   if (error) return fail(error)
   refresh()
   return { ok: true, message: "Dates saved" }
+}
+
+/** Staff add a photo or video to a ticket while solving it. Step one: a signed upload link. */
+export async function startStaffTicketFile(ticketId: string, file: { type: string; size: number }): Promise<UploadTicket> {
+  await requireStaff()
+  if (!id.safeParse(ticketId).success) return { ok: false, error: "Unknown ticket" }
+  const supabase = await createClient()
+  const { data: ticket } = await supabase.from("tickets").select("id").eq("id", ticketId).maybeSingle()
+  if (!ticket) return { ok: false, error: "Unknown ticket" }
+  return startTicketUpload(ticket.id, { type: String(file?.type ?? ""), size: Number(file?.size ?? 0) })
+}
+
+/** Step two: the file is in storage; check it and add it to the ticket. */
+export async function finishStaffTicketFile(ticketId: string, path: string): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!id.safeParse(ticketId).success) return { ok: false, error: "Unknown ticket" }
+  const done = await finishTicketUpload(ticketId, String(path ?? ""), { addedBy: "staff", uploadedBy: me.id })
+  if (!done.ok) return done
+  refresh()
+  return { ok: true }
 }

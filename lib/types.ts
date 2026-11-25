@@ -105,12 +105,19 @@ export type OrderPhase = "fulfil" | "activate"
 
 export type ShippingAddress = { line1: string; line2?: string; city: string; state: string; zip: string }
 
-/** What an order is: a SIM with a plan, a SIM card on its own, a refill, or a card's activation. */
-export type OrderKind = "line" | "card_only" | "refill" | "activation"
+/**
+ * What an order is: a SIM with a plan, a SIM card on its own, a refill, a card's activation,
+ * or a service on a line the customer has (an eSIM QR code, a number change).
+ */
+export type OrderKind = "line" | "card_only" | "refill" | "activation" | "service"
+
+export type ServiceCode = "esim_qr" | "number_change"
 
 export type Order = {
   id: string
   kind: OrderKind
+  /** Service orders only: which service. Its name is in plan_name. */
+  service_code?: ServiceCode | null
   number: number
   public_token: string
   channel: "website" | "dealer"
@@ -188,12 +195,17 @@ export type OrderItem = {
   /** The plan days this SIM has (US dates, inclusive). Set when it is activated or refilled. */
   plan_starts_on: string | null
   plan_ends_on: string | null
+  /** A posted SIM card: when its line was started. Set per SIM, so part of a shipment can go live first. */
+  activated_at?: string | null
   /** A refill: the SIM of ours it adds days to, when we know it. */
   refill_of_item: string | null
   /** The buyer's device, for activation. `buyer_iccid` is what they typed; `iccid` is the card we ship. */
   imei: string | null
   eid: string | null
   buyer_iccid: string | null
+  /** A service order: the number and ICCID the customer gave, kept when the agent saves the new ones. */
+  old_phone_number?: string | null
+  old_iccid?: string | null
 }
 
 export type Payment = {

@@ -237,7 +237,7 @@ async function BatchDetail({
           <Panel title="Progress">
             {progress.total ? (
               <KeyValue
-                label={batch.orders.every((o) => o.kind === "refill") ? "Numbers refilled" : "SIMs live"}
+                label={batch.orders.every((o) => o.kind === "service") ? "Numbers done" : batch.orders.every((o) => o.kind === "refill") ? "Numbers refilled" : "SIMs live"}
                 value={`${progress.delivered} of ${progress.total}`}
                 mono
               />
@@ -360,8 +360,16 @@ function LineCard({
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {/* A refill adds days to a number: it is neither an eSIM nor a SIM card. */}
-            {order.kind === "refill" ? "Refill" : order.kind === "activation" ? "Your SIM cards, activated" : productTypeLabel[order.product_type]}
-            {order.days !== null ? ` · ${formatDays(order.days)}` : " only"}
+            {order.kind === "service"
+              ? order.service_code === "esim_qr"
+                ? "A QR code for each number"
+                : "A new number for each line"
+              : order.kind === "refill"
+                ? "Refill"
+                : order.kind === "activation"
+                  ? "Your SIM cards, activated"
+                  : productTypeLabel[order.product_type]}
+            {order.kind === "service" ? "" : order.days !== null ? ` · ${formatDays(order.days)}` : " only"}
             {order.addon_name ? ` · ${order.addon_name}` : ""} &middot;{" "}
             <span className="tabular font-mono">{orderLabel(order)}</span>
           </p>
@@ -377,8 +385,8 @@ function LineCard({
           {replacement ? null : (
             <span className="text-sm text-muted-foreground">
               <span className="tabular font-mono text-foreground">{live}</span>{" "}
-              of <span className="tabular font-mono">{order.quantity}</span>{" "}
-              {cardOnly ? "shipped" : order.kind === "refill" ? "refilled" : "live"}
+              of <span className="tabular font-mono">{items.filter((i) => i.status !== "cancelled").length}</span>{" "}
+              {cardOnly ? "shipped" : order.kind === "refill" ? "refilled" : order.kind === "service" ? "done" : "live"}
             </span>
           )}
           <CustomerStatusTag status={status} />
@@ -404,11 +412,14 @@ function LineCard({
                 {/* A card with no plan gets no number here; a refill's ICCID is only what the dealer gave. */}
                 {cardOnly ? null : (
                   <Value
-                    label="Phone"
+                    label={order.service_code === "number_change" && item.status === "fulfilled" ? "New number" : "Phone"}
                     value={item.phone_number}
                     copy={!replaced}
                   />
                 )}
+                {order.service_code === "number_change" && item.status === "fulfilled" && item.old_phone_number ? (
+                  <Value label="Was" value={item.old_phone_number} copy={false} />
+                ) : null}
                 {order.kind === "refill" && !item.iccid ? null : (
                   <Value label="ICCID" value={item.iccid} copy={!replaced} />
                 )}

@@ -11,6 +11,8 @@ import { QuantityStepper } from "@/components/patterns/quantity-stepper"
 import { RatingDialog, RatingForm } from "@/components/patterns/rating-form"
 import { DeviceDetails } from "@/components/patterns/device-details"
 import { PhotoUpload } from "@/components/patterns/photo-upload"
+import { MediaUpload } from "@/components/patterns/media-upload"
+import { SegmentedChoice } from "@/components/patterns/segmented-choice"
 import type { ActionResult } from "@/lib/admin/result"
 import type { FormState } from "@/lib/form-state"
 
@@ -167,6 +169,40 @@ export function DemoDeviceDetails() {
       <div className="rounded-xl border bg-card p-5">
         <PhotoUpload photos={[]} max={10} canAdd upload={demoDevice} />
       </div>
+    </div>
+  )
+}
+
+export function DemoMediaUpload() {
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <MediaUpload
+        files={[]}
+        max={20}
+        canAdd
+        start={async () => ({ ok: false, error: "Demo only: nothing is uploaded here" })}
+        finish={async () => ({ ok: true })}
+        byLabel={{ customer: "Customer", staff: "Support" }}
+        emptyText="A photo or short video of the problem helps us fix it faster."
+      />
+    </div>
+  )
+}
+
+export function DemoSegmentedChoice() {
+  const [value, setValue] = React.useState<"esim_qr" | "number_change" | null>("esim_qr")
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <SegmentedChoice
+        legend="Service"
+        name="demo-service"
+        value={value}
+        onChange={setValue}
+        options={[
+          { value: "esim_qr", label: "eSIM QR code", hint: "from $5.00" },
+          { value: "number_change", label: "Number change", hint: "from $3.00" },
+        ]}
+      />
     </div>
   )
 }

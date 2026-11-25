@@ -54,10 +54,12 @@ type LineSource = Pick<
 /** The lines of an order as stored on it. Lines that do not apply are left out. */
 export function orderLines(o: LineSource): PriceLine[] {
   // A refill or a card's activation posts nothing: no SIM card or shipping lines.
-  const physical = o.product_type === "physical" && o.kind !== "refill" && o.kind !== "activation"
-  // A SIM card on its own has no plan line: the card is the product.
+  const physical = o.product_type === "physical" && (o.kind === "line" || o.kind === "card_only")
+  // A service is its fee per number; a SIM card on its own has no plan line: the card is the product.
   const lines: PriceLine[] =
-    o.days === null
+    o.kind === "service"
+      ? [{ key: "service", label: `${orderTitle(o)} x ${o.quantity}`, cents: o.unit_price_cents * o.quantity }]
+      : o.days === null
       ? [{ key: "sim", label: `${orderTitle(o)} x ${o.quantity}`, cents: o.sim_card_price_cents * o.quantity }]
       : [{ key: "plan", label: `${orderTitle(o)}, ${formatDays(o.days)} x ${o.quantity}`, cents: o.unit_price_cents * o.quantity }]
   if (o.addon_name) lines.push({ key: "addon", label: `${o.addon_name} x ${o.quantity}`, cents: o.addon_price_cents * o.quantity })

@@ -6,7 +6,7 @@ import { z } from "zod"
 
 import type { ActionResult } from "@/lib/admin/result"
 import { requireRole } from "@/lib/auth"
-import { notifyNewOrderToStaff, notifyOrderPaid } from "@/lib/notify"
+import { notifyNewOrderToStaff, notifyOrderDelivered, notifyOrderPaid } from "@/lib/notify"
 import { createClient } from "@/lib/supabase/server"
 import type { Order } from "@/lib/types"
 
@@ -35,6 +35,22 @@ export async function cancelOrder(orderId: string, reason: string): Promise<Acti
   if (error) return fail(error)
   refresh()
   return { ok: true, message: "Order cancelled" }
+}
+
+/**
+ * Part of a line is delivered and the rest cannot be filled: cancel only the rest. A dealer
+ * gets the rest's share back on their wallet; the order then finishes with what it has.
+ */
+export async function cancelRemainingItems(orderId: string, reason: string): Promise<ActionResult> {
+  await requireRole("admin")
+  if (!uuid.safeParse(orderId).success) return { ok: false, error: "Unknown order" }
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("cancel_remaining_items", { p_order_id: orderId, p_reason: reason.trim().slice(0, 500) })
+  if (error) return fail(error)
+  const order = data as Order
+  after(() => notifyOrderDelivered(order.id))
+  refresh()
+  return { ok: true, message: order.dealer_id ? "The rest is cancelled and back on the dealer's wallet" : "The rest is cancelled. Refund the customer for those SIMs." }
 }
 
 /** Records a refund the owner sent from his own wallet. No money moves here. */

@@ -215,12 +215,14 @@ export async function OrdersList({
                         <span className="max-w-48 truncate">
                           {orderTitle(o)}
                         </span>
-                        <ProductBadge type={o.product_type} />
+                        {o.kind === "service" ? <Tag tone="brand">Service</Tag> : <ProductBadge type={o.product_type} />}
                         {o.kind === "refill" ? <Tag tone="brand">Refill</Tag> : null}
                         {o.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {o.quantity} {o.quantity === 1 ? "SIM" : "SIMs"}, {o.days !== null ? formatDays(o.days) : "SIM card only"}
+                        {o.kind === "service"
+                          ? `${o.quantity} ${o.quantity === 1 ? "number" : "numbers"}`
+                          : `${o.quantity} ${o.quantity === 1 ? "SIM" : "SIMs"}, ${o.days !== null ? formatDays(o.days) : "SIM card only"}`}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-48">

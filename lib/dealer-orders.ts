@@ -65,6 +65,7 @@ export async function getOrderingTerms(dealerId: string): Promise<OrderingTerms>
 export type BatchOrder = Pick<
   Order,
   | "id"
+  | "service_code"
   | "zip_code"
   | "area_code"
   | "plan_id"
@@ -87,7 +88,11 @@ export type BatchOrder = Pick<
   | "replaces_item_id"
   | "activation_requested_at"
   | "created_at"
->
+> & {
+  /** Bulk lines delivered in part: SIMs already live, and SIMs the owner cancelled. */
+  done_items?: number
+  cancelled_items?: number
+}
 
 export type Batch = {
   id: string
@@ -103,7 +108,37 @@ export type Batch = {
 export type BatchProgress = { delivered: number; total: number; cards: number; cardsShipped: number; status: CustomerStatus }
 
 const orderColumns =
-  "id, kind, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at, zip_code, area_code, plan_id"
+  "id, kind, service_code, number, status, phase, product_type, carrier_name, plan_name, days, addon_name, quantity, unit_price_cents, addon_price_cents, sim_card_price_cents, shipping_cents, total_cents, replacement_of, replaces_item_id, activation_requested_at, created_at, zip_code, area_code, plan_id"
+
+/**
+ * Per-SIM counts for lines delivered in part: SIMs already live on open lines, and SIMs the
+ * owner cancelled. Only those rows are read, so a long history stays cheap.
+ */
+async function withItemCounts(db: SupabaseClient, batches: Batch[]): Promise<Batch[]> {
+  const orders = batches.flatMap((b) => b.orders).filter((o) => o.quantity > 1 && o.kind !== "card_only" && o.status !== "cancelled")
+  if (!orders.length) return batches
+  const open = orders.filter((o) => o.status !== "fulfilled").map((o) => o.id)
+  const [{ data: done }, { data: cancelled }] = await Promise.all([
+    open.length
+      ? db.from("order_items").select("order_id, activated_at").in("order_id", open).eq("status", "fulfilled").limit(20000)
+      : Promise.resolve({ data: [] as { order_id: string; activated_at: string | null }[] }),
+    db.from("order_items").select("order_id").in("order_id", orders.map((o) => o.id)).eq("status", "cancelled").limit(20000),
+  ])
+  const byId = new Map(orders.map((o) => [o.id, o]))
+  for (const r of done ?? []) {
+    const o = byId.get(r.order_id)
+    if (!o) continue
+    // A posted SIM card's line counts once it is active, not when it shipped.
+    const activating = o.product_type === "physical" && o.phase === "activate" && o.kind !== "activation"
+    if (activating && !r.activated_at) continue
+    o.done_items = (o.done_items ?? 0) + 1
+  }
+  for (const r of cancelled ?? []) {
+    const o = byId.get(r.order_id)
+    if (o) o.cancelled_items = (o.cancelled_items ?? 0) + 1
+  }
+  return batches
+}
 
 /** The dealer's batches, newest first, with their orders. RLS keeps it to their own. */
 export async function listBatches(db: SupabaseClient, dealerId: string, limit = 50): Promise<Batch[]> {
@@ -113,7 +148,8 @@ export async function listBatches(db: SupabaseClient, dealerId: string, limit = 
     .eq("dealer_id", dealerId)
     .order("created_at", { ascending: false })
     .limit(limit)
-  return ((data ?? []) as Batch[]).map((b) => ({ ...b, orders: b.orders.filter((o) => !o.replacement_of).sort((x, y) => x.number - y.number) }))
+  const batches = ((data ?? []) as Batch[]).map((b) => ({ ...b, orders: b.orders.filter((o) => !o.replacement_of).sort((x, y) => x.number - y.number) }))
+  return withItemCounts(db, batches)
 }
 
 export async function getBatch(db: SupabaseClient, batchId: string): Promise<Batch | null> {
@@ -124,16 +160,17 @@ export async function getBatch(db: SupabaseClient, batchId: string): Promise<Bat
     .maybeSingle()
   if (!data) return null
   const batch = data as Batch
-  return { ...batch, orders: batch.orders.sort((x, y) => x.number - y.number) }
+  const [counted] = await withItemCounts(db, [{ ...batch, orders: batch.orders.sort((x, y) => x.number - y.number) }])
+  return counted
 }
 
-export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on" | "imei" | "eid" | "buyer_iccid">
+export type BatchItem = Pick<OrderItem, "id" | "order_id" | "seq" | "status" | "phone_number" | "iccid" | "qr_path" | "tracking_number" | "fulfilled_at" | "plan_starts_on" | "plan_ends_on" | "imei" | "eid" | "buyer_iccid" | "activated_at" | "old_phone_number">
 
 export async function listBatchItems(db: SupabaseClient, orderIds: string[]): Promise<BatchItem[]> {
   if (!orderIds.length) return []
   const { data } = await db
     .from("order_items")
-    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on, imei, eid, buyer_iccid")
+    .select("id, order_id, seq, status, phone_number, iccid, qr_path, tracking_number, fulfilled_at, plan_starts_on, plan_ends_on, imei, eid, buyer_iccid, activated_at, old_phone_number")
     .in("order_id", orderIds)
     .order("seq")
     .limit(5000)
@@ -150,8 +187,12 @@ export function batchProgress(orders: BatchOrder[]): BatchProgress {
   const statuses = live.map((o) => customerOrderStatus(o))
   // SIM cards with no plan are done once shipped; they never count as live lines.
   const lines = live.filter((o) => o.kind !== "card_only")
-  const total = lines.reduce((n, o) => n + o.quantity, 0)
-  const delivered = lines.reduce((n, o) => n + (customerOrderStatus(o) === "Delivered" ? o.quantity : 0), 0)
+  const total = lines.reduce((n, o) => n + o.quantity - (o.cancelled_items ?? 0), 0)
+  // A line delivered in part counts its SIMs already live.
+  const delivered = lines.reduce(
+    (n, o) => n + (customerOrderStatus(o) === "Delivered" ? o.quantity - (o.cancelled_items ?? 0) : (o.done_items ?? 0)),
+    0
+  )
   const cardLines = live.filter((o) => o.kind === "card_only")
   const cards = cardLines.reduce((n, o) => n + o.quantity, 0)
   const cardsShipped = cardLines.reduce((n, o) => n + (o.status === "fulfilled" ? o.quantity : 0), 0)

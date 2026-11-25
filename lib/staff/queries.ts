@@ -11,13 +11,13 @@ export type QueueOrder = Pick<
   | "id" | "kind" | "number" | "status" | "carrier_name" | "plan_name" | "product_type" | "days" | "quantity"
   | "area_code" | "zip_code" | "addon_name" | "paid_at" | "claimed_by" | "claimed_at" | "attention_reason"
   | "replacement_of" | "staff_note" | "created_at"
-  | "phase" | "plan_start" | "activate_on" | "activation_requested_at" | "shipped_at"
+  | "phase" | "plan_start" | "activate_on" | "activation_requested_at" | "shipped_at" | "service_code"
 > & { claimer: Person | null }
 
 const QUEUE_SELECT = `
   id, kind, number, status, carrier_name, plan_name, product_type, days, quantity, area_code, zip_code,
   addon_name, paid_at, claimed_by, claimed_at, attention_reason, replacement_of, staff_note, created_at,
-  phase, plan_start, activate_on, activation_requested_at, shipped_at,
+  phase, plan_start, activate_on, activation_requested_at, shipped_at, service_code,
   claimer:profiles!orders_claimed_by_fkey ( id, full_name, email )
 `
 
@@ -49,6 +49,32 @@ export async function deviceDetailCounts(orderIds: string[]): Promise<Map<string
     .or("imei.not.is.null,eid.not.is.null,buyer_iccid.not.is.null")
     .limit(20000)
   for (const r of data ?? []) out.set(r.order_id as string, (out.get(r.order_id as string) ?? 0) + 1)
+  return out
+}
+
+/**
+ * Bulk lines delivered in part: how many SIMs are already out (shipped, or live for a SIM
+ * card at its activation step), per order.
+ */
+export async function deliveredSoFar(orders: Pick<QueueOrder, "id" | "quantity" | "phase" | "product_type" | "kind">[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const bulk = orders.filter((o) => o.quantity > 1)
+  if (!bulk.length) return out
+  const byId = new Map(bulk.map((o) => [o.id, o]))
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("order_items")
+    .select("order_id, activated_at")
+    .in("order_id", bulk.map((o) => o.id))
+    .eq("status", "fulfilled")
+    .limit(20000)
+  for (const r of data ?? []) {
+    const o = byId.get(r.order_id as string)
+    if (!o) continue
+    const activating = o.product_type === "physical" && o.phase === "activate" && o.kind !== "activation"
+    if (activating && !r.activated_at) continue
+    out.set(o.id, (out.get(o.id) ?? 0) + 1)
+  }
   return out
 }
 

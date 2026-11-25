@@ -14,7 +14,7 @@ import { ClaimButton } from "@/components/staff/order-actions"
 import { getSessionProfile } from "@/lib/auth"
 import { formatDays, orderTitle } from "@/lib/format"
 import { elapsed, orderLabel, planStartLabel } from "@/lib/orders"
-import { deviceDetailCounts, getSettings, listOpenOrders, listQrToAdd, type QueueOrder } from "@/lib/staff/queries"
+import { deliveredSoFar, deviceDetailCounts, getSettings, listOpenOrders, listQrToAdd, type QueueOrder } from "@/lib/staff/queries"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Queue" }
@@ -35,7 +35,10 @@ export default function QueuePage() {
 
 async function Queue() {
   const [profile, orders, settings, qrToAdd] = await Promise.all([getSessionProfile(), listOpenOrders(), getSettings(), listQrToAdd()])
-  const devices = await deviceDetailCounts(orders.filter((o) => o.kind === "line" || o.kind === "activation").map((o) => o.id))
+  const [devices, done] = await Promise.all([
+    deviceDetailCounts(orders.filter((o) => o.kind === "line" || o.kind === "activation").map((o) => o.id)),
+    deliveredSoFar(orders),
+  ])
   const me = profile?.id
   const isAdmin = profile?.role === "admin"
   const warn = settings.unclaimed_alert_minutes
@@ -70,14 +73,14 @@ async function Queue() {
       {mine.length ? (
         <Group title="Yours" count={mine.length}>
           {mine.map((o) => (
-            <Row key={o.id} order={o} devices={devices.get(o.id)} warn={warn} href={`/agent/orders/${o.id}`} action={<OpenLink id={o.id} label="Continue" />} />
+            <Row key={o.id} order={o} devices={devices.get(o.id)} done={done.get(o.id)} warn={warn} href={`/agent/orders/${o.id}`} action={<OpenLink id={o.id} label="Continue" />} />
           ))}
         </Group>
       ) : null}
 
       <Group title="Waiting" count={waiting.length}>
         {waiting.length ? (
-          waiting.map((o) => <Row key={o.id} order={o} devices={devices.get(o.id)} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={<ClaimButton orderId={o.id} className="w-full sm:w-28" />} />)
+          waiting.map((o) => <Row key={o.id} order={o} devices={devices.get(o.id)} done={done.get(o.id)} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={<ClaimButton orderId={o.id} className="w-full sm:w-28" />} />)
         ) : (
           <li className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
             <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-success-ink" />
@@ -91,7 +94,7 @@ async function Queue() {
           {flagged.map((o) => (
             <Row
               key={o.id}
-              order={o} devices={devices.get(o.id)}
+              order={o} devices={devices.get(o.id)} done={done.get(o.id)}
               warn={warn}
               href={isAdmin ? `/admin/orders/${o.id}` : o.claimed_by === me ? `/agent/orders/${o.id}` : undefined}
               action={isAdmin ? <OpenLink id={o.id} admin label="Decide" primary /> : o.claimed_by === me ? <OpenLink id={o.id} label="Open" /> : <Holder order={o} />}
@@ -103,7 +106,7 @@ async function Queue() {
       {others.length ? (
         <Group title="With other agents" count={others.length}>
           {others.map((o) => (
-            <Row key={o.id} order={o} devices={devices.get(o.id)} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={isAdmin ? <OpenLink id={o.id} admin label="Open" /> : <Holder order={o} />} />
+            <Row key={o.id} order={o} devices={devices.get(o.id)} done={done.get(o.id)} warn={warn} href={isAdmin ? `/admin/orders/${o.id}` : undefined} action={isAdmin ? <OpenLink id={o.id} admin label="Open" /> : <Holder order={o} />} />
           ))}
         </Group>
       ) : null}
@@ -113,7 +116,7 @@ async function Queue() {
           {qrToAdd.map(({ order: o, missing }) => (
             <Row
               key={o.id}
-              order={o} devices={devices.get(o.id)}
+              order={o} devices={devices.get(o.id)} done={done.get(o.id)}
               warn={warn}
               href={isAdmin ? `/admin/orders/${o.id}` : `/agent/orders/${o.id}`}
               action={<OpenLink id={o.id} admin={isAdmin} label={`Add ${missing} QR`} />}
@@ -127,7 +130,7 @@ async function Queue() {
           {scheduled.map((o) => (
             <Row
               key={o.id}
-              order={o} devices={devices.get(o.id)}
+              order={o} devices={devices.get(o.id)} done={done.get(o.id)}
               warn={warn}
               href={isAdmin ? `/admin/orders/${o.id}` : `/agent/orders/${o.id}`}
               // The start date is already in the row's facts.
@@ -140,7 +143,7 @@ async function Queue() {
       {isAdmin && held.length ? (
         <Group title="Replacements waiting for your approval" count={held.length}>
           {held.map((o) => (
-            <Row key={o.id} order={o} devices={devices.get(o.id)} warn={warn} href={`/admin/orders/${o.id}`} action={<OpenLink id={o.id} admin label="Review" primary />} />
+            <Row key={o.id} order={o} devices={devices.get(o.id)} done={done.get(o.id)} warn={warn} href={`/admin/orders/${o.id}`} action={<OpenLink id={o.id} admin label="Review" primary />} />
           ))}
         </Group>
       ) : null}
@@ -160,16 +163,19 @@ function Group({ title, count, children }: { title: string; count: number; child
   )
 }
 
-function Row({ order, warn, action, href, devices }: { order: QueueOrder; warn: number; action: React.ReactNode; href?: string; devices?: number }) {
+function Row({ order, warn, action, href, devices, done }: { order: QueueOrder; warn: number; action: React.ReactNode; href?: string; devices?: number; done?: number }) {
   const since = order.activation_requested_at ?? order.paid_at ?? order.created_at
   const activation = order.phase === "activate"
   const startsToday = activation && order.plan_start === "on_date" && order.activate_on === usToday()
   const facts = [
-    `${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}`,
-    order.days !== null ? formatDays(order.days) : "SIM card only",
+    order.kind === "service"
+      ? `${order.quantity} ${order.quantity === 1 ? "number" : "numbers"}`
+      : `${order.quantity} ${order.quantity === 1 ? "SIM" : "SIMs"}`,
+    order.kind === "service" ? null : order.days !== null ? formatDays(order.days) : "SIM card only",
     order.addon_name,
     order.zip_code ? `ZIP ${order.zip_code}` : null,
     order.area_code ? `Area ${order.area_code}` : null,
+    done ? `${done} of ${order.quantity} ${order.product_type === "physical" && order.phase === "fulfil" && order.kind !== "activation" ? "shipped" : "delivered"}` : null,
     devices ? `Device details ${devices} of ${order.quantity}` : null,
     order.plan_start ? (order.plan_start === "on_date" ? `Starts ${planStartLabel(order).replace(/^On /, "")}` : "Starts on arrival") : null,
   ].filter(Boolean)
@@ -195,6 +201,7 @@ function Row({ order, warn, action, href, devices }: { order: QueueOrder; warn: 
           {activation ? <Tag tone="brand">Activate</Tag> : null}
           {order.kind === "refill" ? <Tag tone="brand">Refill</Tag> : null}
           {order.kind === "activation" ? <Tag tone="brand">Activate SIM</Tag> : null}
+          {order.kind === "service" ? <Tag tone="brand">{order.service_code === "esim_qr" ? "QR code" : "Number change"}</Tag> : null}
           {order.kind === "card_only" ? <Tag tone="neutral">SIM cards only</Tag> : null}
           {startsToday ? <Tag tone="warning">Starts today</Tag> : null}
           {order.replacement_of ? (
@@ -207,7 +214,7 @@ function Row({ order, warn, action, href, devices }: { order: QueueOrder; warn: 
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-2 font-medium">
           {orderTitle(order)}
-          <ProductBadge type={order.product_type} />
+          {order.kind === "service" ? null : <ProductBadge type={order.product_type} />}
         </p>
         <p className="mt-0.5 text-sm text-muted-foreground">{facts.join(" · ")}</p>
         {order.status === "needs_attention" && order.attention_reason ? (
