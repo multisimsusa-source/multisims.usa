@@ -50,6 +50,9 @@ export function ServiceBuilder({ offers, availableCents }: { offers: DealerServi
   const offer = carriers.find((o) => o.carrier_id === carrierId) ?? (carriers.length === 1 ? carriers[0] : null)
   const [text, setText] = React.useState("")
   const [reference, setReference] = React.useState("")
+  const [zip, setZip] = React.useState("")
+  const [area, setArea] = React.useState("")
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
   const [serverError, setServerError] = React.useState<string | null>(null)
   const [pending, start] = React.useTransition()
 
@@ -67,9 +70,10 @@ export function ServiceBuilder({ offers, availableCents }: { offers: DealerServi
     if (!canPlace) return
     setServerError(null)
     start(async () => {
-      const result = await placeDealerService({ carrier_id: offer.carrier_id, service: offer.service_code, numbers, reference })
+      const result = await placeDealerService({ carrier_id: offer.carrier_id, service: offer.service_code, numbers, reference, zip_code: zip, area_code: area })
       if (!result.ok) {
         setServerError(result.error)
+        setFieldErrors(result.fieldErrors ?? {})
         return void toast.error(result.error)
       }
       toast.success(result.message ?? "Request placed")
@@ -125,6 +129,48 @@ export function ServiceBuilder({ offers, availableCents }: { offers: DealerServi
                 </SelectContent>
               </Select>
             </Field>
+            {service === "number_change" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field data-invalid={Boolean(fieldErrors.zip_code) || undefined}>
+                  <FieldLabel htmlFor="service-zip">
+                    ZIP for the new numbers <span className="font-normal text-muted-foreground">(optional)</span>
+                  </FieldLabel>
+                  <Input
+                    id="service-zip"
+                    inputMode="numeric"
+                    maxLength={5}
+                    value={zip}
+                    onChange={(e) => {
+                      setZip(e.currentTarget.value.replace(/\D/g, ""))
+                      setFieldErrors((e) => ({ ...e, zip_code: "" }))
+                      setServerError(null)
+                    }}
+                    aria-invalid={Boolean(fieldErrors.zip_code) || undefined}
+                    className="tabular font-mono"
+                  />
+                  {fieldErrors.zip_code ? <FieldError>{fieldErrors.zip_code}</FieldError> : <FieldDescription>Where the lines will mostly be used, for example 10001.</FieldDescription>}
+                </Field>
+                <Field data-invalid={Boolean(fieldErrors.area_code) || undefined}>
+                  <FieldLabel htmlFor="service-area">
+                    Area code <span className="font-normal text-muted-foreground">(optional)</span>
+                  </FieldLabel>
+                  <Input
+                    id="service-area"
+                    inputMode="numeric"
+                    maxLength={3}
+                    value={area}
+                    onChange={(e) => {
+                      setArea(e.currentTarget.value.replace(/\D/g, ""))
+                      setFieldErrors((e) => ({ ...e, area_code: "" }))
+                      setServerError(null)
+                    }}
+                    aria-invalid={Boolean(fieldErrors.area_code) || undefined}
+                    className="tabular font-mono"
+                  />
+                  {fieldErrors.area_code ? <FieldError>{fieldErrors.area_code}</FieldError> : <FieldDescription>For new numbers that start with it, like 212. If it is not available, you get the nearest one.</FieldDescription>}
+                </Field>
+              </div>
+            ) : null}
             <Field data-invalid={Boolean(problems.length || tooMany) || undefined}>
               <FieldLabel htmlFor="service-numbers">Numbers</FieldLabel>
               <Textarea

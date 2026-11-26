@@ -15,7 +15,7 @@ import { batchLabel, getWallet, listLedger, type DealerWithLogin } from "@/lib/d
 import { formatPrice } from "@/lib/format"
 import { formatDateTime } from "@/lib/orders"
 import { createClient } from "@/lib/supabase/server"
-import { DealerAccountForm, DealerActiveSwitch, DealerPasswordButton, DealerPricesForm, WalletEntryButton, type CardPriceRow, type PriceRow } from "../dealer-controls"
+import { DealerAccountForm, DealerActiveSwitch, DealerPasswordButton, DealerPricesForm, WalletEntryButton, type CardPriceRow, type PriceRow, type ServicePriceRow } from "../dealer-controls"
 
 export const metadata: Metadata = { title: "Dealer" }
 
@@ -42,7 +42,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
   if (!data) notFound()
   const dealer = data as DealerWithLogin
 
-  const [wallet, ledger, { data: cardRows }, { data: cardOverrides }, { data: packages }, { data: overrides }, { data: batches }] = await Promise.all([
+  const [wallet, ledger, { data: cardRows }, { data: cardOverrides }, { data: packages }, { data: overrides }, { data: batches }, { data: serviceRows }, { data: serviceOverrides }] = await Promise.all([
     getWallet(supabase, id),
     listLedger(supabase, id, 100),
     supabase.from("sim_cards").select("carrier_id, price_cents, wholesale_price_cents, carrier:carriers!inner(name, display_order, active)").eq("active", true),
@@ -54,6 +54,11 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
       .order("days"),
     supabase.from("dealer_prices").select("day_package_id, price_cents").eq("dealer_id", id),
     supabase.from("order_batches").select("id, number, total_cents, created_at").eq("dealer_id", id).order("created_at", { ascending: false }).limit(5),
+    supabase
+      .from("carrier_services")
+      .select("carrier_id, service_code, price_cents, wholesale_price_cents, carrier:carriers!inner(name, display_order, active), service:services!inner(name, display_order)")
+      .eq("active", true),
+    supabase.from("dealer_service_prices").select("carrier_id, service_code, price_cents").eq("dealer_id", id),
   ])
 
   const override = new Map((overrides ?? []).map((o) => [o.day_package_id as string, o.price_cents as number]))
@@ -99,6 +104,29 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
       retailCents: c.price_cents,
       wholesaleCents: c.wholesale_price_cents,
       dealerCents: cardOverride.get(c.carrier_id) ?? null,
+    }))
+
+  // Services switched on in Catalogue > Services, as this dealer pays for them.
+  const serviceOverride = new Map((serviceOverrides ?? []).map((o) => [`${o.carrier_id}:${o.service_code}`, o.price_cents as number]))
+  type ServiceRow = {
+    carrier_id: string
+    service_code: string
+    price_cents: number
+    wholesale_price_cents: number | null
+    carrier: { name: string; display_order: number; active: boolean }
+    service: { name: string; display_order: number }
+  }
+  const services: ServicePriceRow[] = ((serviceRows ?? []) as unknown as ServiceRow[])
+    .filter((s) => s.carrier.active)
+    .sort((a, b) => a.service.display_order - b.service.display_order || a.carrier.display_order - b.carrier.display_order || a.carrier.name.localeCompare(b.carrier.name))
+    .map((s) => ({
+      carrierId: s.carrier_id,
+      carrier: s.carrier.name,
+      service: s.service_code,
+      serviceName: s.service.name,
+      retailCents: s.price_cents,
+      wholesaleCents: s.wholesale_price_cents,
+      dealerCents: serviceOverride.get(`${s.carrier_id}:${s.service_code}`) ?? null,
     }))
 
   const name = dealer.profile.full_name || dealer.profile.email
@@ -151,7 +179,7 @@ async function DealerDetail({ params }: Pick<PageProps<"/admin/dealers/[id]">, "
               <p className="mt-1 text-sm text-muted-foreground">
                 What this dealer pays for new SIMs and refills. An empty box uses your wholesale price. A length with neither is not offered to this dealer.</p>
             </div>
-            <DealerPricesForm dealerId={id} rows={rows} cards={cards} />
+            <DealerPricesForm dealerId={id} rows={rows} cards={cards} services={services} />
           </section>
 
           <section aria-labelledby="account-title" className="flex flex-col gap-4">

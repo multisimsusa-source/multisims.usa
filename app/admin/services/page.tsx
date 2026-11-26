@@ -17,7 +17,7 @@ export default function ServicesPage() {
     <>
       <AdminPageHeader
         title="Services"
-        description="Services on a line the customer already has, with a price for each carrier. Website customers pay when they ask. Dealers have it held on their wallet and taken for each number once it is done; leave the dealer price empty to keep a service off the dealer portal."
+        description="Services on a line the customer already has, with a price for each carrier. Website customers pay when they ask. Dealers have it held on their wallet and taken for each number once it is done. The dealer price applies to every dealer; give one dealer their own price on their page under Dealers. With neither, a service is not offered to that dealer."
       />
       <Suspense fallback={<ListSkeleton rows={4} />}>
         <ServiceTables />

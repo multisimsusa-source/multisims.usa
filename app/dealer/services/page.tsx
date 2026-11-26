@@ -9,7 +9,6 @@ import { FormSkeleton } from "@/components/admin/skeletons"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { requireRole } from "@/lib/auth"
 import { getWallet } from "@/lib/dealers"
-import { getServiceOffers } from "@/lib/services"
 import { createClient } from "@/lib/supabase/server"
 import { ServiceBuilder, type DealerServiceOffer } from "./service-builder"
 
@@ -32,17 +31,9 @@ export default function DealerServicesPage() {
 async function Builder() {
   const profile = await requireRole("dealer")
   const supabase = await createClient()
-  const [offers, wallet] = await Promise.all([getServiceOffers(), getWallet(supabase, profile.id)])
-  const forDealers: DealerServiceOffer[] = offers
-    .filter((o) => o.wholesale_price_cents !== null)
-    .map((o) => ({
-      carrier_id: o.carrier_id,
-      carrier_name: o.carrier_name,
-      service_code: o.service_code,
-      service_name: o.service_name,
-      description: o.description,
-      price_cents: o.wholesale_price_cents!,
-    }))
+  // This dealer's prices: their special price, else the dealer price set in Services.
+  const [{ data: offers }, wallet] = await Promise.all([supabase.rpc("dealer_service_offers"), getWallet(supabase, profile.id)])
+  const forDealers = (offers ?? []) as DealerServiceOffer[]
 
   if (!forDealers.length) {
     return (

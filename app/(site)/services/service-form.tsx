@@ -175,6 +175,25 @@ export function ServiceForm({
             </Field>
           </FormSection>
 
+          {service === "number_change" ? (
+            <FormSection title="Your new number" description="Optional: we match the new number to where you will use it.">
+              <Field data-invalid={invalid("zip")}>
+                <FieldLabel htmlFor="zip">
+                  US ZIP code <span className="font-normal text-muted-foreground">(optional)</span>
+                </FieldLabel>
+                <Input id="zip" name="zip" inputMode="numeric" maxLength={5} autoComplete="off" defaultValue={values.zip} aria-invalid={invalid("zip")} className="tabular font-mono" />
+                {errors.zip ? err("zip") : <FieldDescription>Where you will mostly be, for example 10001.</FieldDescription>}
+              </Field>
+              <Field data-invalid={invalid("area_code")}>
+                <FieldLabel htmlFor="area_code">
+                  Area code <span className="font-normal text-muted-foreground">(optional)</span>
+                </FieldLabel>
+                <Input id="area_code" name="area_code" inputMode="numeric" maxLength={3} autoComplete="off" defaultValue={values.area_code} aria-invalid={invalid("area_code")} className="tabular font-mono" />
+                {errors.area_code ? err("area_code") : <FieldDescription>For a number that starts with it, like 212. If it is not available, you get the nearest one.</FieldDescription>}
+              </Field>
+            </FormSection>
+          ) : null}
+
           <FormSection title="Contact" description="Your order link and updates go to this email.">
             <Field data-invalid={invalid("name")}>
               <FieldLabel htmlFor="name">Full name</FieldLabel>

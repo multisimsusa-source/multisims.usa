@@ -424,7 +424,7 @@ export async function OrderWorkspace({
             ) : null}
             <KeyValue label="Quantity" value={String(order.quantity)} mono />
             {/* A new line needs a ZIP and maybe an area code; cards without a plan and refills do not. */}
-            {order.kind !== "card_only" && !refill && !service ? (
+            {order.kind !== "card_only" && !refill && service !== "esim_qr" ? (
               <>
                 <KeyValue
                   label="ZIP code"

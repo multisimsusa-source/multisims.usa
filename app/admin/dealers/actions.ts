@@ -142,8 +142,19 @@ export async function saveDealerPrices(dealerId: string, formData: FormData): Pr
   const clear: string[] = []
   const setCards: { dealer_id: string; carrier_id: string; price_cents: number }[] = []
   const clearCards: string[] = []
+  const setServices: { dealer_id: string; carrier_id: string; service_code: string; price_cents: number }[] = []
+  const clearServices: { carrier_id: string; service_code: string }[] = []
   const fieldErrors: Record<string, string> = {}
   for (const [key, value] of formData.entries()) {
+    if (key.startsWith("service:")) {
+      const [, carrierId, code] = key.split(":")
+      if (!z.uuid().safeParse(carrierId).success || (code !== "esim_qr" && code !== "number_change")) continue
+      const cents = parseMoney(value)
+      if (cents === null) clearServices.push({ carrier_id: carrierId, service_code: code })
+      else if (Number.isNaN(cents)) fieldErrors[key] = "Enter a price like 3.00"
+      else setServices.push({ dealer_id: dealerId, carrier_id: carrierId, service_code: code, price_cents: cents })
+      continue
+    }
     if (key.startsWith("card:")) {
       const carrierId = key.slice(5)
       if (!z.uuid().safeParse(carrierId).success) continue
@@ -180,7 +191,15 @@ export async function saveDealerPrices(dealerId: string, formData: FormData): Pr
     const { error } = await supabase.from("dealer_sim_card_prices").delete().eq("dealer_id", dealerId).in("carrier_id", clearCards)
     if (error) return { ok: false, error: "Could not save the prices. Try again." }
   }
+  if (setServices.length) {
+    const { error } = await supabase.from("dealer_service_prices").upsert(setServices, { onConflict: "dealer_id,carrier_id,service_code" })
+    if (error) return { ok: false, error: "Could not save the prices. Try again." }
+  }
+  for (const c of clearServices) {
+    const { error } = await supabase.from("dealer_service_prices").delete().eq("dealer_id", dealerId).eq("carrier_id", c.carrier_id).eq("service_code", c.service_code)
+    if (error) return { ok: false, error: "Could not save the prices. Try again." }
+  }
   refresh()
-  const special = set.length + setCards.length
+  const special = set.length + setCards.length + setServices.length
   return { ok: true, message: special ? `Saved ${special} special ${special === 1 ? "price" : "prices"}` : "All prices follow the wholesale price list" }
 }

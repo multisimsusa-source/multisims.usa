@@ -205,11 +205,22 @@ export type CardPriceRow = {
   dealerCents: number | null
 }
 
+/** A service (QR code, number change) on one carrier, as this dealer pays for it. */
+export type ServicePriceRow = {
+  carrierId: string
+  carrier: string
+  service: string
+  serviceName: string
+  retailCents: number
+  wholesaleCents: number | null
+  dealerCents: number | null
+}
+
 /**
- * One row per day package, and one per carrier's SIM card: retail and wholesale for
- * reference, this dealer's own price to edit.
+ * One row per day package, one per carrier's SIM card and one per offered service: retail and
+ * wholesale for reference, this dealer's own price to edit.
  */
-export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; rows: PriceRow[]; cards: CardPriceRow[] }) {
+export function DealerPricesForm({ dealerId, rows, cards, services = [] }: { dealerId: string; rows: PriceRow[]; cards: CardPriceRow[]; services?: ServicePriceRow[] }) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [dirty, setDirty] = React.useState(false)
   const [pending, start] = React.useTransition()
@@ -291,6 +302,79 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
                           inputMode="decimal"
                           autoComplete="off"
                           defaultValue={centsToInput(c.dealerCents)}
+                          aria-invalid={Boolean(error) || undefined}
+                          aria-describedby={error ? `${name}-error` : undefined}
+                          className="font-mono tabular"
+                        />
+                      </div>
+                      {error ? (
+                        <p id={`${name}-error`} className="col-span-full text-sm text-danger-ink">
+                          {error}
+                        </p>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        ) : null}
+        {services.length ? (
+          <AccordionItem value="services" className="px-4 sm:px-5">
+            <AccordionTrigger className="items-center py-4 text-sm">
+              <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-medium">Services</span>
+                <span className="font-normal text-muted-foreground">
+                  QR code and number change
+                  {services.filter((s) => s.dealerCents !== null).length ? ` · ${services.filter((s) => s.dealerCents !== null).length} special` : ""}
+                  {services.filter((s) => s.dealerCents === null && s.wholesaleCents === null).length
+                    ? ` · ${services.filter((s) => s.dealerCents === null && s.wholesaleCents === null).length} not offered`
+                    : ""}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent keepMounted className="max-w-none pb-4 text-foreground">
+              <div className="hidden grid-cols-[1fr_6rem_6rem_9rem] gap-4 pb-2 text-xs font-medium text-muted-foreground sm:grid">
+                <span>Service</span>
+                <span className="text-right">Retail</span>
+                <span className="text-right">Dealer price</span>
+                <span>Special price</span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {services.map((s) => {
+                  const name = `service:${s.carrierId}:${s.service}`
+                  const error = errors[name]
+                  return (
+                    <li key={name} className="grid grid-cols-[1fr_9rem] items-center gap-x-4 gap-y-1 sm:grid-cols-[1fr_6rem_6rem_9rem]">
+                      <div className="text-sm">
+                        <label htmlFor={name}>
+                          {s.carrier} {s.serviceName}
+                        </label>
+                        <span className="block text-xs text-muted-foreground sm:hidden">
+                          Retail {formatPrice(s.retailCents)} &middot; Dealer price {s.wholesaleCents === null ? "not set" : formatPrice(s.wholesaleCents)}
+                        </span>
+                        {s.wholesaleCents === null && s.dealerCents === null ? (
+                          <span className="block text-xs text-muted-foreground">
+                            Not offered.{" "}
+                            <Link href="/admin/services" className="font-medium text-foreground underline underline-offset-4">
+                              Set a dealer price in Services
+                            </Link>{" "}
+                            or a special price here.
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="hidden text-right font-mono text-sm text-muted-foreground tabular sm:block">{formatPrice(s.retailCents)}</span>
+                      <span className="hidden text-right font-mono text-sm tabular sm:block">
+                        {s.wholesaleCents === null ? <span className="font-sans text-muted-foreground">Not set</span> : formatPrice(s.wholesaleCents)}
+                      </span>
+                      <div>
+                        <span aria-hidden className="block pb-1 text-xs text-muted-foreground sm:hidden">Special price</span>
+                        <Input
+                          id={name}
+                          name={name}
+                          inputMode="decimal"
+                          autoComplete="off"
+                          defaultValue={centsToInput(s.dealerCents)}
                           aria-invalid={Boolean(error) || undefined}
                           aria-describedby={error ? `${name}-error` : undefined}
                           className="font-mono tabular"
@@ -393,7 +477,7 @@ export function DealerPricesForm({ dealerId, rows, cards }: { dealerId: string; 
       >
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {dirty ? <span className="font-medium text-warning-ink">Unsaved changes. </span> : null}
-          Open a plan or SIM cards to set special prices. An empty box uses the wholesale price.
+          Open a plan, SIM cards or Services to set special prices. An empty box uses the wholesale price.
         </p>
         <Button type="submit" size="lg" disabled={pending || !dirty}>
           {pending ? "Saving..." : "Save prices"}

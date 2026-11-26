@@ -23,6 +23,8 @@ const schema = z.object({
     .min(1, "Paste at least one number")
     .max(500, "At most 500 numbers per request"),
   reference: z.string().trim().max(80, "Keep it under 80 characters"),
+  zip_code: z.string().trim().regex(/^([0-9]{5})?$/, "A ZIP code is 5 digits, for example 10001"),
+  area_code: z.string().trim().regex(/^([2-9][0-9]{2})?$/, "An area code is 3 digits, for example 212"),
 })
 
 export type DealerServiceInput = z.input<typeof schema>
@@ -37,7 +39,8 @@ export async function placeDealerService(input: DealerServiceInput): Promise<Act
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
-    return { ok: false, error: issue.message, fieldErrors: { [issue.path[0] === "reference" ? "reference" : "numbers"]: issue.message } }
+    const field = ["reference", "zip_code", "area_code"].includes(String(issue.path[0])) ? String(issue.path[0]) : "numbers"
+    return { ok: false, error: issue.message, fieldErrors: { [field]: issue.message } }
   }
   const seen = new Set<string>()
   for (const n of parsed.data.numbers) {
@@ -52,6 +55,9 @@ export async function placeDealerService(input: DealerServiceInput): Promise<Act
     p_service_code: parsed.data.service,
     p_numbers: parsed.data.numbers.map((n) => ({ phone: tidyPhone(n.phone), iccid: n.iccid.replace(/\s/g, "") })),
     p_reference: parsed.data.reference || null,
+    // Only a new number has a place: a QR code keeps the number it has.
+    p_zip_code: parsed.data.service === "number_change" ? parsed.data.zip_code || null : null,
+    p_area_code: parsed.data.service === "number_change" ? parsed.data.area_code || null : null,
   })
   if (error || !data) {
     const funds = /this order is (\d+) and (-?\d+) is available/.exec(error?.message ?? "")

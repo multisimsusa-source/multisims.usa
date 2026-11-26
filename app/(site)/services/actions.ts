@@ -31,6 +31,8 @@ const schema = z.object({
       .transform((v) => v.replace(/\s/g, ""))
       .refine((v) => /^[0-9]{18,22}[Ff]?$/.test(v), "An ICCID is 18 to 22 digits, printed on the SIM card"),
   ]),
+  zip: z.string().trim().regex(/^([0-9]{5})?$/, "Enter a 5-digit US ZIP code, or leave it empty"),
+  area_code: z.string().trim().regex(/^([2-9][0-9]{2})?$/, "Enter 3 digits, for example 212, or leave it empty"),
   name: z.string().trim().min(2, "Enter your full name").max(120, "Keep your name under 120 characters"),
   email: z.email("Enter a valid email address").max(200, "Keep the email under 200 characters"),
   phone: z
@@ -43,7 +45,7 @@ const schema = z.object({
     }, "Enter a phone number with country code, for example +94 77 123 4567"),
 })
 
-export type ServiceField = "service" | "carrier" | "line_phone" | "iccid" | "name" | "email" | "phone"
+export type ServiceField = "service" | "carrier" | "line_phone" | "iccid" | "zip" | "area_code" | "name" | "email" | "phone"
 
 export type ServiceState = {
   status: "idle" | "error"
@@ -63,7 +65,7 @@ export async function placeServiceOrder(_prev: ServiceState, formData: FormData)
   )
   if (values.company) return { status: "error", message: "Something went wrong. Please try again.", values }
 
-  const parsed = schema.safeParse({ ...values, iccid: values.iccid ?? "" })
+  const parsed = schema.safeParse({ ...values, iccid: values.iccid ?? "", zip: values.zip ?? "", area_code: values.area_code ?? "" })
   const fieldErrors: ServiceState["fieldErrors"] = {}
   if (!parsed.success) for (const issue of parsed.error.issues) fieldErrors[issue.path[0] as ServiceField] ??= issue.message
 
@@ -96,6 +98,9 @@ export async function placeServiceOrder(_prev: ServiceState, formData: FormData)
       customer_name: input.name,
       customer_email: input.email.toLowerCase(),
       customer_phone: input.phone,
+      // Where the new number should be: only for a number change.
+      zip_code: offer.service_code === "number_change" ? input.zip || null : null,
+      area_code: offer.service_code === "number_change" ? input.area_code || null : null,
       carrier_id: offer.carrier_id,
       carrier_name: offer.carrier_name,
       plan_name: offer.service_name,
